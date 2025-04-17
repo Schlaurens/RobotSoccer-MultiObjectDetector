@@ -4,6 +4,7 @@ Used to extract and label data from B-Human logs.
 
 ### Setup
 B-Human python bindings are used that require authentication. For this environment variables are used. If you are a B-Human member create a GitLab access token with API permissions. Save that token in an environment variable:
+
 `export UV_INDEX_PYBH_PASSWORD=<access-token>`
 
 ### Credits
