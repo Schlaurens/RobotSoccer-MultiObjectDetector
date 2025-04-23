@@ -9,7 +9,7 @@ def get_label_path(directory):
 
 
 def get_image_path(directory, name):
-    return os.path.join(directory, f"{name}.bin")
+    return os.path.join(directory, f"{name}.jpg")
 
 
 def save_labels(directory, labels):
