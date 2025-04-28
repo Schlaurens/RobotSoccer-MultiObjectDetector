@@ -68,7 +68,7 @@ def get_dataset(directory):
 
 def main():
 
-    train_ds = get_dataset("/Users/arne/Projects/Perception/data/MarcUwe_MarcUwe_CompetitionWalk_RoboCup2023__HTWK-Robots_1stHalf_1")
+    train_ds = get_dataset("/Users/laurensschiefelbein/Developer/MA_LabelingTool/data/Joerg_Joerg_CompetitionWalk_GO2025__HULKs_1stHalf_5")
     train_ds = train_ds.shuffle(32)
     train_ds = train_ds.batch(32)
 
