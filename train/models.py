@@ -185,9 +185,9 @@ class FullModel(tf.keras.Model):
             maps = dict(zip(self.encoder.output_names, maps))  # [B, H_out, W_out, 3], ([B, H_out, W_out, n_context])
         else:
             maps = {self.encoder.output_names[0]: maps}  # [B, H_out, W_out, 3] Encoder results for the first category
-        
+        # Convert YUYV to YUV
+        # Stack the the image along the channel dimensions in order to go from YUYV to Y1UVY2UV. Then reshape it to [B, H_in, W_in/2, 3] 
         image_yuv_stack = tf.stack([image[..., 0], image[..., 1], image[..., 3], image[..., 2], image[..., 1], image[..., 3]], axis=-1)
-        
         image_yuv = tf.reshape(image_yuv_stack, (tf.shape(image)[0], tf.shape(image)[1], tf.shape(image)[2] * 2, 3)) # [B, H_in, W_in/2, 3]
         
         results = {key: self._handle_category(image_yuv, camera, intrinsics, maps[key][..., 2], maps[key][..., :2], value["sampler"], value["extractor"], value["classifier"], training=training) for key, value in self.categories.items()} # Call _handle_category for each category and store the results in a dictionary
@@ -209,7 +209,7 @@ class FullModel(tf.keras.Model):
             [B, 4]
         :param logits: The logits for the category.
             [B, H_out, W_out]
-        :param offsets: The offsets for the category.
+        :param offsets: The offsets for the category. Relative to the upper left corner of the patch.
             [B, H_out, W_out, 2]
         :param sampler: The patch sampler for the category with a fixed number of candidates
         :param extractor: The patch extractor for the category with the fixed object parameters
