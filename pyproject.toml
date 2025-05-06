@@ -26,4 +26,3 @@ url = "https://gitlab.informatik.uni-bremen.de/api/v4/projects/7408/packages/pyp
 default = true
 authenticate = "always"
 
-
