@@ -63,9 +63,10 @@ def load_image_direct(path, **kwargs):
         image = u_image.load_bhuman_jpeg_image(f.read(), **kwargs)
     return image
 
-def get_offset_mask(label, object_name, input_dims= (480, 640), output_dims = (15, 20)):
+def get_masks(label, object_name, input_dims= (480, 640), output_dims = (15, 20)):
     """Generate an offset mask that converts the image coordinates of the object
     into offsets relative to given cell dimensions. 
+    And and objectsness mask that marks the cell where the center of the object is in.
     
     Args:
         label: label of the image
@@ -91,5 +92,8 @@ def get_offset_mask(label, object_name, input_dims= (480, 640), output_dims = (1
     # Scale offsets to the output size
     offsets_scaled = offsets * scale
 
-    return offsets_scaled
-    
+    # Mark all cells with true, where the value is between 0 and 1 (object is in that cell)
+    objectness_mask = [[all(n>=0 and n<1 for n in x) for x in row ] for row in offsets_scaled]
+
+    return offsets_scaled, objectness_mask
+
