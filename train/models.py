@@ -155,9 +155,11 @@ class FullModel(tf.keras.Model):
 
             print("ball map:", maps["ball"])
 
-            loss = tf.reduce_mean(tf.square(maps["ball"]))
+            #loss = tf.reduce_mean(tf.square(maps["ball"]))
 
             # encoder_loss = self.encoder_loss(batch_data[""], maps["ball"])
+            
+            loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)(y_true=batch_data["objectness_mask"], y_pred=maps["ball"][..., 2]) + tf.keras.losses.MSE(y_true=batch_data["offsets"], y_pred=maps["ball"][..., :2]) * batch_data["objectness_mask"]
 
         # Compute gradients
         gradients = tape.gradient(loss, self.trainable_variables)
