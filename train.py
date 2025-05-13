@@ -82,8 +82,6 @@ def main():
 
     train_ds = get_dataset("/home/laurens/var/git/MA_LabelingTool/data/DerJUSTin_DerJUSTin_CompetitionWalk_Default__Invisibles_1stHalf_3")
     train_ds = train_ds.shuffle(32)
-    #train_ds = train_ds.padded_batch(32)
-    
     train_ds = train_ds.batch(32, drop_remainder=False)
 
     # Upper camera dimensions. Width is halved because of YUYV format
