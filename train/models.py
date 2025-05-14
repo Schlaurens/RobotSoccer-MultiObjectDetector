@@ -233,6 +233,7 @@ class FullModel(tf.keras.Model):
         scale = tf.cast((res_in / res_out)[::-1], offsets.dtype)
         # TODO: we need a correction factor here if image is YUYV->YUV converted
         pixels = tf.cast(tf.stack(tf.meshgrid(tf.range(res_out[1]), tf.range(res_out[0])), axis=-1), offsets.dtype)
+        # TODO: maybe do something about the shape here?
         coords = tf.reshape((offsets + pixels + 0.5) * scale, (1, 20*15, 2)) # Per cell one coordinate pair
         logits = tf.reshape(logits, (1, 20*15))
         print("coords:", coords)
