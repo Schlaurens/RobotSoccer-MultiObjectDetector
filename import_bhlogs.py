@@ -46,12 +46,12 @@ if __name__ == "__main__":
         # if jpeg_image.width != 160 or jpeg_image.height != 120:  # TODO: 160, 120
         #     continue
 
-        ball_percept = frame["BallPercept"] if "BallPercept" in frame else None
+        ball_percept = frame.get("BallPercept", None)
         obstacles_image_percept = (
-            frame["ObstaclesImagePercept"] if "ObstaclesImagePercept" in frame else None
+            frame.get("ObstaclesImagePercept", None)
         )
         penalty_mark_percept = (
-            frame["PenaltyMarkPercept"] if "PenaltyMarkPercept" in frame else None
+            frame.get("PenaltyMarkPercept", None)
         )
 
         interesting = ball_percept.status != 0
@@ -67,8 +67,16 @@ if __name__ == "__main__":
             f.write(jpeg_image._data[16:])
 
         label = u_labels.create_empty_label(name)
-        u_labels.set_camera_pose(label, camera_matrix.translation.z, [_.elems[2] for _ in camera_matrix.rotation.cols])  # the latter is the z-axis ("up") in camera coordinates, which fixes the attitude, but not the yaw relative to the ground. this could also be expressed with two DoF as theta=inclination=arccos(z), phi=azimuth=sgn(y)*arccos(x/sqrt(x*x+y*y))
-        u_labels.set_camera_intrinsics(label, camera_info.opticalCenter.x, camera_info.opticalCenter.y, 0.5 * camera_info.width / math.tan(0.5 * camera_info.openingAngleWidth), 0.5 * camera_info.height / math.tan(0.5 * camera_info.openingAngleHeight))
+        u_labels.set_camera_pose(
+            label, camera_matrix.translation.z, [_.elems[2] for _ in camera_matrix.rotation.cols]
+        )  # the latter is the z-axis ("up") in camera coordinates, which fixes the attitude, but not the yaw relative to the ground. this could also be expressed with two DoF as theta=inclination=arccos(z), phi=azimuth=sgn(y)*arccos(x/sqrt(x*x+y*y))
+        u_labels.set_camera_intrinsics(
+            label,
+            camera_info.opticalCenter.x,
+            camera_info.opticalCenter.y,
+            0.5 * camera_info.width / math.tan(0.5 * camera_info.openingAngleWidth),
+            0.5 * camera_info.height / math.tan(0.5 * camera_info.openingAngleHeight),
+        )
         if args.import_labels:
             if ball_percept and ball_percept.status != 0:
                 u_labels.set_ball(
