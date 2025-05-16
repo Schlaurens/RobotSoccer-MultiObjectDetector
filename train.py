@@ -1,11 +1,9 @@
-import matplotlib.pyplot as plt
 import numpy as np
-
 import tensorflow as tf
 
 from train.models import FullModel
-from util import image as u_image
 from util import dataset as u_dataset
+from util import image as u_image
 
 
 def camera_from_label(label):
@@ -21,29 +19,31 @@ def camera_from_label(label):
     if np.abs(alpha) < 0.01:
         roll = pitch = 0
     else:
-        sin_alpha = np.sqrt(1 - label["cpose"]["z"][2]*label["cpose"]["z"][2])
+        sin_alpha = np.sqrt(1 - label["cpose"]["z"][2] * label["cpose"]["z"][2])
         roll = -label["cpose"]["z"][1] / sin_alpha * alpha
         pitch = label["cpose"]["z"][0] / sin_alpha * alpha
     height = label["cpose"]["h"] * 0.001
     return (roll, pitch, height)
 
+
 def intrinsics_from_label(label):
     """
     Get the camera intrinsics from the label.
-    
+
     Args:
         label: A label from the dataset
-        
+
     Returns:
         The camera intrinsics as a tuple (cx, cy, fx, fy).
     """
-    
+
     return (label["cintr"]["cx"], label["cintr"]["cy"], label["cintr"]["fx"], label["cintr"]["fy"])
 
+
 def get_dataset(directory):
-    # Load the dataset 
-    #TODO: must be divisible by 32
-    labels = u_dataset.load_labels(directory)[:160]
+    # Load the dataset
+    # TODO: must be divisible by 32
+    labels = u_dataset.load_labels(directory)[:736]
 
     images = []
     cameras = []
@@ -63,7 +63,6 @@ def get_dataset(directory):
         # Load the offsets for the label
         offsets.append(u_dataset.get_masks(label, "ball")[0])
 
-
     # Combine the images, cameras and intrinsics into a single tensorflow dataset
     return tf.data.Dataset.from_tensor_slices(
         {
@@ -77,13 +76,14 @@ def get_dataset(directory):
 
 
 def main():
-
-    train_ds = get_dataset("/home/laurens/var/git/MA_LabelingTool/data/DerJUSTin_DerJUSTin_CompetitionWalk_Default__Invisibles_1stHalf_3")
+    train_ds = get_dataset(
+        "/home/laurens/var/git/MA_LabelingTool/data/Joerg_Joerg_CompetitionWalk_GO2025__HULKs_2ndHalf_5"
+    )
     train_ds = train_ds.shuffle(32)
     train_ds = train_ds.batch(32, drop_remainder=False)
 
     # Upper camera dimensions. Width is halved because of YUYV format
-    model = FullModel(480, 320) 
+    model = FullModel(480, 320)
     model.compile(optimizer=tf.keras.optimizers.Adam())
     model.fit(x=train_ds, epochs=10)
 
@@ -100,6 +100,7 @@ def main():
     plt.show()
     print(results)
     """
+
 
 if __name__ == "__main__":
     main()
