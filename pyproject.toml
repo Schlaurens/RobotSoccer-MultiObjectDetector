@@ -28,7 +28,7 @@ authenticate = "always"
 
 [tool.ruff]
 extend-include = ["*.ipynb"]  # Also include notebooks.
-select = []
+select = ["I", "B", "UP", "F", "SIM"]
 ignore = [
     # Ignore some rules for now.
     "COM812",  # Interferes with formatting.
