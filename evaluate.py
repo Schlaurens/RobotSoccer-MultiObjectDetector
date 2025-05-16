@@ -10,7 +10,6 @@ import tensorflow as tf
 
 from util import dataset as u_dataset
 from util import image as u_image
-from util import labels as u_labels
 
 
 class EvaluateApplication:
@@ -64,9 +63,7 @@ class EvaluateApplication:
 
         self.slider_image.on_changed(lambda val: self.image_slider_changed(val))
         self.fig.canvas.mpl_disconnect(self.fig.canvas.manager.key_press_handler_id)
-        self.fig.canvas.mpl_connect(
-            "key_release_event", lambda event: self.key_released(event)
-        )
+        self.fig.canvas.mpl_connect("key_release_event", lambda event: self.key_released(event))
 
         self.select_image(0)
 
@@ -109,9 +106,7 @@ class EvaluateApplication:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="This script shows the results of a model."
-    )
+    parser = argparse.ArgumentParser(description="This script shows the results of a model.")
     parser.add_argument("directory")
     parser.add_argument("model_path")
     args = parser.parse_args()
