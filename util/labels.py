@@ -12,14 +12,14 @@ OBSTACLES_HEIGHT = 15
 
 
 def create_empty_label(name):
-    label = {"name": name}
-    return label
+    return {"name": name}
 
 
 def set_camera_pose(label, h, z):
     label["cpose"] = {}
     label["cpose"]["h"] = h
     label["cpose"]["z"] = [z[0], z[1], z[2]]
+
 
 def set_camera_intrinsics(label, cx, cy, fx, fy):
     label["cintr"] = {}
@@ -63,7 +63,7 @@ def set_obstacles(label, x1, y1, x2, y2, op=ObstaclesOp.INVERT):
             return
         label["obstacles"] = {}
         label["obstacles"]["mask"] = []
-        for i in range(OBSTACLES_HEIGHT):
+        for _ in range(OBSTACLES_HEIGHT):
             label["obstacles"]["mask"].append([0] * OBSTACLES_WIDTH)
     for y in range(max(0, y1), min(y2 + 1, OBSTACLES_HEIGHT)):
         for x in range(max(0, x1), min(x2 + 1, OBSTACLES_WIDTH)):

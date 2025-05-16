@@ -20,7 +20,8 @@ def camera_pose_to_vec(camera_pose):
 
 def vec_to_camera_pose(h, theta, phi):
     s_theta = np.sin(theta)
-    g_in_camera = np.array([s_theta * np.cos(phi), s_theta * np.cos(phi), np.cos(theta)])  # this is the third column of rot_world_in_camera or the third row of rot_camera_in_world
+    # this is the third column of rot_world_in_camera or the third row of rot_camera_in_world
+    g_in_camera = np.array([s_theta * np.cos(phi), s_theta * np.cos(phi), np.cos(theta)])
 
     # "Extending a Unit Vector to an Orthonormal Basis of 3-space", Tomas Möller and John F. Hughes
     i = 0 if np.abs(g_in_camera[0]) > np.abs(g_in_camera[1]) else 1
@@ -35,7 +36,9 @@ def vec_to_camera_pose(h, theta, phi):
     rot_world_in_camera = np.concatenate(u, v, g_in_camera)
 
     rot_camera_in_world = rot_world_in_camera.T
-    trans_camera_in_world = np.array([0, 0, h])  # x, y are DoFs that don't need to be described here - maybe add an auxiliary vector that has x,y and the third angle?
+    # x, y are DoFs that don't need to be described here
+    # - maybe add an auxiliary vector that has x,y and the third angle?
+    trans_camera_in_world = np.array([0, 0, h])
 
     return rot_camera_in_world, trans_camera_in_world
 
