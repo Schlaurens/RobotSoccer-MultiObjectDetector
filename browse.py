@@ -1,9 +1,8 @@
 from enum import Enum
 
-import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-import matplotlib.widgets as widgets
 import numpy as np
+from matplotlib import gridspec, widgets
 
 from util import augmentation as u_augmentation
 from util import dataset as u_dataset
@@ -42,15 +41,11 @@ class BrowseApplication:
             valfmt="%i",
         )
 
-        self.im_ax_img = self.ax_img.imshow(
-            np.zeros((480, 640))
-        )  # TODO: don't hardcode this here
+        self.im_ax_img = self.ax_img.imshow(np.zeros((480, 640)))  # TODO: don't hardcode this here
 
         self.slider_image.on_changed(lambda val: self.image_slider_changed(val))
         self.fig.canvas.mpl_disconnect(self.fig.canvas.manager.key_press_handler_id)
-        self.fig.canvas.mpl_connect(
-            "key_release_event", lambda event: self.key_released(event)
-        )
+        self.fig.canvas.mpl_connect("key_release_event", lambda event: self.key_released(event))
         self.fig.canvas.mpl_connect(
             "button_press_event", lambda event: self.image_button_pressed(event)
         )
@@ -68,9 +63,7 @@ class BrowseApplication:
 
     def select_image(self, index):
         label = self.labels[index]
-        image = u_dataset.load_image(
-            self.directory, label, image_format=u_image.ImageFormat.RGB
-        )
+        image = u_dataset.load_image(self.directory, label, image_format=u_image.ImageFormat.RGB)
         if self.augmentation:
             image, label = u_augmentation.apply(np.asarray(image), label)
         self.im_ax_img.set_data(image)
@@ -158,9 +151,7 @@ class BrowseApplication:
                 if u_labels.has_ball(self.labels[current]):
                     _, _, radius = u_labels.get_ball(self.labels[current])
                 # TODO: get radius in image by camera pose
-                u_labels.set_ball(
-                    self.labels[current], event.xdata, event.ydata, radius
-                )
+                u_labels.set_ball(self.labels[current], event.xdata, event.ydata, radius)
         elif self.label_mode == LabelMode.OBSTACLES:
             x, y = int(event.xdata / 16), int(event.ydata / 16)  # TODO: 16
             x_start, y_start = (
@@ -182,9 +173,7 @@ class BrowseApplication:
             if remove:
                 u_labels.unset_penalty_mark(self.labels[current])
             else:
-                u_labels.set_penalty_mark(
-                    self.labels[current], event.xdata, event.ydata
-                )
+                u_labels.set_penalty_mark(self.labels[current], event.xdata, event.ydata)
         self.redraw_labels(self.labels[current])
         self.drag_start_pos = None
 
