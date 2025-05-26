@@ -168,18 +168,36 @@ class FullModel(tf.keras.Model):
             # print("Shape of ball map logits:", tf.shape(maps["ball"][..., 2]))
             # print("Shape of batch data objectness mask:", tf.shape(batch_data["objectness_mask"]))
 
-            # loss = tf.reduce_mean(tf.square(maps["ball"]))
-
             # encoder_loss = self.encoder_loss(batch_data[""], maps["ball"])
 
-            # TODO: test if does what its supposed to do
-            loss = (
-                tf.keras.losses.BinaryCrossentropy(from_logits=True)(
-                    y_true=batch_data["objectness_mask"], y_pred=maps["ball"][..., 2]
-                )
-                + tf.keras.losses.MSE(y_true=batch_data["offsets"], y_pred=maps["ball"][..., :2])
-                * batch_data["objectness_mask"]
+            # Compute BCE for the objectness
+            bce = tf.reduce_sum(
+                tf.multiply(
+                    tf.keras.losses.BinaryCrossentropy(from_logits=True, reduction="none", axis=0)(
+                        y_true=batch_data["objectness_mask"], y_pred=maps["ball"][..., 2]
+                    ),
+                    batch_data["loss_mask"],
+                ),
+                axis=0,
             )
+
+            # Compute MSE for the offsets
+            mse = tf.reduce_mean(
+                tf.multiply(
+                    tf.keras.losses.MeanSquaredError(reduction="none")(
+                        y_true=batch_data["offsets"], y_pred=maps["ball"][..., :2]
+                    ),
+                    batch_data["objectness_mask"],
+                ),
+                axis=0,
+            )
+            
+            # Total loss
+            loss = tf.add(bce, mse)
+            
+            # tf.print("Shape loss: ", tf.shape(loss))
+            # tf.print("Shape BCE: ", tf.shape(bce))
+            # tf.print("Shape MSE: ", tf.shape(mse))
 
         # Compute gradients
         gradients = tape.gradient(loss, self.trainable_variables)
@@ -187,7 +205,7 @@ class FullModel(tf.keras.Model):
         # Update weights
         self.optimizer.apply_gradients(zip(gradients, self.trainable_variables, strict=True))
 
-        return {"loss": loss}  # TODO: metrics
+        return {"loss": loss, "bce": bce, "mse": mse}  # TODO: metrics
 
     def call(self, batch_data, training=None):
         """
