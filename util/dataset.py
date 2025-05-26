@@ -146,5 +146,48 @@ def get_masks(label, object_name, input_dims=(480, 640), output_dims=(15, 20)) -
 
     # Mark all cells with true, where the value is between 0 and 1 (object is in that cell)
     objectness_mask = [[all(n >= 0 and n < 1 for n in x) for x in row] for row in offsets_scaled]
+    
+    loss_mask = _generate_loss_mask(objectness_mask)
 
-    return offsets_scaled, objectness_mask
+    return offsets_scaled, objectness_mask, loss_mask
+
+
+def _generate_loss_mask(objectness_mask):
+    """Generate a binary mask that is 0 in each cell where the loss function should be ignored and 1 everywhere else
+
+    The loss function should be ignored when the presence of an object inside a cell in ambiguous. Whether this
+    is the case can be determined by the IoU value of the object and the cell. If the object is just a 1 dimensional point
+    (e. g. a penalty mark) the cell that contains the object coordinates is marked as one and the 8 cells surrounding it are  marked as 0 (just in case).
+
+    Args:
+        objectness_mask: the objectness mask
+
+    Returns:
+        A binary mask like described above.
+
+    """
+
+    # Loss mask for 1 dimensional objects
+
+    # invert objectness_mask
+    inverted_obj_mask = np.logical_not(np.array(objectness_mask))
+    # print("inverted_obj_msk: ", inverted_obj_mask)
+    
+    # get index
+    index = np.unravel_index(inverted_obj_mask.argmin(), inverted_obj_mask.shape)
+    
+    # turn the cells surrounding the index cell to 0
+    inverted_obj_mask[index] = 1.0
+    
+    # TODO: use a more elegant way to set the surrounding cells to 0, like convolution or einsum
+    for i in range(-1, 2):
+        for j in range(-1, 2):
+            if i == 0 and j == 0:
+                continue
+            # Check boundries
+            if (0 <= index[0] + i < inverted_obj_mask.shape[0]) and (0 <= index[1] + j < inverted_obj_mask.shape[1]):
+                # Set the surrounding cells to 0
+                inverted_obj_mask[index[0] + i, index[1] + j] = 0.0
+    
+
+    return inverted_obj_mask
