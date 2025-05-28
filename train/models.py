@@ -311,11 +311,11 @@ class FullModel(tf.keras.Model):
         # Gather n_candidates coordinates from the coordinate list
         patch_indices = sampler(logits)  # [B, N_out]
         coords = tf.gather(coords, patch_indices, batch_dims=1)  # [B, N_out, 2]
-        patches, masks = extractor(
+        patches, masks, boxes = extractor(
             image, coords, camera, intrinsics, training=training
         )  # [B, N_out, H_out, W_out, C], [B, N_out]
 
         # classification, offsets = classifier(tf.reshape(patches, (1*5, 32, 32, 4)))  # + meta + context
         # positions = coords + offsets  # TODO: stop gradient for coords?
 
-        return patches, masks  # classification, positions, masks
+        return patches, masks, boxes  # classification, positions, masks
