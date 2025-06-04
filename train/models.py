@@ -182,7 +182,7 @@ class FullModel(tf.keras.Model):
                 y_true=batch_data["offsets"], y_pred=maps["ball"][..., :2]
             )
             squared_error_multiplied = tf.multiply(squared_error, batch_data["objectness_mask"])
-            mse = tf.reduce_mean(squared_error_multiplied, axis=0)
+            mse = tf.reduce_mean(squared_error_multiplied, axis=0) * 10000
 
             # Total loss
             loss = tf.add(bce, mse)
