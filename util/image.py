@@ -174,11 +174,11 @@ def show_patches_on_image(image, label, results):
             width,
             height,
             linewidth=1,
-            edgecolor="black",
+            edgecolor="red",
             facecolor=(255 / 255, 123 / 255, 0 / 255, 0 / 255),
         )
         # Each patch has a number to identify the ordering
-        axes.text(x=(coords[0] + 4.0), y=coords[1] + 17.0, s=i + 1)
+        axes.text(x=(coords[0] + 4.0), y=coords[1] + 17.0, s=i + 1, color = 'red')
         axes.add_patch(rect)
 
     plt.title("Image")
