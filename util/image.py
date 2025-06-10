@@ -80,7 +80,7 @@ def show_cell_on_image(directory, label, object_name=None, grid_dims=(15, 20)):
     cell_dims = np.array(image.shape[1::-1])[::-1] // np.array(grid_dims)
 
     _, ax = plt.subplots()
-    ax.imshow(image)
+    ax.imshow(image, cmap='gray')
     ax.set_title(f"grid_dims={grid_dims}, cell_size={cell_dims}")
 
     # Draw cell grid with the given grid dimensions
@@ -160,7 +160,7 @@ def show_patches_on_image(image, label, results):
 
     # Draw image with patches on top of it
     _, axes = plt.subplots()
-    axes.imshow(image_converted[0, ..., 0] / 255)
+    axes.imshow(image_converted[0, ..., 0] / 255, cmap="gray")
 
     for i, box in enumerate(results[label][2]):
         # Coordinates for each box are y1, x1, y2, x2
@@ -185,10 +185,10 @@ def show_patches_on_image(image, label, results):
 
     # Draw the patch candidates in separate plots
     _, axes = plt.subplots(num_candidates)
-    axes[0].imshow(results[label][0][0, 0, ..., 0].numpy() / 255)
-    axes[1].imshow(results[label][0][0, 1, ..., 0].numpy() / 255)
-    axes[2].imshow(results[label][0][0, 2, ..., 0].numpy() / 255)
-    axes[3].imshow(results[label][0][0, 3, ..., 0].numpy() / 255)
-    axes[4].imshow(results[label][0][0, 4, ..., 0].numpy() / 255)
+    axes[0].imshow(results[label][0][0, 0, ..., 0].numpy() / 255, cmap="gray")
+    axes[1].imshow(results[label][0][0, 1, ..., 0].numpy() / 255, cmap="gray")
+    axes[2].imshow(results[label][0][0, 2, ..., 0].numpy() / 255, cmap="gray")
+    axes[3].imshow(results[label][0][0, 3, ..., 0].numpy() / 255, cmap="gray")
+    axes[4].imshow(results[label][0][0, 4, ..., 0].numpy() / 255, cmap="gray")
 
     plt.show()
