@@ -20,8 +20,8 @@ def camera_from_label(label):
         roll = pitch = 0
     else:
         sin_alpha = np.sqrt(1 - label["cpose"]["z"][2] * label["cpose"]["z"][2])
-        roll = -label["cpose"]["z"][1] / sin_alpha * alpha
-        pitch = label["cpose"]["z"][0] / sin_alpha * alpha
+        roll = label["cpose"]["z"][1] / sin_alpha * alpha
+        pitch = -label["cpose"]["z"][0] / sin_alpha * alpha
     height = label["cpose"]["h"] * 0.001
     return (roll, pitch, height)
 
