@@ -25,7 +25,7 @@ def get_dataset(directory):
 
     def _parse_tensor(serialized_tensor):
         """Parse the feature tensors using tf.io.parse_tensors
-        
+
         tf.ensure_shape ensures that the shape of the tensors is not unknown at runtime.
 
         Args:
@@ -34,7 +34,7 @@ def get_dataset(directory):
         Returns:
             a dict of 6 parsed tensors with known shapes.
         """
-        data = {
+        return {
             "image": tf.ensure_shape(
                 tf.io.parse_tensor(serialized_tensor["image"], out_type=tf.uint8), [480, 320, 4]
             ),
@@ -54,11 +54,10 @@ def get_dataset(directory):
                 tf.io.parse_tensor(serialized_tensor["loss_mask"], out_type=tf.float32), [15, 20]
             ),
         }
-        return data
 
     def _parse_function(example_proto):
         """Parse the given example using tf.io.parse_single_example
-        
+
         Uses the feature_description from above that maps the feature keys to it's datatype.
         Also parses the tensors that are inside the given example.
 
