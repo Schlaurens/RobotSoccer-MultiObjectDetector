@@ -48,9 +48,14 @@ def get_dataset(directory):
 
 
 def main():
-    train_ds = get_dataset("data/Joerg_Joerg_CompetitionWalk_GO2025__HULKs_2ndHalf_5.tfrecords")
+    batch_size = 32
+    num_samples = 64
+
+    train_ds = get_dataset("data/Joerg_Joerg_CompetitionWalk_GO2025__HULKs_1stHalf_5.tfrecords")
+
     train_ds = train_ds.shuffle(32, seed=42)
-    train_ds = train_ds.batch(32)
+    train_ds = train_ds.batch(batch_size)
+    train_ds = train_ds.repeat(-1)
 
     # Upper camera dimensions. Width is halved because of YUYV format
     model = FullModel(480, 320)
