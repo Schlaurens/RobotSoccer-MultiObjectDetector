@@ -76,6 +76,11 @@ def get_dataset(directory):
 
 
 def get_data_info():
+    """Get all .tfrecords files and the number of all samples across all selected data files.
+
+    Returns:
+        A dict where "file_names" is a list of paths to .tfrecords files and "num_samples is the number of samples across all data files
+    """
     file_names = []
     num_samples = 0
 
