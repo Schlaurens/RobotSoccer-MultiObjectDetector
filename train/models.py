@@ -305,8 +305,9 @@ class FullModel(tf.keras.Model):
             (offsets + pixels) * scale, (1, 20 * 15, 2)
         )  # Per cell one coordinate pair
         logits = tf.reshape(logits, (1, 20 * 15))
-        print("coords:", coords)
-        print("logits:", logits)
+
+        # print("coords:", coords)
+        # print("logits:", logits)
 
         # Gather n_candidates coordinates from the coordinate list
         patch_indices = sampler(logits)  # [B, N_out]
