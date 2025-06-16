@@ -157,39 +157,34 @@ class FullModel(tf.keras.Model):
         # self.encoder is a Model
         self.encoder = get_encoder(height, width, self.categories.keys(), self.n_context)
 
+    def encoder_loss(self, batch_data, maps):
+        # Compute Binary Cross Entropy
+        element_wise_bce = -(
+            batch_data["objectness_mask"] * tf.math.log(maps["ball"][..., 2])
+            + (1.0 - batch_data["objectness_mask"]) * tf.math.log(1.0 - maps["ball"][..., 2])
+        )
+        element_wise_bce_multiplied = tf.multiply(element_wise_bce, batch_data["loss_mask"])
+        bce = tf.reduce_sum(element_wise_bce_multiplied, axis=0)
+
+        # Compute MSE
+        squared_error = tf.keras.losses.MeanSquaredError(reduction="none")(
+            y_true=batch_data["offsets"], y_pred=maps["ball"][..., :2]
+        )
+        squared_error_multiplied = tf.multiply(squared_error, batch_data["objectness_mask"])
+        mse = tf.reduce_mean(squared_error_multiplied, axis=0) * 10000
+
+        # Total loss
+        loss = tf.add(bce, mse)
+
+        return loss, mse, bce
+
     def train_step(self, batch_data):
         with tf.GradientTape() as tape:
             results, maps = self(
                 (batch_data["image"], batch_data["camera"], batch_data["intrinsics"]), training=True
             )  # calls call()
 
-            # print("ball map:", maps["ball"])
-            # print("Shape of ball map offsets:", tf.shape(maps["ball"][..., :2]))
-            # print("Shape of batch data offsets:", tf.shape(batch_data["offsets"]))
-            # print("Shape of ball map logits:", tf.shape(maps["ball"][..., 2]))
-            # print("Shape of batch data objectness mask:", tf.shape(batch_data["objectness_mask"]))
-
-            # Compute Binary Cross Entropy
-            element_wise_bce = -(
-                batch_data["objectness_mask"] * tf.math.log(maps["ball"][..., 2])
-                + (1.0 - batch_data["objectness_mask"]) * tf.math.log(1.0 - maps["ball"][..., 2])
-            )
-            element_wise_bce_multiplied = tf.multiply(element_wise_bce, batch_data["loss_mask"])
-            bce = tf.reduce_sum(element_wise_bce_multiplied, axis=0)
-
-            # Compute MSE
-            squared_error = tf.keras.losses.MeanSquaredError(reduction="none")(
-                y_true=batch_data["offsets"], y_pred=maps["ball"][..., :2]
-            )
-            squared_error_multiplied = tf.multiply(squared_error, batch_data["objectness_mask"])
-            mse = tf.reduce_mean(squared_error_multiplied, axis=0) * 10000
-
-            # Total loss
-            loss = tf.add(bce, mse)
-
-            # tf.print("Shape loss: ", tf.shape(loss))
-            # tf.print("Shape BCE: ", tf.shape(bce))
-            # tf.print("Shape MSE: ", tf.shape(mse))
+            loss, mse, bce = self.encoder_loss(batch_data, maps)
 
         # Compute gradients
         gradients = tape.gradient(loss, self.trainable_variables)
