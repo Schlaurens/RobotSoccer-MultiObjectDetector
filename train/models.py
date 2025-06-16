@@ -84,7 +84,7 @@ def get_encoder(height, width, category_names, n_context):
         output += [context]
 
     return tf.keras.Model(
-        image, output
+        image, output, name="Encoder"
     )  # input: image, output: [offset, interest] for each category + context
 
 
@@ -118,7 +118,7 @@ def get_patch_classifier(patch_size, channels_in, n_meta, n_context, n_classes, 
         offset = tf.keras.layers.Dense(2)(x)
         out = [out, offset]
 
-    return tf.keras.Model(inputs, out)
+    return tf.keras.Model(inputs, out, name="Classifier")
 
 
 class FullModel(tf.keras.Model):
