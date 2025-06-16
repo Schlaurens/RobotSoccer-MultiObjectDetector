@@ -91,6 +91,45 @@ def load_image_direct(path, **kwargs):
         return u_image.load_bhuman_jpeg_image(f.read(), **kwargs)
 
 
+def camera_from_label(label):
+    """Calculate the camera roll pitch and height from the camera pose in the data.
+
+    Args:
+        label: the label with the camera pose
+
+    Returns:
+        A tuple of roll, pitch and height.
+    """
+    alpha = np.arccos(label["cpose"]["z"][2])
+    if np.abs(alpha) < 0.01:
+        roll = pitch = 0
+    else:
+        sin_alpha = np.sqrt(1 - label["cpose"]["z"][2] * label["cpose"]["z"][2])
+        roll = label["cpose"]["z"][1] / sin_alpha * alpha
+        pitch = -label["cpose"]["z"][0] / sin_alpha * alpha
+    height = label["cpose"]["h"] * 0.001
+    return (roll, pitch, height)
+
+
+def intrinsics_from_label(label):
+    """
+    Get the camera intrinsics from the label.
+
+    Args:
+        label: A label from the dataset
+
+    Returns:
+        The camera intrinsics as a tuple (cx, cy, fx, fy).
+    """
+
+    return (
+        label["cintr"]["cx"],
+        label["cintr"]["cy"],
+        label["cintr"]["fx"],
+        label["cintr"]["fy"],
+    )
+
+
 def get_masks(label, object_name, input_dims=(480, 640), output_dims=(15, 20)) -> tuple:
     """Return label masks that are used to train the encoder.
 
