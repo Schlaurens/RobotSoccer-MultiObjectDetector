@@ -194,6 +194,15 @@ class FullModel(tf.keras.Model):
 
         return {"loss": loss, "bce": bce, "mse": mse}
 
+    def test_step(self, batch_data):
+        results, maps = self(
+            (batch_data["image"], batch_data["camera"], batch_data["intrinsics"]), training=True
+        )  # calls call()
+
+        loss, mse, bce = self.encoder_loss(batch_data, maps)
+
+        return {"loss": loss, "bce": bce, "mse": mse}
+
     def call(self, batch_data, training=None):
         """
         :param image: The full resolution image from which the patches are extracted.
