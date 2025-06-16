@@ -61,7 +61,7 @@ def load_bhuman_jpeg_image(data, image_format=ImageFormat.GRAYSCALE):
     return convert_yuv_to_rgb(image) if image_format == ImageFormat.RGB else image
 
 
-def show_cell_on_image(directory, label, object_name=None, grid_dims=(15, 20)):
+def show_masks_on_image(directory, label, object_name=None, mask_name=None, grid_dims=(15, 20)):
     """Show the given image with an illustrated cell grid of given dimension.
 
     If an object_name is given and that object is present in the label. Its objectness
@@ -71,6 +71,7 @@ def show_cell_on_image(directory, label, object_name=None, grid_dims=(15, 20)):
         directory: Directory of the image
         label: label of the image
         object_name: name of the object. E. g. "ball". Defaults to None
+        mask_name: Name of the mask that should be drawn. None := no mask, 'objectness' := Objectness mask, 'loss' := Loss mask
         grid_dims: The dimensions of the cell_grid. Defaults to (15,20).
 
     """
@@ -80,8 +81,8 @@ def show_cell_on_image(directory, label, object_name=None, grid_dims=(15, 20)):
     cell_dims = np.array(image.shape[1::-1])[::-1] // np.array(grid_dims)
 
     _, ax = plt.subplots()
-    ax.imshow(image, cmap='gray')
-    ax.set_title(f"grid_dims={grid_dims}, cell_size={cell_dims}")
+    ax.imshow(image, cmap="gray")
+    ax.set_title(f"grid_dims={grid_dims}, cell_size={cell_dims}, mask={mask_name}")
 
     # Draw cell grid with the given grid dimensions
     for i in range(image.shape[1])[:: cell_dims[1]]:
@@ -89,52 +90,90 @@ def show_cell_on_image(directory, label, object_name=None, grid_dims=(15, 20)):
     for i in range(image.shape[0])[:: cell_dims[0]]:
         ax.axhline(y=i, color="black")
 
-    # Draw the cell with the highest objectness score (if a valid object_name is given)
-    if object_name in label:
+    if mask_name != None and object_name in label:
         _, objectness_mask, loss_mask = u_dataset.get_masks(
             label, object_name, output_dims=grid_dims
         )
 
-        objectness_mask = np.array(objectness_mask)
+        if mask_name == "objectness":
+            objectness_mask = np.array(objectness_mask)
 
-        # Get the index with the highest value.
-        indices_objectness = np.unravel_index(objectness_mask.argmax(), objectness_mask.shape)
-        indices_loss_mask = np.dstack(np.where(loss_mask == loss_mask.min()))[0]
+            # Get the indices with the highest/lowest values.
+            indices_objectness_pos = np.dstack(np.where(objectness_mask == loss_mask.max()))[0]
+            indices_objectness_neg = np.dstack(np.where(objectness_mask == loss_mask.min()))[0]
 
-        # scale the index to the size of the cell grid
-        scaled_objectness_mask_indices = indices_objectness * np.array(cell_dims)
-        scaled_loss_mask_indices = indices_loss_mask * np.array(cell_dims)
+            # Scale the indices to the size of the cell grid
+            scaled_objectness_mask_indices_pos = indices_objectness_pos * np.array(cell_dims)
+            scaled_objectness_mask_indices_neg = indices_objectness_neg * np.array(cell_dims)
 
-        # Make sure that the indices are 2D arrays to make iteration possible in the next step.
-        if len(scaled_loss_mask_indices.shape) == 1:
-            scaled_loss_mask_indices = np.expand_dims(scaled_loss_mask_indices, axis=0)
-        if len(scaled_objectness_mask_indices.shape) == 1:
-            scaled_objectness_mask_indices = np.expand_dims(scaled_objectness_mask_indices, axis=0)
+            # Make sure that the indices are 2D arrays to make iteration possible in the next step.
+            if len(scaled_objectness_mask_indices_pos.shape) == 1:
+                scaled_objectness_mask_indices_pos = np.expand_dims(
+                    scaled_objectness_mask_indices_pos, axis=0
+                )
 
-        # Draw a rectangle on the cell that cover the object.
-        # TODO: will need modification when there
-        # are multiple cell that cover an object.
-        for i in scaled_objectness_mask_indices:
-            rect_pos = patches.Rectangle(
-                i[::-1],  # Flip x and y coordinates for matplotlib
-                cell_dims[0],
-                cell_dims[1],
-                linewidth=1,
-                edgecolor="black",
-                facecolor=(255 / 255, 0 / 255, 0 / 255, 140 / 255),
-            )
-            ax.add_patch(rect_pos)
+            if len(scaled_objectness_mask_indices_neg.shape) == 1:
+                scaled_objectness_mask_indices_neg = np.expand_dims(
+                    scaled_objectness_mask_indices_neg, axis=0
+                )
 
-        for i in scaled_loss_mask_indices:
-            rect_loss_mask = patches.Rectangle(
-                i[::-1],  # Flip x and y coordinates for matplotlib
-                cell_dims[0],
-                cell_dims[1],
-                linewidth=1,
-                edgecolor="black",
-                facecolor=(255 / 255, 123 / 255, 0 / 255, 140 / 255),
-            )
-            ax.add_patch(rect_loss_mask)
+            # Draw a rectangle on the cells
+            for i in scaled_objectness_mask_indices_pos:
+                rect_pos = patches.Rectangle(
+                    i[::-1],  # Flip x and y coordinates for matplotlib
+                    cell_dims[0],
+                    cell_dims[1],
+                    linewidth=1,
+                    edgecolor="black",
+                    facecolor=(63 / 255, 255 / 255, 0 / 255, 75 / 255),  # lime color
+                )
+                ax.add_patch(rect_pos)
+
+            for i in scaled_objectness_mask_indices_neg:
+                rect_pos = patches.Rectangle(
+                    i[::-1],  # Flip x and y coordinates for matplotlib
+                    cell_dims[0],
+                    cell_dims[1],
+                    linewidth=1,
+                    edgecolor="black",
+                    facecolor=(255 / 255, 0 / 255, 0 / 255, 75 / 255),  # red color
+                )
+                ax.add_patch(rect_pos)
+
+        if mask_name == "loss":
+            indices_loss_mask_pos = np.dstack(np.where(loss_mask == loss_mask.max()))[0]
+            indices_loss_mask_neg = np.dstack(np.where(loss_mask == loss_mask.min()))[0]
+
+            scaled_loss_mask_indices_pos = indices_loss_mask_pos * np.array(cell_dims)
+            scaled_loss_mask_indices_neg = indices_loss_mask_neg * np.array(cell_dims)
+
+            if len(scaled_loss_mask_indices_pos.shape) == 1:
+                scaled_loss_mask_indices_pos = np.expand_dims(scaled_loss_mask_indices_pos, axis=0)
+
+            if len(scaled_loss_mask_indices_neg.shape) == 1:
+                scaled_loss_mask_indices_neg = np.expand_dims(scaled_loss_mask_indices_neg, axis=0)
+
+            for i in scaled_loss_mask_indices_pos:
+                rect_loss_mask = patches.Rectangle(
+                    i[::-1],  # Flip x and y coordinates for matplotlib
+                    cell_dims[0],
+                    cell_dims[1],
+                    linewidth=1,
+                    edgecolor="black",
+                    facecolor=(63 / 255, 255 / 255, 0 / 255, 75 / 255),  # lime color
+                )
+                ax.add_patch(rect_loss_mask)
+
+            for i in scaled_loss_mask_indices_neg:
+                rect_loss_mask = patches.Rectangle(
+                    i[::-1],  # Flip x and y coordinates for matplotlib
+                    cell_dims[0],
+                    cell_dims[1],
+                    linewidth=1,
+                    edgecolor="black",
+                    facecolor=(255 / 255, 0 / 255, 0 / 255, 75 / 255),  # red color
+                )
+                ax.add_patch(rect_loss_mask)
 
     plt.show()
 
