@@ -47,21 +47,36 @@ import numpy as np
 #     py = cy - fy * point_in_camera[2]
 #     return np.array([px, py])  # TODO: check if outside [0,w|h]?
 
-# def image_to_world(camera, camera_intr, point_in_image):
-#     cx, cy, fx, fy = camera_intr
-#     dir_in_camera = np.array([1, (np.array([cx, cy]) - point_in_image) / np.array([fx, fy])])
-    
-#     dir_in_world = rot_camera_in_world(camera) @ dir_in_camera
-    
-#     factors = np.nan_to_num(np.divide())
-#     if dir_in_world will never intersect with given z=x-plane:
-#         return None
-    
-#     f = dir_in_world[2] / trans_camera_in_world[2]
-    
-#     return trans_camera_in_world[:2] + f * dir_in_world[:2]
 
+def image_to_world(camera, camera_intr, point_in_image, object_size=0):
+    """Transforms image coordinates in to world coodinates using the camera parameters
 
+    Args:
+        camera: A tuple of camera roll, pitch and height
+        camera_intr: the intrinsic camera parameters (cx, cy, fx, fy)
+        point_in_image: A tuple of the image coordinates (x, y)
+        object_size: The size of the object that the image coordinates point to (in m). Defaults to 0.
+
+    Returns:
+        A vector in world coordinates of the given point
+    """
+    cx, cy, fx, fy = camera_intr
+    camera_height = camera[2]
+    object_height = 0.5 * object_size
+
+    # Camera ray to object in camera coordinates
+    dir_in_camera = np.array([1, (cx - point_in_image[0]) / fx, (cy - point_in_image[1]) / fy])
+
+    # Rotate the camera ray
+    dir_in_world = np.einsum("...ij,...j->...i", rot_camera_in_world(camera), dir_in_camera)
+
+    # Find intersection with plane
+    factor = np.nan_to_num(np.divide(object_height - camera_height, dir_in_world[2]))
+
+    # If the point cannot be projected on the plane the position is None
+    position_in_world = factor * dir_in_world if factor > 0 else None
+
+    return position_in_world
 
 
 def rot_camera_in_world(camera):
@@ -72,15 +87,15 @@ def rot_camera_in_world(camera):
     :return: The corresponding rotation matrix.
         [B, 3, 3]
     """
-    angle = tf.math.reduce_euclidean_norm(camera[..., :2], axis=-1)
-    x = camera[..., 0] / angle
-    y = camera[..., 1] / angle
-    c, s = tf.cos(angle), tf.sin(angle)
-    return tf.stack(
+    angle = np.linalg.norm(camera[:2])
+    x = camera[0] / angle
+    y = camera[1] / angle
+    c, s = np.cos(angle), np.sin(angle)
+    return np.stack(
         [
-            tf.stack([x * x * (1 - c) + c, x * y * (1 - c), y * s], axis=-1),
-            tf.stack([y * x * (1 - c), y * y * (1 - c) + c, -x * s], axis=-1),
-            tf.stack([-y * s, x * s, c], axis=-1),
+            np.stack([x * x * (1 - c) + c, x * y * (1 - c), y * s], axis=-1),
+            np.stack([y * x * (1 - c), y * y * (1 - c) + c, -x * s], axis=-1),
+            np.stack([-y * s, x * s, c], axis=-1),
         ],
         axis=-2,
     )
