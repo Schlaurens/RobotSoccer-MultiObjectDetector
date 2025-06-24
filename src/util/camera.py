@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf
 
 # def camera_pose_to_vec(camera_pose):
 #     h = camera_pose.translation.z
