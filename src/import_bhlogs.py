@@ -54,7 +54,7 @@ if __name__ == "__main__":
             frame["PenaltyMarkPercept"] if "PenaltyMarkPercept" in frame else None  # noqa: SIM401
         )
 
-        interesting = ball_percept.status != 0
+        interesting = ball_percept.status != 0 or penalty_mark_percept.wasSeen != 0
 
         # Skip image or reset counter.
         if cooldown > (0 if not interesting else args.step // 2):
