@@ -182,7 +182,7 @@ def show_patches_on_image(image, label, results):
     """Draw the given image with rectangles that indicate the position of the extracted patches. And the patches in separate plots
 
     Args:
-        image: the image in YUYV format [480, 640, 2]
+        image: the image in RGB format [480, 640, 3]
         label: the label of the object
         results: the results from the patch extractor. Contains for each detected object
             a number of patch candidates,
@@ -193,13 +193,10 @@ def show_patches_on_image(image, label, results):
     image_res = image.shape[0:-1]
     num_candidates = results[label][0].shape[1]
 
-    # Image colorspace conversion
-    image_yuv = tf.reshape(tf.constant(image), (-1, image_res[0], int(image_res[1] / 2), 4))
-    image_converted = tf.reshape((image_yuv), (-1, image_res[0], image_res[1], 2))
-
     # Draw image with patches on top of it
     _, axes = plt.subplots()
-    axes.imshow(image_converted[0, ..., 0] / 255, cmap="gray")
+    print(image.shape)
+    axes.imshow(image / 255)
 
     for i, box in enumerate(results[label][2]):
         # Coordinates for each box are y1, x1, y2, x2
