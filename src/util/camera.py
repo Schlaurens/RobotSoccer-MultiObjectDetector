@@ -1,3 +1,4 @@
+import keras
 import numpy as np
 
 # def camera_pose_to_vec(camera_pose):
@@ -65,13 +66,13 @@ def image_to_world(camera, camera_intr, point_in_image, object_size=0):
     object_height = 0.5 * object_size
 
     # Camera ray to object in camera coordinates
-    dir_in_camera = np.array([1, (cx - point_in_image[0]) / fx, (cy - point_in_image[1]) / fy])
+    dir_in_camera = keras.ops.array([1, (cx - point_in_image[0]) / fx, (cy - point_in_image[1]) / fy])
 
     # Rotate the camera ray
-    dir_in_world = np.einsum("...ij,...j->...i", rot_camera_in_world(camera), dir_in_camera)
+    dir_in_world = keras.ops.einsum("...ij,...j->...i", rot_camera_in_world(camera), dir_in_camera)
 
     # Find intersection with plane
-    factor = np.nan_to_num(np.divide(object_height - camera_height, dir_in_world[2]))
+    factor = keras.ops.nan_to_num(keras.ops.divide(object_height - camera_height, dir_in_world[2]))
 
     # If the point cannot be projected on the plane the position is None
     position_in_world = factor * dir_in_world if factor > 0 else None
@@ -87,15 +88,15 @@ def rot_camera_in_world(camera):
     :return: The corresponding rotation matrix.
         [B, 3, 3]
     """
-    angle = np.linalg.norm(camera[:2])
+    angle = keras.ops.norm(camera[:2])
     x = camera[0] / angle
     y = camera[1] / angle
-    c, s = np.cos(angle), np.sin(angle)
-    return np.stack(
+    c, s = keras.ops.cos(angle), keras.ops.sin(angle)
+    return keras.ops.stack(
         [
-            np.stack([x * x * (1 - c) + c, x * y * (1 - c), y * s], axis=-1),
-            np.stack([y * x * (1 - c), y * y * (1 - c) + c, -x * s], axis=-1),
-            np.stack([-y * s, x * s, c], axis=-1),
+            keras.ops.stack([x * x * (1 - c) + c, x * y * (1 - c), y * s], axis=-1),
+            keras.ops.stack([y * x * (1 - c), y * y * (1 - c) + c, -x * s], axis=-1),
+            keras.ops.stack([-y * s, x * s, c], axis=-1),
         ],
         axis=-2,
     )
