@@ -2,7 +2,6 @@ from enum import Enum
 
 import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
 import turbojpeg
 from matplotlib import patches
 from PIL import Image
