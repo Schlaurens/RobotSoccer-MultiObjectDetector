@@ -1,3 +1,4 @@
+import glob
 import json
 from pathlib import Path
 
@@ -233,3 +234,18 @@ def _generate_loss_mask(objectness_mask):
                 inverted_obj_mask[index[0] + i, index[1] + j] = 0.0
 
     return inverted_obj_mask
+
+def get_coords_from_offsets(offset_mask, image_dims=(480, 640)):
+    """Extract the image coordinates from the offset mask
+
+    Args:
+        mask: the offset mask
+    """
+    
+    output_dims=offset_mask.shape[:-1]
+    scale = np.array(output_dims) / np.array(image_dims)
+    
+    coords = offset_mask[0][0] / scale
+    
+    return coords
+
