@@ -33,12 +33,21 @@ class MAE(tf.keras.metrics.Metric):
 
         match = self.match_keypoints(wrld_coords_pred, wrld_coords_true, e_max=threshold)
 
-        for pair in match:
-            # If all element is in pair are 0.0, do not count them towards the metric
+        # If there were false predictions add the threshold distance as a penalty for every false prediction
+        if match["num_false_predictions"] > 0:
+            self.abs_error.assign_add(match["num_false_predictions"] * threshold)
+            self.num_samples.assign_add(match["num_false_predictions"])
+
+        for pair in match["matches"]:
+            distance = 0
+
+            # If all element is in pair are 0.0, there are no objects in the image
+            # do not count them towards the metric
             if (pair == 0).all():
                 continue
 
-            distance = tf.norm(pair[0] - pair[1])
+            # If a valid pair was found
+            distance += tf.norm(pair[0] - pair[1])
             self.abs_error.assign_add(distance)
             self.num_samples.assign_add(1.0)
 
@@ -85,4 +94,16 @@ class MAE(tf.keras.metrics.Metric):
         score_matrix = np.maximum(1 - np.linalg.norm(diffs, axis=-1) / e_max, 0)
         row_ind, col_ind = scipy.optimize.linear_sum_assignment(score_matrix, maximize=True)
         assigned = score_matrix[row_ind, col_ind] > 0
-        return np.stack([kps[row_ind[assigned]], pts[col_ind[assigned]]], axis=1)
+
+        # Number of points for which no match could be found, because the threshold was reached (false positive/negatives)
+        num_of_unassigned = assigned.size - np.count_nonzero(assigned)
+
+        # Number of points that were sorted out in linear_sum_assignment (in case of non-square score matrix)
+        num_discarded_points = np.abs(score_matrix.shape[0] - score_matrix.shape[1])
+
+        num_false_predictions = num_of_unassigned + num_discarded_points
+
+        return {
+            "matches": np.stack([kps[row_ind[assigned]], pts[col_ind[assigned]]], axis=1),
+            "num_false_predictions": num_false_predictions,
+        }
