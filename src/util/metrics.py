@@ -167,11 +167,11 @@ class MAE(Error_Metric):
         self.abs_error.assign_add(error * multiplier)
 
 
-class MSE(Error_Metric):
+class RMSE(Error_Metric):
     """
-    A custom metric class for calculating Mean Squared Error.
+    A custom metric class for calculating Root Mean Squared Error.
 
-    This class extends the ErrorMetric base class for calculating the MSE,
+    This class extends the ErrorMetric base class for calculating the RMSE,
     which squares the error to emphasize outliers.
 
     Attributes:
@@ -187,5 +187,5 @@ class MSE(Error_Metric):
         self.abs_error.assign_add(((error * self.scaling_factor) ** 2) * multiplier)
 
     def result(self):
-        # Scale the squared error back to m.
-        return (self.abs_error / self.scaling_factor) / self.num_samples
+        # Scale the RMSE back to m.
+        return (tf.sqrt(self.abs_error / self.num_samples) / self.scaling_factor)
