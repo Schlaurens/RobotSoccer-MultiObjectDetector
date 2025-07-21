@@ -2,6 +2,7 @@ import glob
 import json
 from pathlib import Path
 
+import keras
 import numpy as np
 import tensorflow as tf
 
@@ -250,8 +251,8 @@ def get_coords_from_offsets(offset_mask, image_dims=(480, 640)) -> tuple:
     offset_cell = offset_mask[0][0]
 
     # If the first cell is (-1, -1) then the object is not in the image
-    if offset_cell[0] == -1:
-        return None
+    if keras.ops.all(offset_mask < 0):
+        return keras.ops.array((-1.0, -1.0))
 
     # Get the output dims from the offset_mask
     output_dims = offset_mask.shape[:-1]
