@@ -1,5 +1,4 @@
 import keras
-import numpy as np
 
 # def camera_pose_to_vec(camera_pose):
 #     h = camera_pose.translation.z
@@ -62,7 +61,7 @@ def image_to_world(camera, camera_intr, point_in_image, object_size=0):
         A vector in world coordinates of the given point
     """
 
-    if np.all(point_in_image == -1.0):
+    if keras.ops.all(point_in_image == -1.0):
         return keras.ops.zeros((3,))
 
     cx, cy, fx, fy = camera_intr
