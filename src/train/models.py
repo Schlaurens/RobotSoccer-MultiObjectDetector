@@ -166,18 +166,19 @@ class FullModel(tf.keras.Model):
     def encoder_loss(self, batch_data, maps):
         # Compute Binary Cross Entropy
         element_wise_bce = -(
-            batch_data["objectness_mask"] * tf.math.log(maps["ball"][..., 2])
-            + (1.0 - batch_data["objectness_mask"]) * tf.math.log(1.0 - maps["ball"][..., 2])
+            batch_data["object_mask"] * tf.math.log(maps[..., 2])
+            + (1.0 - batch_data["object_mask"]) * tf.math.log(1.0 - maps[..., 2])
         )
         element_wise_bce_multiplied = tf.multiply(element_wise_bce, batch_data["loss_mask"])
-        bce = tf.reduce_sum(element_wise_bce_multiplied, axis=0)
+        bce = tf.reduce_sum(element_wise_bce_multiplied)
 
         # Compute MSE
         squared_error = tf.keras.losses.MeanSquaredError(reduction="none")(
-            y_true=batch_data["offsets"], y_pred=maps["ball"][..., :2]
+            y_true=batch_data["offset_mask"], y_pred=maps[..., :2]
         )
-        squared_error_multiplied = tf.multiply(squared_error, batch_data["objectness_mask"])
-        mse = tf.reduce_mean(squared_error_multiplied, axis=0) * 10000
+        squared_error_multiplied = tf.multiply(squared_error, batch_data["object_mask"])
+
+        mse = tf.reduce_mean(squared_error_multiplied) * 10000
 
         # Total loss
         loss = tf.add(bce, mse)
@@ -218,8 +219,24 @@ class FullModel(tf.keras.Model):
             results, maps = self(
                 (batch_data["image"], batch_data["camera"], batch_data["intrinsics"]), training=True
             )  # calls call()
+            encoder_losses = {
+                key: self.encoder_loss(batch_data[key], maps[key]) for key in self.categories
+            }
+            classifier_losses = {
+                key: self.classifier_loss(batch_data[key], results=value)
+                for key, value in results.items()
+            }  # (loss, mse, bce) for each category
+            encoder_loss = tf.reduce_sum([value["loss"] for value in encoder_losses.values()])
+            encoder_bce = tf.reduce_sum([value["bce"] for value in encoder_losses.values()])
+            encoder_mse = tf.reduce_sum([value["mse"] for value in encoder_losses.values()])
+            classifier_loss = tf.reduce_sum([value["loss"] for value in classifier_losses.values()])
+            classifier_bce = tf.reduce_sum([value["bce"] for value in classifier_losses.values()])
+            classifier_mse = tf.reduce_sum([value["bce"] for value in classifier_losses.values()])
 
-            loss, mse, bce = self.encoder_loss(batch_data, maps)
+            print("Encoder Loss: ", encoder_loss)
+            print("Classifier Loss: ", classifier_loss)
+
+            loss = encoder_loss + classifier_loss
 
         # Compute gradients
         gradients = tape.gradient(loss, self.trainable_variables)
