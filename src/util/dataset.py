@@ -163,7 +163,9 @@ def get_masks(label, object_name, input_dims=(480, 640), output_dims=(15, 20)) -
 
         return offsets, objectness_mask, loss_mask
 
-    coordinates = list(label[object_name].values())[:2]  # Only take x and y coordinates (ignore radius)
+    coordinates = list(label[object_name].values())[
+        :2
+    ]  # Only take x and y coordinates (ignore radius)
 
     # Make sure that input_dims are divisible by output_dims
     cell_dims = np.array(input_dims) // np.array(output_dims)
