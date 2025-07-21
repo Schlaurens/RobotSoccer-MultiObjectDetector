@@ -5,7 +5,7 @@ from util import dataset as u_dataset
 
 
 def main():
-    data = u_dataset.get_data_info()
+    data = u_dataset.get_data_info(directory="/data/groundtruth")
     dataset = u_dataset.get_dataset(data["file_names"])
 
     epochs = 200
