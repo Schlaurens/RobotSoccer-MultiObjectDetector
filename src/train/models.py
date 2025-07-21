@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from util import dataset as u_dataset
+
 from .layers import PatchExtractor, PatchSampler
 
 
