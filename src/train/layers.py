@@ -32,7 +32,6 @@ class PatchExtractor(tf.keras.layers.Layer):
         self.interpolation = interpolation
 
     @staticmethod
-    @tf.function(jit_compile=False)
     def to_rotation_matrix(camera):
         """Converts the (roll, pitch, height) representation to a rotation matrix according to the rodrigues formula.
 
@@ -54,7 +53,6 @@ class PatchExtractor(tf.keras.layers.Layer):
             axis=-2,
         )
 
-    @tf.function(jit_compile=False)
     def call(self, image, coords, camera, intrinsics, training=None):
         """Extracts patches of fixed size at given coordinates from an image.
 
