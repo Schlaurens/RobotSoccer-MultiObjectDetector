@@ -137,12 +137,12 @@ class FullModel(tf.keras.Model):
                 "n_classes": 1,
                 "n_candidates": 5,
             },
-            # "penaltyMark": {
-            #     "object_size": 0.175,
-            #     "object_height": 0.0,
-            #     "n_classes": 1,
-            #     "n_candidates": 5,
-            # },
+            "penaltyMark": {
+                "object_size": 0.175,
+                "object_height": 0.0,
+                "n_classes": 1,
+                "n_candidates": 5,
+            },
             # "field": {
             #     "object_size": 0.2,
             #     "n_classes": 6,  # penalty mark, center mark, X intersection, L intersection, T intersection, goal post
