@@ -161,7 +161,7 @@ class FullModel(tf.keras.Model):
                 object_size=value["object_size"], object_height=value.get("object_height", 0)
             )  # The patch extractor for the category with the fixed object parameters
             value["classifier"] = get_patch_classifier(
-                (32, 32), 3, self.n_meta, self.n_context, value["n_classes"]
+                self.patch_size, 3, self.n_meta, self.n_context, value["n_classes"]
             )  # The patch classifier for the category with the fixed number of classes
         # self.encoder is a Model
         self.encoder = get_encoder(height, width, self.categories.keys(), self.n_context)
