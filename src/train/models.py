@@ -111,9 +111,12 @@ def get_patch_classifier(patch_size, channels_in, n_meta, n_context, n_classes, 
     x = tf.keras.layers.Dense(32)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
-    out = (
-        tf.keras.layers.Dense(1)(x) if n_classes < 2 else tf.keras.layers.Dense(n_classes + 1)(x)
-    )  # + 1 for the background class
+    if n_classes < 2:
+        x = tf.keras.layers.Dense(1)(x)
+        out = tf.keras.layers.Activation("sigmoid")(x)
+    else:
+        tf.keras.layers.Dense(n_classes + 1)(x)  # + 1 for the background class
+        out = tf.keras.layers.Activation("softmax")(x)
 
     if with_offset:
         offset = tf.keras.layers.Dense(2)(x)
