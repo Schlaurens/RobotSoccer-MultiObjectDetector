@@ -1,4 +1,5 @@
 import keras
+import tensorflow as tf
 
 # def camera_pose_to_vec(camera_pose):
 #     h = camera_pose.translation.z
@@ -48,7 +49,12 @@ import keras
 #     return np.array([px, py])  # TODO: check if outside [0,w|h]?
 
 
-def image_to_world(camera, camera_intr, point_in_image, object_size=0):
+def image_to_world(
+    camera: tf.Tensor | tuple[float],
+    camera_intr: tf.Tensor | tuple[float],
+    point_in_image: tf.Tensor | tuple[float],
+    object_size: float = 0,
+) -> tf.Tensor:
     """Transforms image coordinates in to world coodinates using the camera parameters
 
     Args:
@@ -61,26 +67,54 @@ def image_to_world(camera, camera_intr, point_in_image, object_size=0):
         A vector in world coordinates of the given point
     """
 
+    # Ensure point_in_image, camera inputs and camera intrinsics are batched
+    if isinstance(point_in_image, list | tuple):
+        point_in_image = keras.ops.convert_to_tensor(point_in_image, dtype=tf.float32)
+        if len(keras.ops.shape(point_in_image)) == 1:
+            point_in_image = keras.ops.expand_dims(point_in_image, axis=0)
+    if isinstance(camera, list | tuple):
+        camera = keras.ops.convert_to_tensor(camera, dtype=tf.float32)
+        if len(keras.ops.shape(camera)) == 1:
+            camera = keras.ops.expand_dims(camera, axis=0)
+    if isinstance(camera_intr, list | tuple):
+        camera_intr = keras.ops.convert_to_tensor(camera_intr, dtype=tf.float32)
+        if len(keras.ops.shape(camera_intr)) == 1:
+            camera_intr = keras.ops.expand_dims(camera_intr, axis=0)
+
+    #  TODO: Do for batched point_in_image
     if keras.ops.all(point_in_image == -1.0):
         return keras.ops.zeros((3,))
 
-    cx, cy, fx, fy = camera_intr
-    camera_height = camera[2]
+    camera_height = camera[..., 2]  # [B, ]
     object_height = 0.5 * object_size
 
     # Camera ray to object in camera coordinates
-    dir_in_camera = keras.ops.array(
-        [1, (cx - point_in_image[0]) / fx, (cy - point_in_image[1]) / fy]
-    )
+    # dir_in_camera = keras.ops.array(
+    #     [1, (cx - point_in_image[0]) / fx, (cy - point_in_image[1]) / fy]
+    # )
+
+    dir_in_camera = tf.concat(
+        [
+            tf.ones_like(point_in_image[..., :1]),
+            (camera_intr[..., :2] - point_in_image) / camera_intr[..., 2:],
+        ],
+        -1,
+    )  # [B, 3]
 
     # Rotate the camera ray
-    dir_in_world = keras.ops.einsum("...ij,...j->...i", rot_camera_in_world(camera), dir_in_camera)
+    dir_in_world = keras.ops.einsum(
+        "...ij,...j->...i", rot_camera_in_world(camera), dir_in_camera
+    )  # [B, 3]
 
     # Find intersection with plane
-    factor = keras.ops.nan_to_num(keras.ops.divide(object_height - camera_height, dir_in_world[2]))
+    factor = keras.ops.nan_to_num(
+        keras.ops.divide(object_height - camera_height, dir_in_world[..., 2])
+    )  # [B, ]
 
-    # If the point cannot be projected on the plane the position is None
-    position_in_world = factor * dir_in_world if factor > 0 else None
+    factor = factor[..., tf.newaxis]
+
+    # If the point cannot be projected on the plane the position is [-1.0, -1.0, -1.0]
+    position_in_world = keras.ops.where(factor > 0, factor * dir_in_world, tf.fill([3], -1.0))
 
     return position_in_world
 
@@ -93,9 +127,9 @@ def rot_camera_in_world(camera):
     :return: The corresponding rotation matrix.
         [B, 3, 3]
     """
-    angle = keras.ops.norm(camera[:2])
-    x = camera[0] / angle
-    y = camera[1] / angle
+    angle = keras.ops.norm(camera[..., :2], axis=-1)
+    x = camera[..., 0] / angle
+    y = camera[..., 1] / angle
     c, s = keras.ops.cos(angle), keras.ops.sin(angle)
     return keras.ops.stack(
         [
