@@ -160,7 +160,9 @@ class FullModel(tf.keras.Model):
                 value["n_candidates"]
             )  # The patch sampler for the category with a fixed number of candidates
             value["extractor"] = PatchExtractor(
-                object_size=value["object_size"], object_height=value.get("object_height", 0)
+                patch_size=self.patch_size,
+                object_size=value["object_size"],
+                object_height=value.get("object_height", 0),
             )  # The patch extractor for the category with the fixed object parameters
             value["classifier"] = get_patch_classifier(
                 self.patch_size, 3, self.n_meta, self.n_context, value["n_classes"]
