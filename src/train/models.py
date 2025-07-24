@@ -231,9 +231,8 @@ class FullModel(tf.keras.Model):
         # tf.print("Classifier BCE: ", tf.shape(bce))
 
         # Compute MeanSquaredError
-        positions_pred = results[
-            "positions"
-        ]  # coords that were predicted by the encoder corrected with offset from classifier
+        # coords that were predicted by the encoder corrected with offset from classifier
+        positions_pred = results["positions"]
 
         # tf.print("positions pred", tf.shape(positions_pred))
         mse = tf.keras.losses.MeanSquaredError(name="classifier_mse")(coords_true, positions_pred)
