@@ -279,14 +279,13 @@ class FullModel(tf.keras.Model):
 
     def call(self, batch_data, training=None):
         """
-        :param image: The full resolution image from which the patches are extracted.
-            [B, H_in, W_in, C]
-        :param camera: The pose of the camera, represented as (roll angle, pitch angle, height above ground)
-            [B, 3]
-        :param intrinsics: The intrisics of the camera, represented as (cx, cy, fx, fy)
-            [B, 4]
-        :return: Per category x,y,p tuples
-            {key: [B, N_out, 2 + n_classes + 1?]}
+        Args:
+            image: The full resolution image from which the patches are extracted. [B, H_in, W_in, C]
+            camera: The pose of the camera, represented as (roll angle, pitch angle, height above ground) [B, 3]
+            intrinsics: The intrisics of the camera, represented as (cx, cy, fx, fy) [B, 4]
+
+        Returns:
+            Per category x,y,p tuples {key: [B, N_out, 2 + n_classes + 1?]}
         """
         image, camera, intrinsics = batch_data
         maps = self.encoder(image, training=training)  # Run the encoder on the image
@@ -351,24 +350,27 @@ class FullModel(tf.keras.Model):
         training=None,
     ):
         """
-        :param image: The full resolution image from which the patches are extracted.
-            [B, H_in, W_in, C]
-        :param camera: The pose of the camera, represented as (roll angle, pitch angle, height above ground)
-            [B, 3]
-        :param intrinsics: The intrisics of the camera, represented as (cx, cy, fx, fy)
-            [B, 4]
-        :param logits: The logits for the category.
-            [B, H_out, W_out]
-        :param offsets: The offsets for the category. Relative to the upper left corner of the patch.
-            [B, H_out, W_out, 2]
-        :param sampler: The patch sampler for the category with a fixed number of candidates
-        :param extractor: The patch extractor for the category with the fixed object parameters
-        :param classifier: The patch classifier for the category with the fixed number of classes
-        :param training: Whether the model is in training mode or not.
-        :return:
-            [B, N_out, n_classes]
-            [B, N_out, 2]
-            [B, N_out]
+
+        Args:
+            image: The full resolution image from which the patches are extracted. [B, H_in, W_in, C]
+            camera: The pose of the camera, represented as (roll angle, pitch angle, height above ground) [B, 3]
+            intrinsics: The intrisics of the camera, represented as (cx, cy, fx, fy) [B, 4]
+            logits: The logits for the category. [B, H_out, W_out]
+            offsets: The offsets for the category. Relative to the upper left corner of the patch. [B, H_out, W_out, 2]
+            sampler: The patch sampler for the category with a fixed number of candidates
+            extractor: The patch extractor for the category with the fixed object parameters
+            classifier: The patch classifier for the category with the fixed number of classes
+            training: Whether the model is in training mode or not.
+
+        Returns:
+            dict:
+                patches: [B, N_out, *patch_size, channel_dims]
+                masks: [B, N_out]
+                boxes: [B, N_out, 4]
+                coords: [B, N_out, 2]
+                classification: [B, N_out]
+                positions: [B, N_out, n_classes]
+
         """
         res_in = tf.shape(image)[-3:-1]  # [H_in, W_in] (ignore batch and channel dimensions)
         res_out = tf.shape(offsets)[-3:-1]  # [H_out, W_out]
