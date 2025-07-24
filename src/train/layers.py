@@ -89,7 +89,7 @@ class PatchExtractor(tf.keras.layers.Layer):
         )  # [B, N, 3]
 
         # Calculate intersection point with ground
-        camera_height = tf.expand_dims(camera[..., 2], -1)  # [B, 1]
+        camera_height = tf.expand_dims(camera[..., 2], -1)  # [B, N, 1]
         factors = tf.math.divide_no_nan(
             (self.object_height - camera_height), rotated_camera_rays[..., 2]
         )  # [B, N]
