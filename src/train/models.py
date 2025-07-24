@@ -75,7 +75,6 @@ def get_encoder(height, width, category_names, n_context):
         # TODO: some activated stuff here?
         offset = tf.keras.layers.Conv2D(2, 1)(x)
 
-        # TODO: some activated stuff here?
         x = tf.keras.layers.Conv2D(1, 1)(x)
         interest = tf.keras.layers.Activation("sigmoid")(x)
 
