@@ -444,6 +444,7 @@ class FullModel(tf.keras.Model):
         )  # + meta + context
 
         classification = tf.reshape(classification, (tf.shape(intrinsics)[0], sampler.n_sample))
+        boxes = tf.reshape(boxes, (tf.shape(intrinsics)[0], sampler.n_sample, 4))
 
         positions = coords + tf.reshape(
             offsets, (tf.shape(intrinsics)[0], sampler.n_sample, 2)
