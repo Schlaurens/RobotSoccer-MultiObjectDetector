@@ -130,6 +130,7 @@ class FullModel(tf.keras.Model):
         super().__init__()  # Subclass of the Model class
         # Size of context vector
         self.patch_size = (32, 32)
+        self.patch_channels = 3
         self.n_context = 0
         self.n_meta = 0
         self.categories = {
@@ -165,7 +166,11 @@ class FullModel(tf.keras.Model):
                 object_height=value.get("object_height", 0),
             )  # The patch extractor for the category with the fixed object parameters
             value["classifier"] = get_patch_classifier(
-                self.patch_size, 3, self.n_meta, self.n_context, value["n_classes"]
+                self.patch_size,
+                self.patch_channels,
+                self.n_meta,
+                self.n_context,
+                value["n_classes"],
             )  # The patch classifier for the category with the fixed number of classes
         # self.encoder is a Model
         self.encoder = get_encoder(height, width, self.categories.keys(), self.n_context)
@@ -424,7 +429,10 @@ class FullModel(tf.keras.Model):
         tf.print(patches)
         # tf.print(coords)
         classification, offsets = classifier(
-            tf.reshape(patches, (tf.shape(intrinsics)[0] * sampler.n_sample, *self.patch_size, 3))
+            tf.reshape(
+                patches,
+                (tf.shape(intrinsics)[0] * sampler.n_sample, *self.patch_size, self.patch_channels),
+            )
         )  # + meta + context
 
         classification = tf.reshape(classification, (tf.shape(intrinsics)[0], sampler.n_sample))
