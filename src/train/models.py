@@ -237,35 +237,56 @@ class FullModel(tf.keras.Model):
         threshold = 50.0
 
         # Everywhere where coords_true is -1.0 also write -1.0 into distances. Thus for every image without an object, the distance from y_pred to y_true is -1.0.
-        distances = tf.where(
-            tf.math.equal(-1.0, coords_true[..., 0]),
-            tf.constant([-1], dtype=tf.float32),
-            distances,
-        )
+        # distances = tf.where(
+        #     tf.math.equal(-1.0, coords_true[..., 0]),
+        #     tf.constant([-1], dtype=tf.float32),
+        #     distances,
+        # )
 
         # When the distance is inside the threshold and the distance is not -1.0, the groundtruth value for that candidate is 1.0. It is 0.0 in every other case.
-        y_true = tf.where(
-            tf.logical_and(distances <= threshold, distances != -1.0),
-            tf.constant([1.0], dtype=tf.float32),
-            tf.constant([0.0], dtype=tf.float32),
-        )  # [B, N]
+        # y_true = tf.where(
+        #     tf.logical_and(distances <= threshold, distances != -1.0),
+        #     tf.constant([1.0], dtype=tf.float32),
+        #     tf.constant([0.0], dtype=tf.float32),
+        # )  # [B, N]
 
         # tf.print("Coords True: ", coords_true)
         bce = tf.keras.losses.BinaryCrossentropy(from_logits=False, name="classifier_bce")(
             y_true, y_pred
         )
 
-        # tf.print("distances: ", distances)
-        # tf.print("y_pred: ", y_pred)
-        # tf.print("y_true: ", y_true)
-        # tf.print("Classifier BCE: ", tf.shape(bce))
+        # if coords_pred point outside of the patch but invalid offsets were predicted, add max error.
+        mask_for_max_error = tf.logical_and(
+            are_coords_true_inside_patch,
+            tf.logical_not(are_coords_pred_inside_patch),  # [B, N]
+        )
+        # if coords_true are outside of patch the object is outside of patch and no valid offsets can be predicted, add 0 error.
+        mask_for_no_error = tf.logical_not(are_coords_true_inside_patch)  # [B, N]
+        # if both coords_true and coords_pred are inside the patch, calculate error with MSE.
+        mask_for_mse = tf.logical_and(
+            are_coords_true_inside_patch, are_coords_true_inside_patch
+        )  # [B, N]
+
+        squared_error = tf.where(
+            mask_for_mse,
+            tf.keras.losses.MeanSquaredError(name="classifier_mse", reduction="none")(
+                coords_true, coords_pred
+            ),
+            tf.where(mask_for_max_error, threshold**2, tf.where(mask_for_no_error, 0.0, -1.0)),
+        )  # [B, N]
+
+        tf.print(squared_error)
 
         # Compute MeanSquaredError
         # coords that were predicted by the encoder corrected with offset from classifier
-        positions_pred = results["positions"]
+        # squared_error = tf.keras.losses.MeanSquaredError(name="classifier_mse", reduction="none")(
+        #     coords_true, coords_pred
+        # )  # [B, N]
 
-        # tf.print("positions pred", tf.shape(positions_pred))
-        mse = tf.keras.losses.MeanSquaredError(name="classifier_mse")(coords_true, positions_pred)
+        # If the classifier thinks that there is no object in the image, this error has a smaller contribution to the loss
+        squared_error_multiplied = squared_error * y_pred  # [B, N]
+
+        mse = tf.reduce_mean(squared_error_multiplied)
 
         loss = bce + mse
 
