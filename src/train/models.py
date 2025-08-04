@@ -245,19 +245,16 @@ class FullModel(tf.keras.Model):
             are_coords_true_inside_patch,
             tf.logical_not(are_coords_pred_inside_patch),  # [B, N]
         )
-        # if coords_true are outside of patch the object is outside of patch and no valid offsets can be predicted, add 0 error.
-        mask_for_no_error = tf.logical_not(are_coords_true_inside_patch)  # [B, N]
-        # if both coords_true and coords_pred are inside the patch, calculate error with MSE.
         mask_for_mse = tf.logical_and(
             are_coords_true_inside_patch, are_coords_true_inside_patch
         )  # [B, N]
 
         squared_error = tf.where(
             mask_for_mse,
-            tf.keras.losses.MeanSquaredError(name="classifier_mse", reduction="none")(
-                coords_true, coords_pred
-            ),
-            tf.where(mask_for_max_error, threshold**2, tf.where(mask_for_no_error, 0.0, -1.0)),
+            tf.reduce_sum(tf.square(coords_pred - coords_true), axis=-1),
+            tf.where(
+                mask_for_max_error, max_error**2, 0.0
+            ),  # If mask_for_mse AND mask_for_max_error are false, the object has to be outside of the patch and no valid offsets can be predicted, add 0 error.
         )  # [B, N]
 
         tf.print(squared_error)
