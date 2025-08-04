@@ -7,3 +7,4 @@ data/*
 .continue/*
 *.tfrecords
 *.keras
+logs/*
