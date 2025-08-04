@@ -203,7 +203,7 @@ class FullModel(tf.keras.Model):
         mse = tf.reduce_mean(squared_error_multiplied) * 10000
 
         # Total loss
-        loss = tf.add(bce, mse)
+        loss = bce + mse
 
         return {"loss": loss, "mse": mse, "bce": bce}
 
