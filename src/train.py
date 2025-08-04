@@ -49,7 +49,7 @@ def main():
 
     log_dir = "logs/fit/" + timestamp
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-
+    # TODO: Checkpoint callback
     model.fit(
         x=train_ds,
         validation_data=val_ds,
