@@ -16,6 +16,7 @@ def save_models(model, timestamp: str) -> None:
 
 def get_callbacks(timestamp: str):
     log_dir = "logs/fit/" + timestamp
+
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
     checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
@@ -24,7 +25,7 @@ def get_callbacks(timestamp: str):
         monitor="val_total_loss",
         mode="min",
         save_best_only=True,
-        verbose=1,
+        verbose=0,
     )
 
     csv_logger = tf.keras.callbacks.CSVLogger(log_dir + "/log.csv", separator=",", append=True)
