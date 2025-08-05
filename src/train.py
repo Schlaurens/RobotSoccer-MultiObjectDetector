@@ -14,6 +14,22 @@ def save_models(model, timestamp: str) -> None:
     model.get_layer("classifier").save(f"models/classifier/classifier_{timestamp}.keras")
 
 
+def get_callbacks(timestamp: str):
+    log_dir = "logs/fit/" + timestamp
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+
+    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+        filepath=f"checkpoints/{timestamp}/checkpoint-" + "{epoch:02d}.weights.h5",
+        save_weights_only=True,
+        monitor="val_total_loss",
+        mode="min",
+        save_best_only=True,
+        verbose=1,
+    )
+
+    return [tensorboard_callback, checkpoint_callback]
+
+
 def load_datasets(validation_split=0.3, batch_size=32):
     data = u_dataset.get_data_info(directory="/data/groundtruth")
     dataset = u_dataset.get_dataset(data["file_names"])
@@ -58,16 +74,15 @@ def main():
     model = FullModel(480, 320)
     model.compile(optimizer=tf.keras.optimizers.Adam(), jit_compile=False)
 
-    log_dir = "logs/fit/" + timestamp
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-    # TODO: Checkpoint callback
+    callbacks = get_callbacks(timestamp)
+
     model.fit(
         x=dataset["train_ds"],
         validation_data=dataset["val_ds"],
         epochs=epochs,
         steps_per_epoch=dataset["train_samples"] // batch_size,
         validation_steps=dataset["val_samples"] // batch_size,
-        callbacks=[tensorboard_callback],
+        callbacks=callbacks,
     )
 
     save_models(model, timestamp)
