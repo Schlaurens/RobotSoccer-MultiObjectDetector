@@ -53,6 +53,7 @@ class PatchExtractor(tf.keras.layers.Layer):
             axis=-2,
         )
 
+    @tf.function
     def call(self, image, coords, camera, intrinsics, training=None):
         """Extracts patches of fixed size at given coordinates from an image.
 
