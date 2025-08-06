@@ -123,10 +123,18 @@ class PatchExtractor(tf.keras.layers.Layer):
         boxes = tf.reshape(boxes, (-1, 4))
         box_indices = tf.repeat(tf.range(tf.shape(coords)[0]), tf.shape(coords)[1])
 
+        
+        
+        boxes_no_nan = tf.where(tf.math.is_nan(boxes), 0.0, boxes)
+        
+        # if tf.reduce_any(tf.math.is_nan(boxes)):
+        #     tf.print("Boxes with nan: ", boxes)
+        #     tf.print("Boxes_no_nan: ", boxes_no_nan)
+        
         # Extract patches from image
         patches = tf.image.crop_and_resize(
             image,
-            boxes,
+            boxes_no_nan,
             box_indices,
             self.patch_size,
             method=self.interpolation,
