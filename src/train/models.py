@@ -339,11 +339,7 @@ class FullModel(tf.keras.Model):
         """
         image, camera, intrinsics = batch_data
         maps = self.encoder(image, training=training)  # Run the encoder on the image
-        
-        if tf.reduce_any(tf.math.is_nan(maps)):
-            # tf.print("MAPS with nan: ", maps)
-            tf.print("MAPS")
-        
+
         # assert isinstance(maps, list) == len(self.categories) > 1
         if isinstance(maps, list):  # If there is a context vector
             maps = dict(
