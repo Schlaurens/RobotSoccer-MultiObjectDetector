@@ -187,9 +187,12 @@ class FullModel(tf.keras.Model):
 
     def encoder_loss(self, batch_data, maps):
         # Compute Binary Cross Entropy
+
+        # Numeric stabilizer
+        epsilon = tf.constant(1e-30, dtype=tf.float32)
         element_wise_bce = -(
-            batch_data["object_mask"] * tf.math.log(maps[..., 2])
-            + (1.0 - batch_data["object_mask"]) * tf.math.log(1.0 - maps[..., 2])
+            batch_data["object_mask"] * tf.math.log(maps[..., 2] + epsilon)
+            + (1.0 - batch_data["object_mask"]) * tf.math.log(1.0 - maps[..., 2] + epsilon)
         )
         element_wise_bce_multiplied = tf.multiply(element_wise_bce, batch_data["loss_mask"])
         bce = tf.reduce_sum(element_wise_bce_multiplied)
