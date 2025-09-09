@@ -393,3 +393,121 @@ def get_data_info(directory="data"):
         num_samples += len(glob.glob(f"{file.removesuffix('.tfrecords')}/*.jpg"))
 
     return {"file_names": file_names, "num_samples": num_samples}
+
+def make_example(directory, label):
+    """Generate a Tensorflow example for a given data label. Tensorflow examples are used to serialize data into .tfrecords files.
+
+    Args:
+        directory: The directory of the data that is to be serialized.
+        label: the labels that are to be serialized (dict)
+
+    Returns:
+        instance of tf.Example
+    """
+
+    masks_ball = get_masks(label, "ball")
+    masks_penaltyMark = get_masks(label, "penaltyMark")
+    image_feature = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(
+                    tf.reshape(
+                        tf.constant(
+                            load_image(
+                                directory, label, image_format=u_image.ImageFormat.YUYV
+                            )
+                        ),
+                        (480, 320, 4),
+                    )
+                ).numpy(),
+            ]
+        )
+    )
+    camera_feature = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(
+                    tf.constant(camera_from_label(label), dtype=tf.float32)
+                ).numpy(),
+            ]
+        )
+    )
+    intrinsics_feature = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(
+                    tf.constant(intrinsics_from_label(label), dtype=tf.float32)
+                ).numpy(),
+            ]
+        )
+    )
+    object_feature_ball = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(
+                    tf.reshape(tf.cast(masks_ball[1], dtype=tf.float32), (15, 20))
+                ).numpy(),
+            ]
+        )
+    )
+    offset_feature_ball = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(tf.reshape(masks_ball[0], (15, 20, 2))).numpy(),
+            ]
+        )
+    )
+    loss_mask_feature_ball = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(
+                    tf.reshape(tf.cast(masks_ball[2], dtype=tf.float32), (15, 20))
+                ).numpy(),
+            ]
+        )
+    )
+    object_feature_penaltyMark = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(
+                    tf.reshape(tf.cast(masks_penaltyMark[1], dtype=tf.float32), (15, 20))
+                ).numpy(),
+            ]
+        )
+    )
+    offset_feature_penaltyMark = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(tf.reshape(masks_penaltyMark[0], (15, 20, 2))).numpy(),
+            ]
+        )
+    )
+    loss_mask_feature_penaltyMark = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(
+                    tf.reshape(tf.cast(masks_penaltyMark[2], dtype=tf.float32), (15, 20))
+                ).numpy(),
+            ]
+        )
+    )
+
+    # Create a Features dictionary
+    features = tf.train.Features(
+        feature={
+            "image": image_feature,
+            "camera": camera_feature,
+            "intrinsics": intrinsics_feature,
+            "object_ball": object_feature_ball,
+            "offsets_ball": offset_feature_ball,
+            "loss_mask_ball": loss_mask_feature_ball,
+            "object_penaltyMark": object_feature_penaltyMark,
+            "offsets_penaltyMark": offset_feature_penaltyMark,
+            "loss_mask_penaltyMark": loss_mask_feature_penaltyMark,
+        }
+    )
+
+    example = tf.train.Example(features=features)
+    # print(example)
+
+    return example
