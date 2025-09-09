@@ -30,9 +30,26 @@ def get_callbacks(timestamp: str):
 
     csv_logger = tf.keras.callbacks.CSVLogger(log_dir + "/log.csv", separator=",", append=True)
 
-    # TODO: Implement Reduce Learning Rate on Plateau callback
+    reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
+        monitor="val_total_loss", mode="min", factor=0.2, patience=10, min_lr=0.0
+    )
 
-    return [tensorboard_callback, checkpoint_callback, csv_logger]
+    # Stop training when no improvement has happened
+    early_stopping = tf.keras.callbacks.EarlyStopping(
+        monitor="val_total_loss", mode="min", patience=40
+    )
+
+    # Terminate training, when NaN loss is encountered
+    terminate_on_nan = tf.keras.callbacks.TerminateOnNaN()
+
+    return [
+        tensorboard_callback,
+        checkpoint_callback,
+        csv_logger,
+        reduce_lr,
+        # early_stopping,
+        terminate_on_nan,
+    ]
 
 
 def load_datasets(validation_split=0.3, batch_size=32):
