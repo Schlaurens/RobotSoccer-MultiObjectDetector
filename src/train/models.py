@@ -189,7 +189,7 @@ class FullModel(tf.keras.Model):
         # Compute Binary Cross Entropy
 
         # Numeric stabilizer
-        epsilon = tf.constant(1e-30, dtype=tf.float32)
+        epsilon = tf.constant(1e-7, dtype=tf.float32)
         element_wise_bce = -(
             batch_data["object_mask"] * tf.math.log(maps[..., 2] + epsilon)
             + (1.0 - batch_data["object_mask"]) * tf.math.log(1.0 - maps[..., 2] + epsilon)
