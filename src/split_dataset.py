@@ -30,7 +30,7 @@ def load_data(val_split, test_split):
     print("Val Samples: ", val_samples)
     print("Test Samples: ", test_samples)
 
-    dataset = dataset.shuffle(num_samples)
+    dataset = dataset.shuffle(num_samples, seed=42)
 
     train_ds = dataset.take(train_samples)
     val_ds = dataset.skip(train_samples).take(val_samples)
