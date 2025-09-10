@@ -36,7 +36,14 @@ def load_data(val_split, test_split):
     val_ds = dataset.skip(train_samples).take(val_samples)
     test_ds = dataset.skip(train_samples + val_samples)
 
-    return train_ds, val_ds, test_ds
+    return {
+        "train_ds": train_ds,
+        "val_ds": val_ds,
+        "test_ds": test_ds,
+        "train_samples": train_samples,
+        "val_samples": val_samples,
+        "test_samples": test_samples,
+    }
 
 
 def write_file(directory, val_split=0.2, test_split=0.15):
