@@ -1,4 +1,5 @@
 import datetime
+import glob
 
 import tensorflow as tf
 
@@ -52,22 +53,20 @@ def get_callbacks(timestamp: str):
     ]
 
 
-def load_datasets(validation_split=0.3, batch_size=32):
-    data = u_dataset.get_data_info(directory="/data/groundtruth")
-    dataset = u_dataset.get_dataset(data["file_names"])
+def load_datasets(batch_size=32):
+    path_to_train = glob.glob("data/train_ds*.tfrecords")
+    path_to_val = glob.glob("data/val_ds*.tfrecords")
 
-    num_samples = num_samples = data["num_samples"]
-    train_samples = round(num_samples * (1 - validation_split))
-    val_samples = round(num_samples * validation_split)
+    train_ds = u_dataset.get_dataset(path_to_train)
+    val_ds = u_dataset.get_dataset(path_to_val)
 
-    print("Number of samples: ", num_samples)
+    # Get number of train/val samples from file name of .tfrecords file.
+    train_samples = int(path_to_train[0].split("_")[2].split("(")[0])
+    val_samples = int(path_to_val[0].split("_")[2].split("(")[0])
+
+    print("Number of samples: ", train_samples + val_samples)
     print("Train Size: ", train_samples)
     print("Val Samples: ", val_samples)
-
-    dataset = dataset.shuffle(batch_size, seed=42)
-
-    train_ds = dataset.take(train_samples)
-    val_ds = dataset.skip(val_samples)
 
     train_ds = train_ds.batch(batch_size)
     val_ds = val_ds.batch(batch_size)
@@ -87,10 +86,9 @@ def load_datasets(validation_split=0.3, batch_size=32):
 def main():
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     epochs = 200
-    validation_split = 0.3
     batch_size = 32
 
-    dataset = load_datasets(validation_split, batch_size)
+    dataset = load_datasets(batch_size)
 
     # Upper camera dimensions. Width is halved because of YUYV format
     model = FullModel(480, 320)
