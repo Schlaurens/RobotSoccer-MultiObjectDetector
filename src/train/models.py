@@ -252,7 +252,7 @@ class FullModel(tf.keras.Model):
             tf.reduce_sum(tf.square(coords_pred - coords_true), axis=-1),
             tf.square(
                 max_error
-            ), # If coords_true are inside the patch always calculate the MSE. Else the classifier's offset predictions are useless and should be ignored. Assign a constant max error that has gradient of zero.
+            ),  # If coords_true are inside the patch always calculate the MSE. Else the classifier's offset predictions are useless and should be ignored. Assign a constant max error that has gradient of zero.
         )  # [B, N]
 
         # If the classifier thinks that there is no object in the image, this error has a smaller contribution to the loss
