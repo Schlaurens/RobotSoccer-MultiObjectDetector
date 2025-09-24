@@ -91,6 +91,22 @@ def convert_yuyv_to_yuv(image):
     return image_yuv
 
 
+def convert_yuyv_to_rgb(image):
+    """converts an image in YUYV format to RGB format. The image in the YUYV format has the has the dimensions [H, W/2, 4] due to horizontal chroma subsampling (YUV 422). The converted image with the dimensions [H, W, 3] has more elements but can be illustrated better.
+
+    Args:
+        image: image in YUYV format
+
+    Returns:
+        image in RGB format
+    """
+    # remove batch dimension
+    if len(image.shape) == 4:
+        image = tf.squeeze(image, axis=0)  # [H, W/2, 4]
+
+    return convert_yuv_to_rgb(convert_yuyv_to_yuv(image))
+
+
 def load_bhuman_jpeg_image(data, image_format=ImageFormat.GRAYSCALE):
     """Load a bhuman jpeg image from the given jpeg data.
 
