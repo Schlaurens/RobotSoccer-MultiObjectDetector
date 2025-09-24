@@ -36,8 +36,12 @@ def convert_yuv_to_rgb(image):
         image in RGB format.
 
     """
-    assert len(image.shape) == 3
-    assert image.shape[2] == 3
+    if tf.is_tensor(image):
+        image = image.numpy()
+
+    assert len(image.shape) == 3  # has dimensions [H, W, C]
+    assert image.shape[2] == 3  # has 3 channels
+
     return np.asarray(Image.fromarray(image, "YCbCr").convert("RGB"))
 
 
