@@ -54,6 +54,15 @@ class FullModel(tf.keras.Model):
     def __init__(
         self, encoder_architecture, height, width, only_train_encoder=False, classifier_name=None
     ):
+        """Constructs the FullModel
+
+        Args:
+            encoder_architecture: the name of the encoder architecture
+            height: encoder input height
+            width: encoder input width
+            only_train_encoder: True if ONLY the encoder is the be trained. Then the classifiers have no impact on the loss function. Defaults to False.
+            classifier_architecture: the name of classifier architecture. Defaults to None.
+        """
         super().__init__()  # Subclass of the Model class
         # Size of context vector
         self.patch_size = (32, 32)
@@ -290,6 +299,15 @@ class FullModel(tf.keras.Model):
     def save(
         self, filepath, filename, only_save_encoder=False, overwrite=True, verbose=False, **kwargs
     ):
+        """Save all the models at a given path
+
+        Args:
+            filepath: path to the saving directory
+            filename: the filename of the .keras model files. Usually a timestamp
+            only_save_encoder: True if ONLY the encoder should be saved. Defaults to False.
+            overwrite: True if files with the same filename should be overwritten. Defaults to True.
+            verbose: Print status messages that describe the status of the saving process. Defaults to False.
+        """
         # Create a directory for the encoder
         os.makedirs(os.path.join(filepath, "encoder"), exist_ok=True)
 
@@ -329,6 +347,20 @@ class FullModel(tf.keras.Model):
         verbose=False,
         **kwargs,
     ):
+        """load existing encoder and/or classifiers into the model.
+
+        Args:
+            encoder_architecture: The name of the used model architecture
+            input_dims: the input dimensions of the encoder. (height, width)
+            filepath: the filepath to models directory
+            filename: the name of the .keras file
+            only_train_encoder: True if only the encoder has an impact on the loss function. The classifier will have no impact on the training. Defaults to False.
+            encoder_only: True if ONLY an existing encoder is loaded and the classifier. Defaults to False.
+            verbose: Print status messages that describe the status of the loading process. Defaults to False.
+
+        Returns:
+            A tf.keras.Model with the loaded models.
+        """
         # Rebuild model
         model = cls(encoder_architecture, *input_dims, only_train_encoder=only_train_encoder)
 
