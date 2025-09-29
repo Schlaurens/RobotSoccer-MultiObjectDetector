@@ -134,7 +134,7 @@ def main(config):
         timestamp = config["training"]["load_checkpoint"]["timestamp"]
         model = FullModel.load(
             input_dims=model_input_dims,
-            filepath=f"{config['callbacks']['checkpoint_dir']}{timestamp}",  # TODO: do this with pathlib
+            filepath=os.path.join(config["callbacks"]["checkpoint_dir"], timestamp),
             filename=f"epoch_{initial_epoch}.keras",
             encoder_only=config["training"]["load_checkpoint"]["encoder_only"],
             verbose=config["training"]["load_checkpoint"]["verbose"],
