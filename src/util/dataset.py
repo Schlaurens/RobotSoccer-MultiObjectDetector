@@ -160,7 +160,7 @@ def get_masks(
     def _empty_masks():
         """generate default empty masks for when there are no objects in the image.
         The offset_mask will contains only -1.0. This is an arbitrary value, that indicates that no object is in the image.
-        The objectness_mask will only contain False values as there are no objects any of the cells.
+        The object_mask will only contain False values as there are no objects any of the cells.
         The loss_mask will only contain True values as no loss should be ignored.
 
         Returns:
@@ -169,7 +169,7 @@ def get_masks(
         offsets = tf.cast(tf.fill((*output_dims, 2), -1), dtype=tf.float32)
         object_mask = tf.fill(output_dims, value=False)
         loss_mask = tf.fill(output_dims, value=True)
-        # return offsets, objectness_mask, loss_mask
+        # return offsets, object_mask, loss_mask
         return {"offsets": offsets, "object_mask": object_mask, "loss_mask": loss_mask}
 
     # Case 1: Direct coordinates provided
@@ -212,11 +212,11 @@ def get_masks(
 
     loss_mask = _generate_loss_mask(object_mask)
 
-    # return offsets_scaled, objectness_mask, loss_mask
+    # return offsets_scaled, object_mask, loss_mask
     return {"offsets": offsets_scaled, "object_mask": object_mask, "loss_mask": loss_mask}
 
 
-def _generate_loss_mask(objectness_mask):
+def _generate_loss_mask(object_mask):
     """Generate a binary mask that is 0 in each cell where the loss function should be ignored and 1 everywhere else
 
     The loss function should be ignored when the presence of an object inside a cell in ambiguous. Whether this
@@ -224,7 +224,7 @@ def _generate_loss_mask(objectness_mask):
     (e. g. a penalty mark) the cell that contains the object coordinates is marked as one and the 8 cells surrounding it are  marked as 0 (just in case).
 
     Args:
-        objectness_mask: the objectness mask
+        object_mask: the object mask
 
     Returns:
         A binary mask like described above.
@@ -233,8 +233,8 @@ def _generate_loss_mask(objectness_mask):
 
     # Loss mask for 1 dimensional objects
 
-    # invert objectness_mask
-    inverted_obj_mask = np.logical_not(np.array(objectness_mask))
+    # invert object_mask
+    inverted_obj_mask = np.logical_not(np.array(object_mask))
 
     # get index
     index = np.unravel_index(inverted_obj_mask.argmin(), inverted_obj_mask.shape)
