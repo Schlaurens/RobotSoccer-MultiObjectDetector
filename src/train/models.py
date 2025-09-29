@@ -51,7 +51,9 @@ def get_patch_classifier(patch_size, channels_in, n_meta, n_context, n_classes, 
 
 
 class FullModel(tf.keras.Model):
-    def __init__(self, encoder_name, height, width, classifier_name=None):
+    def __init__(
+        self, encoder_name, height, width, only_train_encoder=False, classifier_name=None
+    ):
         super().__init__()  # Subclass of the Model class
         # Size of context vector
         self.patch_size = (32, 32)
@@ -59,6 +61,7 @@ class FullModel(tf.keras.Model):
         self.classifier_name = classifier_name
         self.image_height = height
         self.image_width = width
+        self.only_train_encoder = only_train_encoder
         self.patch_channels = 3
         self.n_context = 0
         self.n_meta = 0
@@ -239,7 +242,11 @@ class FullModel(tf.keras.Model):
 
             losses = self._calculate_losses(batch_data, results, maps)
 
-            total_loss = losses["encoder_loss"] + losses["classifier_loss"]
+            total_loss = (
+                losses["encoder_loss"]
+                if self.only_train_encoder
+                else losses["encoder_loss"] + losses["classifier_loss"]
+            )
 
         # Compute gradients
         gradients = tape.gradient(total_loss, self.trainable_variables)
@@ -264,8 +271,14 @@ class FullModel(tf.keras.Model):
 
         losses = self._calculate_losses(batch_data, results, maps)
 
+        total_loss = (
+            losses["encoder_loss"]
+            if self.only_train_encoder
+            else losses["encoder_loss"] + losses["classifier_loss"]
+        )
+
         return {
-            "total_loss": losses["encoder_loss"] + losses["classifier_loss"],
+            "total_loss": total_loss,
             "encoder_bce": losses["encoder_bce"],
             "encoder_mse": losses["encoder_mse"],
             "encoder_loss": losses["encoder_loss"],
@@ -274,7 +287,9 @@ class FullModel(tf.keras.Model):
             "classifier_loss": losses["classifier_loss"],
         }
 
-    def save(self, filepath, filename, overwrite=True, verbose=False, **kwargs):
+    def save(
+        self, filepath, filename, only_save_encoder=False, overwrite=True, verbose=False, **kwargs
+    ):
         # Create a directory for the encoder
         os.makedirs(os.path.join(filepath, "encoder"), exist_ok=True)
 
@@ -286,24 +301,36 @@ class FullModel(tf.keras.Model):
         if verbose:
             print("Encoder saved!")
 
-        # Save the classifier of each category
-        for name, value in self.categories.items():
-            # Create directory if it does not exist.
-            os.makedirs(os.path.join(filepath, "classifier", name), exist_ok=True)
+        if not only_save_encoder:
+            # Save the classifier of each category
+            for name, value in self.categories.items():
+                # Create directory if it does not exist.
+                os.makedirs(os.path.join(filepath, "classifier", name), exist_ok=True)
 
-            classifier_path = os.path.join(filepath, "classifier", name, f"{filename}.keras")
-            value["classifier"].save(classifier_path, overwrite)
+                classifier_path = os.path.join(filepath, "classifier", name, f"{filename}.keras")
+                value["classifier"].save(classifier_path, overwrite)
 
-            if verbose:
-                print(f"{name.capitalize()}-Classifier saved!")
+                if verbose:
+                    print(f"{name.capitalize()}-Classifier saved!")
 
         if verbose:
+            print("only_save_encoder = ", only_save_encoder)
             print("Saving complete!")
 
     @classmethod
-    def load(cls, input_dims, filepath, filename, encoder_only=False, verbose=False, **kwargs):
+    def load(
+        cls,
+        encoder_name,
+        input_dims,
+        filepath,
+        filename,
+        only_train_encoder=False,
+        encoder_only=False,
+        verbose=False,
+        **kwargs,
+    ):
         # Rebuild model
-        model = cls(*input_dims)
+        model = cls(encoder_name, *input_dims, only_train_encoder=only_train_encoder)
 
         # Load the encoder
         encoder = tf.keras.models.load_model(os.path.join(filepath, "encoder", f"{filename}"))
@@ -331,6 +358,7 @@ class FullModel(tf.keras.Model):
             model.compile(optimizer=tf.keras.optimizers.Adam(), jit_compile=False)
 
         if verbose:
+            print("Only Train Encoder = ", only_train_encoder)
             print("Loading complete!")
         return model
 

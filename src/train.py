@@ -78,11 +78,14 @@ def main():
     epoch = 0  # < change when continuing training
     model_input_dims = (480, 320)
     encoder_name = "default_heavy"
+    only_train_encoder = False
 
     dataset = load_datasets(batch_size)
 
     # Upper camera dimensions. Width is halved because of YUYV format
-    model = FullModel(encoder_name, *model_input_dims)
+    model = FullModel(
+        encoder_name, *model_input_dims, only_train_encoder=only_train_encoder
+    )
     model.compile(optimizer=tf.keras.optimizers.Adam(), jit_compile=False)
 
     # ==== When loading a checkpoint ====
@@ -118,7 +121,7 @@ def main():
         initial_epoch=epoch,
     )
 
-    model.save("models", f"{timestamp}")
+    model.save("models", f"{timestamp}", only_save_encoder=only_train_encoder)
 
     return
 
