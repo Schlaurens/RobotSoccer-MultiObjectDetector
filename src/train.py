@@ -1,6 +1,8 @@
 import argparse
 import datetime
 import glob
+import os
+import sys
 
 import tensorflow as tf
 import yaml
@@ -14,6 +16,24 @@ def load_config(config_path):
     with open(config_path) as f:
         config = yaml.safe_load(f)
     return config
+
+
+def log_config(timestamp: str, config):
+    log_dir = os.path.join(config["callbacks"]["log_dir"], timestamp)
+
+    # Create a directory
+    os.makedirs(log_dir, exist_ok=True)
+
+    config["metadata"] = {
+        "timestamp": timestamp,
+        "python_version": sys.version,
+        "tensorflow_version": tf.__version__,
+    }
+    log_file = f"{log_dir}/config.yaml"
+    with open(log_file, "w") as f:
+        # dump config file into log
+        yaml.dump(config, f, sort_keys=False, default_flow_style=False)
+    print(f"Configuration logged to {log_file}")
 
 
 def get_callbacks(timestamp: str, config):
@@ -98,6 +118,8 @@ def main(config):
     model_input_dims = config["training"]["model_input_dims"]
     encoder_architecture = config["training"]["encoder_architecture"]
     only_train_encoder = config["training"]["only_train_encoder"]
+
+    log_config(timestamp, config)
 
     dataset = load_datasets(config)
 
