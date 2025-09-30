@@ -52,7 +52,13 @@ def get_patch_classifier(patch_size, channels_in, n_meta, n_context, n_classes, 
 
 class FullModel(tf.keras.Model):
     def __init__(
-        self, encoder_architecture, height, width, only_train_encoder=False, classifier_name=None
+        self,
+        encoder_architecture,
+        height,
+        width,
+        n_context,
+        only_train_encoder=False,
+        classifier_name=None,
     ):
         """Constructs the FullModel
 
@@ -61,6 +67,7 @@ class FullModel(tf.keras.Model):
             height: encoder input height
             width: encoder input width
             only_train_encoder: True if ONLY the encoder is the be trained. Then the classifiers have no impact on the loss function. Defaults to False.
+            n_context: The size of the context vector
             classifier_architecture: the name of classifier architecture. Defaults to None.
         """
         super().__init__()  # Subclass of the Model class
@@ -71,8 +78,8 @@ class FullModel(tf.keras.Model):
         self.image_height = height
         self.image_width = width
         self.only_train_encoder = only_train_encoder
+        self.n_context = n_context
         self.patch_channels = 3
-        self.n_context = 0
         self.n_meta = 0
         self.full_image_size = tf.constant(
             [self.image_height, self.image_width * 2], dtype=tf.float32
