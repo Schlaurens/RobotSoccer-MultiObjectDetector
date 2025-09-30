@@ -1,0 +1,4 @@
+[core]
+    remote = b-human
+['remote "b-human"']
+    url = ssh://dvc@b-human.informatik.uni-bremen.de/dvc/MultiObjectDetection
