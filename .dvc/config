@@ -1,4 +1,5 @@
 [core]
     remote = b-human
+    autostage = true
 ['remote "b-human"']
     url = ssh://dvc@b-human.informatik.uni-bremen.de/dvc/MultiObjectDetection
