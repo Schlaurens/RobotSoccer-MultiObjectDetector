@@ -2,10 +2,7 @@ __pycache__
 uv.lock
 .venv
 .python-version
-data/*
 !data/.gitkeep
 .continue/*
 *.tfrecords
 *.keras
-logs/*
-checkpoints/*
