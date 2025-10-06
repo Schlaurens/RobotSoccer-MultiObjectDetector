@@ -1,0 +1,41 @@
+model:
+  encoder_architecture: "inverted_residual_light"
+  model_input_dims: [480, 320]
+  only_train_encoder: True
+  n_context: 0
+
+training:
+  epochs: 150
+  initial_epoch: 0
+  batch_size: 32
+  verbose: 1
+  from_checkpoint: False # < when starting training from checkpoint
+  from_model: False # < when loading an existing model
+  load_checkpoint:
+    initial_epoch: 0
+    timestamp: "" 
+    encoder_only: False # < when only loading the encoder
+    verbose: True
+  load_model:
+    timestamp: ""
+    filepath: "models"
+    encoder_only: False # < when only loading the encoder
+    verbose: True
+
+callbacks:
+  reduce_lr:
+    monitor: "val_total_loss"
+    mode: "min"
+    factor: 0.2
+    patience: 40
+    min_lr: 0.0
+  early_stopping:
+    monitor: "val_total_loss"
+    mode: "min"
+    patience: 40
+  log_dir: "logs/fit/"
+  checkpoint_dir: "checkpoints/"
+
+data:
+  train_path: "data/tfrecords/train_ds*.tfrecords"
+  val_path: "data/tfrecords/val_ds*.tfrecords"
