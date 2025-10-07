@@ -86,6 +86,22 @@ class EvaluateApplication:
         self.fig.canvas.draw()
 
     def update_predictions(self, index):
+        # Load image in YUYV format and reshape to a usable (480, 320, 4) as the input for the encoder
+        image = np.reshape(
+            u_dataset.load_image(
+                self.directory, self.labels[index], image_format=u_image.ImageFormat.YUYV
+            ),
+            (480, 320, 4),
+        )
+
+        predictions = self.model(image[np.newaxis, ...], training=False)
+
+        # output_ball = predictions[0].numpy()
+        output_penaltyMark = predictions.numpy()
+
+        # self.im_ax_ball.set_data(self.normalize_array(output_ball[0][...,2]))
+        self.im_ax_penalty_mark.set_data(self.normalize_array(output_penaltyMark[0][..., 2]))
+
     def normalize_array(self, arr):
         arr_min = arr.min()
         arr_max = arr.max()
