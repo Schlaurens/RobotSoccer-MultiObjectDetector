@@ -1,3 +1,19 @@
+"""evaluate.py
+This script provides an interactive visualization tool for evaluating the predictions of a trained TensorFlow model on a labeled image dataset. It loads a model and dataset, displays images and their corresponding predictions in a heatmap, and allows navigation through the dataset using a slider or keyboard keys.
+
+Usage:
+    Run this script from the command line with the following arguments:
+        python evaluate.py <directory> <model_path>
+    where <directory> is the path to the dataset and <model_path> is the path to the trained model.
+Arguments:
+    directory (str): Path to the directory containing the labeled dataset.
+    model_path (str): Path to the trained TensorFlow model.
+Features:
+    - Loads a trained model and dataset labels.
+    - Displays the input image and model predictions for different object categories.
+    - Interactive navigation through images using a slider or left/right arrow keys.
+"""
+
 import os
 
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
