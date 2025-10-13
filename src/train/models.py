@@ -125,7 +125,7 @@ class FullModel(tf.keras.Model):
         element_wise_bce = -(
             batch_data["object_mask"] * tf.math.log(maps[..., 2] + epsilon)
             + (1.0 - batch_data["object_mask"]) * tf.math.log(1.0 - maps[..., 2] + epsilon)
-        )
+        )  # (B, 15, 20)
         tf.debugging.assert_non_negative(maps[..., 2], "maps[..., 2] is negative")
         tf.debugging.assert_all_finite(tf.math.log(epsilon), "tf.math.log(epsilon)")
         tf.debugging.assert_all_finite(
@@ -141,25 +141,33 @@ class FullModel(tf.keras.Model):
         )
 
         tf.debugging.assert_all_finite(element_wise_bce, "element_wise_bce")
-        element_wise_bce_multiplied = tf.multiply(element_wise_bce, batch_data["loss_mask"])
+        element_wise_bce_multiplied = tf.multiply(
+            element_wise_bce, batch_data["loss_mask"]
+        )  # (B, 15, 20)
 
         tf.debugging.assert_all_finite(batch_data["loss_mask"], "batch_data[loss_mask]")
         tf.debugging.assert_all_finite(element_wise_bce_multiplied, "element_wise_bce_multiplied")
 
-        bce = tf.reduce_sum(element_wise_bce_multiplied)
+        bce_batched = tf.reduce_sum(element_wise_bce_multiplied, axis=[1, 2])  # (B, )
 
         # Compute MSE
         squared_error = tf.keras.losses.MeanSquaredError(reduction="none")(
             y_true=batch_data["offset_mask"], y_pred=maps[..., :2]
-        )
-        squared_error_multiplied = tf.multiply(squared_error, batch_data["object_mask"])
+        )  # (B, 15, 20)
+        squared_error_multiplied = tf.multiply(
+            squared_error, batch_data["object_mask"]
+        )  # (B, 15, 20)
 
-        mse = tf.reduce_mean(squared_error_multiplied) * 10000
-        tf.debugging.assert_all_finite(bce, "encoder BCE")
-        tf.debugging.assert_all_finite(mse, "encoder mse")
+        mse_batched = tf.reduce_mean(squared_error_multiplied, axis=[1, 2]) * 10000  # (B)
+        tf.debugging.assert_all_finite(bce_batched, "encoder BCE")
+        tf.debugging.assert_all_finite(mse_batched, "encoder mse")
 
         # Total loss
-        loss = bce + mse
+        loss_batched = bce_batched + mse_batched  # (B, )
+
+        bce = tf.reduce_mean(bce_batched)  # Shape: ()
+        mse = tf.reduce_mean(mse_batched)  # Shape: ()
+        loss = tf.reduce_mean(loss_batched)  # Shape: ()
 
         return {"loss": loss, "mse": mse, "bce": bce}
 
