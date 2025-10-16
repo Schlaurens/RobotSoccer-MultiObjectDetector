@@ -36,6 +36,10 @@ def get_encoder(
         return _get_encoder_inverted_residual_single_category(
             height, width, category_names, n_context, **kwargs
         )
+    if encoder_architecture == "inverted_residual_single_category_v2":
+        return _get_encoder_inverted_residual_single_category_v2(
+            height, width, category_names, n_context, **kwargs
+        )
     else:
         raise ValueError(f"Unknown encoder name: {encoder_architecture}")
 
@@ -256,6 +260,47 @@ def _get_encoder_inverted_residual_single_category(height, width, category_names
 
     # 15x20x64
     x = _ires_block(x, 32, stride=1, expansion=1)
+
+    # 15x20x64
+    return _get_common_output(x, category_names, n_context, image)
+
+def _get_encoder_inverted_residual_single_category_v2(height, width, category_names, n_context):
+    image = tf.keras.layers.Input((height, width, 4))
+    # Be careful not to make the tensors too much for the GPU memory. (keep the expansion low for the bigger tensors)
+    x = image
+
+    # 480x320x4
+    # cannot be ires block due to uneven stride
+    x = tf.keras.layers.Conv2D(16, 3, strides=(2, 1), padding="same", use_bias=False)(x)
+    x = tf.keras.layers.BatchNormalization(scale=False)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    # 240x320x24
+    x = _ires_block(x, 16, stride=1, expansion=1)
+
+    # 240x320x24
+    x = _ires_block(x, 16, stride=2, expansion=1)
+
+    # 120x160x24
+    # x = _ires_block(x, 16, stride=1, expansion=1)
+
+    # 120x160x24
+    x = _ires_block(x, 24, stride=2, expansion=4)
+
+    # 60x80x32
+    x = _ires_block(x, 24, stride=1, expansion=4)
+
+    # 60x80x32
+    x = _ires_block(x, 32, stride=2, expansion=4)
+
+    # 30x40x64
+    x = _ires_block(x, 32, stride=1, expansion=4)
+
+    # 30x40x64
+    x = _ires_block(x, 32, stride=2, expansion=4)
+
+    # 15x20x64
+    x = _ires_block(x, 32, stride=1, expansion=4)
 
     # 15x20x64
     return _get_common_output(x, category_names, n_context, image)
