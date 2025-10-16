@@ -138,7 +138,7 @@ def get_masks(
     """Return label masks that are used to train the encoder.
 
     Generate an offset mask that converts the image coordinates of the object into offsets relative
-    to given cell dimensions 
+    to given cell dimensions
     An object mask that marks the cell where the center of
     the object is in.
     And a loss mask that indicted which cell should have an impact on the loss function.
@@ -520,7 +520,9 @@ def make_example(directory, label):
         bytes_list=tf.train.BytesList(
             value=[
                 tf.io.serialize_tensor(
-                    tf.reshape(tf.cast(masks_penaltyMark["object_mask"], dtype=tf.float32), (15, 20))
+                    tf.reshape(
+                        tf.cast(masks_penaltyMark["object_mask"], dtype=tf.float32), (15, 20)
+                    )
                 ).numpy(),
             ]
         )
@@ -528,7 +530,9 @@ def make_example(directory, label):
     offset_feature_penaltyMark = tf.train.Feature(
         bytes_list=tf.train.BytesList(
             value=[
-                tf.io.serialize_tensor(tf.reshape(masks_penaltyMark["offsets"], (15, 20, 2))).numpy(),
+                tf.io.serialize_tensor(
+                    tf.reshape(masks_penaltyMark["offsets"], (15, 20, 2))
+                ).numpy(),
             ]
         )
     )
