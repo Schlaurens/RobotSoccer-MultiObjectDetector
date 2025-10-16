@@ -45,7 +45,7 @@ class EvaluateApplication:
         )
 
         self.fig = plt.figure(figsize=(12, 8))
-        self.gs = gridspec.GridSpec(10, 8, figure=self.fig)
+        self.gs = gridspec.GridSpec(11, 16, figure=self.fig)
 
         self.ax_img = self.fig.add_subplot(self.gs[0:4, 0:5])
         self.ax_img.axis("off")
@@ -53,14 +53,17 @@ class EvaluateApplication:
         self.ax_ball = self.fig.add_subplot(self.gs[0:4, 5:10])
         self.ax_ball.axis("off")
         self.ax_ball.set_title("Ball")
-        self.ax_obstacles = self.fig.add_subplot(self.gs[5:9, 0:5])
-        self.ax_obstacles.axis("off")
-        self.ax_obstacles.set_title("Obstacles")
+        self.ax_ball_gt = self.fig.add_subplot(self.gs[0:4, 10:15])
+        self.ax_ball_gt.axis("off")
+        self.ax_ball_gt.set_title("Ball Groundtruth")
         self.ax_penalty_mark = self.fig.add_subplot(self.gs[5:9, 5:10])
         self.ax_penalty_mark.axis("off")
         self.ax_penalty_mark.set_title("PenaltyMark")
+        self.ax_penalty_mark_gt = self.fig.add_subplot(self.gs[5:9, 10:15])
+        self.ax_penalty_mark_gt.axis("off")
+        self.ax_penalty_mark_gt.set_title("PenaltyMark Groundtruth")
 
-        self.ax_slider_image = self.fig.add_subplot(self.gs[9, :])
+        self.ax_slider_image = self.fig.add_subplot(self.gs[10, :])
         self.slider_image = widgets.Slider(
             self.ax_slider_image,
             "Index",
@@ -78,8 +81,9 @@ class EvaluateApplication:
         stuff = np.zeros((15, 20))
         stuff[0][0] = 1
         self.im_ax_ball = self.ax_ball.imshow(stuff)
-        self.im_ax_obstacles = self.ax_obstacles.imshow(stuff)
+        self.im_ax_ball_gt = self.ax_ball_gt.imshow(stuff)
         self.im_ax_penalty_mark = self.ax_penalty_mark.imshow(stuff)
+        self.im_ax_penalty_mark_gt = self.ax_penalty_mark_gt.imshow(stuff)
 
         self.slider_image.on_changed(lambda val: self.image_slider_changed(val))
         self.fig.canvas.mpl_disconnect(self.fig.canvas.manager.key_press_handler_id)
@@ -110,13 +114,16 @@ class EvaluateApplication:
             (480, 320, 4),
         )
 
+        masks_penaltyMark = u_dataset.get_masks(self.labels[index], "penaltyMark")
+        masks_ball = u_dataset.get_masks(self.labels[index], "ball")
         predictions = self.model(image[np.newaxis, ...], training=False)
 
         # output_ball = predictions[0].numpy()
         output_penaltyMark = predictions.numpy()
 
         # self.im_ax_ball.set_data(self.normalize_array(output_ball[0][...,2]))
-        self.im_ax_penalty_mark.set_data(self.normalize_array(output_penaltyMark[0][..., 2]))
+        self.im_ax_ball_gt.set_data(masks_ball["object_mask"])
+        self.im_ax_penalty_mark_gt.set_data(masks_penaltyMark["object_mask"])
 
     def normalize_array(self, arr):
         arr_min = arr.min()
