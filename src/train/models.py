@@ -164,6 +164,8 @@ class FullModel(tf.keras.Model):
 
         # Total loss
         loss_batched = bce_batched + mse_batched  # (B, )
+        # TODO: this disables the MSE loss for the encoder!!! Only for experimentation!
+        loss_batched = bce_batched  # (B, )
 
         bce = tf.reduce_mean(bce_batched)  # Shape: ()
         mse = tf.reduce_mean(mse_batched)  # Shape: ()
