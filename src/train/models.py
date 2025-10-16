@@ -542,6 +542,7 @@ class FullModel(tf.keras.Model):
             "masks": masks,
             "boxes": boxes,
             "coords": coords,
+            "logits": logits,
             "classification": classification,
             "positions": positions,
         }
