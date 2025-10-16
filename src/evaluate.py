@@ -113,15 +113,17 @@ class EvaluateApplication:
             ),
             (480, 320, 4),
         )
-
-        masks_penaltyMark = u_dataset.get_masks(self.labels[index], "penaltyMark")
-        masks_ball = u_dataset.get_masks(self.labels[index], "ball")
         predictions = self.model(image[np.newaxis, ...], training=False)
 
-        # output_ball = predictions[0].numpy()
-        output_penaltyMark = predictions.numpy()
+        output_penaltyMark = predictions[0].numpy()  # remove batch dimension
 
-        # self.im_ax_ball.set_data(self.normalize_array(output_ball[0][...,2]))
+        self.im_ax_penalty_mark.set_data(
+            self.normalize_array(output_penaltyMark[..., 2])
+        )  # normalize predictions for debugging purposes
+
+        # Set groundtruth figures
+        masks_penaltyMark = u_dataset.get_masks(self.labels[index], "penaltyMark")
+        masks_ball = u_dataset.get_masks(self.labels[index], "ball")
         self.im_ax_ball_gt.set_data(masks_ball["object_mask"])
         self.im_ax_penalty_mark_gt.set_data(masks_penaltyMark["object_mask"])
 
