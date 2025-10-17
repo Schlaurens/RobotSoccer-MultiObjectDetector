@@ -113,13 +113,12 @@ class EvaluateApplication:
             ),
             (480, 320, 4),
         )
-        predictions = self.model(image[np.newaxis, ...], training=False)
+
+        predictions = self.model(image[np.newaxis, ...], training=True)
 
         output_penaltyMark = predictions[0].numpy()  # remove batch dimension
 
-        self.im_ax_penalty_mark.set_data(
-            self.normalize_array(output_penaltyMark[..., 2])
-        )  # normalize predictions for debugging purposes
+        self.im_ax_penalty_mark.set_data(output_penaltyMark[..., 2])
 
         # Set groundtruth figures
         masks_penaltyMark = u_dataset.get_masks(self.labels[index], "penaltyMark")
