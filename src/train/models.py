@@ -10,50 +10,11 @@ from util import keypoint as u_keypoint
 from .layers import PatchExtractor, PatchSampler
 
 
-def get_patch_classifier(patch_size, channels_in, n_meta, n_context, n_classes, with_offset=True):
-    image = tf.keras.layers.Input((*patch_size, channels_in))
-    inputs = [image]
-
-    if n_meta > 0:
-        meta = tf.keras.layers.Input((n_meta,))
-        inputs += [meta]
-
-    if n_context > 0:
-        context = tf.keras.layers.Input((n_context,))
-        inputs += [n_context]
-
-    # x = tf.keras.layers.Flatten()(image)
-    x = image
-    if n_meta > 0:
-        x = tf.keras.layers.Concatenate()([image, meta])
-    x = tf.keras.layers.Conv2D(32, 3, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.BatchNormalization(scale=False)(x)
-    x = tf.keras.layers.ReLU(6.0)(x)
-    if n_context > 0:
-        x = tf.keras.layers.Concatenate()([image, context])
-    x = tf.keras.layers.Conv2D(32, 3, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.BatchNormalization(scale=False)(x)
-    x = tf.keras.layers.ReLU(6.0)(x)
-    x = tf.keras.layers.Flatten()(x)
-
-    if n_classes < 2:
-        x = tf.keras.layers.Dense(1)(x)
-        out = tf.keras.layers.Activation("sigmoid")(x)
-    else:
-        tf.keras.layers.Dense(n_classes + 1)(x)  # + 1 for the background class
-        out = tf.keras.layers.Activation("softmax")(x)
-
-    if with_offset:
-        offset = tf.keras.layers.Dense(2)(x)
-        out = [out, offset]
-
-    return tf.keras.Model(inputs, out, name="classifier")
-
-
 class FullModel(tf.keras.Model):
     def __init__(
         self,
         encoder_architecture,
+        classifier_architecture,
         height,
         width,
         n_context=0,
@@ -75,6 +36,7 @@ class FullModel(tf.keras.Model):
         # Size of context vector
         self.patch_size = (32, 32)
         self.encoder_architecture = encoder_architecture
+        self.classifier_architecture = classifier_architecture
         self.classifier_name = classifier_name
         self.image_height = height
         self.image_width = width
@@ -106,7 +68,8 @@ class FullModel(tf.keras.Model):
                 object_size=value["object_size"],
                 object_height=value.get("object_height", 0),
             )  # The patch extractor for the category with the fixed object parameters
-            value["classifier"] = get_patch_classifier(
+            value["classifier"] = u_architectures.get_classifier(
+                self.classifier_architecture,
                 self.patch_size,
                 self.patch_channels,
                 self.n_meta,
