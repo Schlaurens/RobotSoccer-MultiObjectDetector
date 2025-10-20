@@ -281,9 +281,8 @@ class FullModel(tf.keras.Model):
         }
 
     def test_step(self, batch_data):
-        # TODO: training=True as a temporary bug workaround because of BatchNorm
         outputs = self(
-            (batch_data["image"], batch_data["camera"], batch_data["intrinsics"]), training=True
+            (batch_data["image"], batch_data["camera"], batch_data["intrinsics"]), training=False
         )  # calls call()
 
         losses = self._calculate_losses(batch_data, outputs["results"], outputs["maps"])
