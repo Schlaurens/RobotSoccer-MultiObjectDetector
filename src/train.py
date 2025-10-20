@@ -152,15 +152,17 @@ def main(config):
         )
 
     # ==== When loading from models ====
-    # TODO: fix arguments
     if config["training"]["from_model"]:
         model_timestamp = config["training"]["load_model"]["timestamp"]
         model = FullModel.load(
+            encoder_architecture=config["model"]["encoder_architecture"],
             input_dims=model_input_dims,
             filepath=config["training"]["load_model"]["filepath"],
             filename=f"{model_timestamp}.keras",
             encoder_only=config["training"]["load_model"]["encoder_only"],
             verbose=config["training"]["load_model"]["verbose"],
+            n_context=config["model"]["n_context"],
+            categories_config=config["categories"],
         )
 
     callbacks = get_callbacks(timestamp, config)
