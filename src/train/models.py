@@ -151,43 +151,21 @@ class FullModel(tf.keras.Model):
         return {"loss": loss, "mse": mse, "bce": bce}
 
     def classifier_loss(self, batch_data, results):
-        # TODO: implement solution for multi-class problems with categorical crossentropy (like line crossings)
-        # Compute BinaryCrossEntropy / CategoricalCrossEntropy
-        y_pred = results["classification"]  # [B, N]
+        # Compute MSE
+        boxes = results["boxes"]  # [B, N, 4]
         coords_pred = results["positions"]  # [B, N, 2]
         coords_true = tf.expand_dims(
             u_dataset.get_coords_from_offsets(batch_data["offset_mask"]), axis=1
         )  # [B, 1, 2]
 
-        boxes = results["boxes"]  # [B, N, 4]
-
-        coords_true_normalized = coords_true / self.full_image_size[tf.newaxis, :]  # [B, 1, 2]
-        coords_pred_normalized = coords_pred / self.full_image_size[tf.newaxis, :]  # [B, N, 2]
-        # TODO: test this with values
-        are_coords_true_inside_patch = u_keypoint.are_coords_in_patch(
-            coords_true_normalized, boxes
-        )  # [B, N]
-        are_coords_pred_inside_patch = u_keypoint.are_coords_in_patch(
-            coords_pred_normalized, boxes
-        )  # [B, N]
-
-        y_true = are_coords_true_inside_patch  # [B, N]
-
         # Theoretical maximum error, distance between (0,0) and (max, max) of patch
         max_error = tf.norm(tf.cast(self.patch_size, dtype=tf.float32))  # Shape: ()
 
-        bce = tf.keras.losses.BinaryCrossentropy(from_logits=False, name="classifier_bce")(
-            y_true, y_pred
-        )  # Shape: ()
-
-        tf.debugging.assert_all_finite(bce, "Classifier BCE")
-
-        # if coords_pred point outside of the patch but invalid offsets were predicted, add max error.
-        # mask_for_max_error = tf.logical_and(
-        #     are_coords_true_inside_patch,
-        #     tf.logical_not(are_coords_pred_inside_patch),  # [B, N]
-        # )
-        # mask_for_mse = tf.logical_and(are_coords_true_inside_patch)  # [B, N]
+        # TODO: test this with values
+        coords_true_normalized = coords_true / self.full_image_size[tf.newaxis, :]  # [B, 1, 2]
+        are_coords_true_inside_patch = u_keypoint.are_coords_in_patch(
+            coords_true_normalized, boxes
+        )  # [B, N]
 
         squared_error = tf.where(
             are_coords_true_inside_patch,
@@ -197,11 +175,21 @@ class FullModel(tf.keras.Model):
             ),  # If coords_true are inside the patch always calculate the MSE. Else the classifier's offset predictions are useless and should be ignored. Assign a constant max error that has gradient of zero.
         )  # [B, N]
 
+        # TODO: implement solution for multi-class problems with categorical crossentropy (like line crossings)
+        # Compute BinaryCrossEntropy / CategoricalCrossEntropy
+        y_pred = results["classification"]  # [B, N]
+        y_true = are_coords_true_inside_patch  # [B, N]
+
+        bce = tf.keras.losses.BinaryCrossentropy(from_logits=False, name="classifier_bce")(
+            y_true, y_pred
+        )  # Shape: ()
+
         # If the classifier thinks that there is no object in the image, this error has a smaller contribution to the loss
         squared_error_multiplied = squared_error * y_pred  # [B, N]
-
         mse = tf.reduce_mean(squared_error_multiplied)  # Shape: ()
+
         tf.debugging.assert_all_finite(mse, "Classifier MSE")
+        tf.debugging.assert_all_finite(bce, "Classifier BCE")
 
         loss = bce + mse  # Shape: ()
 
