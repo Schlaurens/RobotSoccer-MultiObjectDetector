@@ -10,11 +10,11 @@ class PatchExtractor(tf.keras.layers.Layer):
 
     def __init__(
         self,
-        patch_size=(32, 32),
-        object_size=0.2,
-        object_height=0,
-        interpolation="nearest",
-        name="patch_extractor",
+        patch_size: tuple[int] | list[int] = (32, 32),
+        object_size: float = 0.2,
+        object_height: float = 0,
+        interpolation: str = "nearest",
+        name: str = "patch_extractor",
         **kwargs,
     ):
         """Constructor.
@@ -162,10 +162,10 @@ class PatchSampler(tf.keras.layers.Layer):
 
     def __init__(
         self,
-        n_sample,
-        temperature=1,
+        n_sample: int,
+        temperature: int = 1,
         generator=tf.random.get_global_generator(),  # noqa: B008
-        name="patch_sampler",
+        name: str = "patch_sampler",
         **kwargs,
     ):
         """Constructor.
