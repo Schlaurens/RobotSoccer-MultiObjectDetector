@@ -32,14 +32,10 @@ def show_masks_on_image(
 
     """
     if coordinates is not None and image is not None:
-        masks = u_dataset.get_masks(
-            coordinates=coordinates, output_dims=grid_dims
-        )
+        masks = u_dataset.get_masks(coordinates=coordinates, output_dims=grid_dims)
     elif directory is not None and label is not None:
         image = u_dataset.load_image(directory, label, image_format=u_image.ImageFormat.RGB)
-        masks = u_dataset.get_masks(
-            label, object_name, output_dims=grid_dims
-        )
+        masks = u_dataset.get_masks(label, object_name, output_dims=grid_dims)
     else:
         raise ValueError(
             "Either (directory and label) or (coordinates and image) must be provided."
