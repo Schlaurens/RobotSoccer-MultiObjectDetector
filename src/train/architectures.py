@@ -361,7 +361,8 @@ def _get_classifier_inverted_residual_single_category(
     x = image
     if n_meta > 0:
         x = tf.keras.layers.Concatenate()([image, meta])
-    x = tf.keras.layers.Conv2D(32, 3, padding="same", use_bias=False)(x)
+
+    x = tf.keras.layers.Conv2D(16, 3, padding="same", use_bias=False)(x)
     if use_batch_norm:
         x = tf.keras.layers.BatchNormalization(scale=False)(x)
     else:
@@ -376,6 +377,21 @@ def _get_classifier_inverted_residual_single_category(
     else:
         x = tf.keras.layers.GroupNormalization(scale=False, groups=groups)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    
+    x = tf.keras.layers.Conv2D(32, 3, padding="same", use_bias=False)(x)
+    if use_batch_norm:
+        x = tf.keras.layers.BatchNormalization(scale=False)(x)
+    else:
+        x = tf.keras.layers.GroupNormalization(scale=False, groups=groups)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    
+    x = tf.keras.layers.Conv2D(16, 3, padding="same", use_bias=False)(x)
+    if use_batch_norm:
+        x = tf.keras.layers.BatchNormalization(scale=False)(x)
+    else:
+        x = tf.keras.layers.GroupNormalization(scale=False, groups=groups)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    
     x = tf.keras.layers.Flatten()(x)
 
     return _get_common_classifier_output(x, n_classes, with_offset, inputs)
