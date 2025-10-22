@@ -161,8 +161,11 @@ class FullModel(tf.keras.Model):
         # Theoretical maximum error, distance between (0,0) and (max, max) of patch
         max_error = tf.norm(tf.cast(self.patch_size, dtype=tf.float32))  # Shape: ()
 
-        # TODO: test this with values
-        coords_true_normalized = coords_true / self.full_image_size[tf.newaxis, :]  # [B, 1, 2]
+        # Normalize coords to the image dimensions. Because the boxes coords are also normalized.
+        # Switch axes of full_image_size because: coords_true (x, y), full_image_size (y, x)
+        coords_true_normalized = (
+            coords_true / self.full_image_size[::-1][tf.newaxis, :]
+        )  # [B, 1, 2]
         are_coords_true_inside_patch = u_keypoint.are_coords_in_patch(
             coords_true_normalized, boxes
         )  # [B, N]
