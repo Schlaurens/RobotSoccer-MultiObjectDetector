@@ -46,15 +46,18 @@ class EvaluateApplication:
         self.fig = plt.figure(figsize=(12, 8))
         self.gs = gridspec.GridSpec(11, 16, figure=self.fig)
 
-        self.ax_img = self.fig.add_subplot(self.gs[0:4, 0:5])
-        self.ax_img.axis("off")
-        self.ax_img.set_title("Image")
+        self.ax_ball_patches = self.fig.add_subplot(self.gs[0:4, 0:5])
+        self.ax_ball_patches.axis("off")
+        self.ax_ball_patches.set_title("Ball Patches")
         self.ax_ball = self.fig.add_subplot(self.gs[0:4, 5:10])
         self.ax_ball.axis("off")
         self.ax_ball.set_title("Ball")
         self.ax_ball_gt = self.fig.add_subplot(self.gs[0:4, 10:15])
         self.ax_ball_gt.axis("off")
         self.ax_ball_gt.set_title("Ball Groundtruth")
+        self.ax_penalty_mark_patches = self.fig.add_subplot(self.gs[5:9, 0:5])
+        self.ax_penalty_mark_patches.axis("off")
+        self.ax_penalty_mark_patches.set_title("PenaltyMark Patches")
         self.ax_penalty_mark = self.fig.add_subplot(self.gs[5:9, 5:10])
         self.ax_penalty_mark.axis("off")
         self.ax_penalty_mark.set_title("PenaltyMark")
@@ -72,7 +75,12 @@ class EvaluateApplication:
             valfmt="%i",
         )
 
-        self.im_ax_img = self.ax_img.imshow(u_image.convert_yuyv_to_rgb(self.data[0]["image"]))
+        self.im_ax_ball_patches = self.ax_ball_patches.imshow(
+            u_image.convert_yuyv_to_rgb(self.data[0]["image"])
+        )
+        self.im_ax_penalty_mark_patches = self.ax_penalty_mark_patches.imshow(
+            u_image.convert_yuyv_to_rgb(self.data[0]["image"])
+        )
         stuff = np.zeros((15, 20))
         stuff[0][0] = 1
         self.im_ax_ball = self.ax_ball.imshow(stuff)
@@ -90,7 +98,10 @@ class EvaluateApplication:
         plt.show()
 
     def select_image(self, index):
-        self.im_ax_img.set_data(u_image.convert_yuyv_to_rgb(self.data[index]["image"]))
+        self.im_ax_ball_patches.set_data(u_image.convert_yuyv_to_rgb(self.data[index]["image"]))
+        self.im_ax_penalty_mark_patches.set_data(
+            u_image.convert_yuyv_to_rgb(self.data[index]["image"])
+        )
         self.update_predictions(index)
         self.fig.canvas.draw()
 
