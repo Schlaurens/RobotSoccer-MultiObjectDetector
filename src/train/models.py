@@ -518,6 +518,7 @@ class FullModel(tf.keras.Model):
 
         return {
             "patches": patches,
+            "patch_indices": patch_indices,
             "masks": masks,
             "boxes": boxes,
             "coords": coords,
