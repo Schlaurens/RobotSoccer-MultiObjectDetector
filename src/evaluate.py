@@ -26,6 +26,7 @@ import matplotlib.widgets as widgets
 import numpy as np
 import tensorflow as tf
 from matplotlib import patches
+from matplotlib.widgets import Slider
 
 from train.models import FullModel
 from util import dataset as u_dataset
@@ -73,7 +74,30 @@ class EvaluateApplication:
         self.ax_penalty_mark_gt = self.fig.add_subplot(self.gs[5:9, 10:15])
         self.ax_penalty_mark_gt.axis("off")
         self.ax_penalty_mark_gt.set_title("PenaltyMark Groundtruth")
+
+        self.penalty_mark_threshold = 0.8
+        self.ball_threshold = 0.8
+
         self.index = 0
+
+        self.ax_penalty_mark_slider = self.fig.add_axes([0.1, 0.25, 0.0225, 0.2725])
+        self.penalty_mark_slider = Slider(
+            ax=self.ax_penalty_mark_slider,
+            label="t",
+            valmin=0,
+            valmax=1,
+            valinit=self.penalty_mark_threshold,
+            orientation="vertical",
+        )
+        self.ax_ball_slider = self.fig.add_axes([0.1, 0.61, 0.0225, 0.2725])
+        self.ball_slider = Slider(
+            ax=self.ax_ball_slider,
+            label="t",
+            valmin=0,
+            valmax=1,
+            valinit=self.ball_threshold,
+            orientation="vertical",
+        )
 
         self.ax_slider_image = self.fig.add_subplot(self.gs[10, :])
         self.slider_image = widgets.Slider(
@@ -98,11 +122,18 @@ class EvaluateApplication:
         self.im_ax_penalty_mark = self.ax_penalty_mark.imshow(stuff)
         self.im_ax_penalty_mark_gt = self.ax_penalty_mark_gt.imshow(stuff)
 
+        self.ball_slider.on_changed(lambda val: self.update_threshold(val, "ball"))
+        self.penalty_mark_slider.on_changed(lambda val: self.update_threshold(val, "penaltyMark"))
+
         self.slider_image.on_changed(lambda val: self.image_slider_changed(val))
         self.fig.canvas.mpl_disconnect(self.fig.canvas.manager.key_press_handler_id)
         self.fig.canvas.mpl_connect("key_release_event", lambda event: self.key_released(event))
 
         self.select_image()
+
+    def update_threshold(self, val, object_name):
+        self.set_threshold(object_name, val)
+        self.update_predictions()
 
     def run(self):
         plt.show()
@@ -221,6 +252,18 @@ class EvaluateApplication:
         )
         model.compile(optimizer=tf.keras.optimizers.Adam(), jit_compile=False)
         return model
+
+    def get_threshold(self, object_name):
+        if object_name == "ball":
+            return self.ball_threshold
+        elif object_name == "penaltyMark":
+            return self.penalty_mark_threshold
+
+    def set_threshold(self, object_name, value):
+        if object_name == "ball":
+            self.ball_threshold = value
+        if object_name == "penaltyMark":
+            self.penalty_mark_threshold = value
 
 
 if __name__ == "__main__":
