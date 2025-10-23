@@ -137,12 +137,6 @@ class IresBlock(tf.keras.layers.Layer):
 
 
 class PatchExtractor(tf.keras.layers.Layer):
-    """This layer extracts patches from an image. The center coordinates are given,
-    and the size in pixels of the crop in the original image is determined based on
-    a desired size in meters, the height of the object over the ground, and the camera pose.
-    Thus, the patch will roughly cover the the same "area" regardless of where in the image it is.
-    """
-
     def __init__(
         self,
         patch_size: tuple[int] | list[int] = (32, 32),
@@ -152,7 +146,10 @@ class PatchExtractor(tf.keras.layers.Layer):
         name: str = "patch_extractor",
         **kwargs,
     ):
-        """Constructor.
+        """This layer extracts patches from an image. The center coordinates are given,
+        and the size in pixels of the crop in the original image is determined based on
+        a desired size in meters, the height of the object over the ground, and the camera pose.
+        Thus, the patch will roughly cover the the same "area" regardless of where in the image it is.
 
         :param patch_size: The size (height, width) in pixels of each extracted patch.
         :param object_size: The size/diameter of an object in meters.
@@ -291,11 +288,6 @@ class PatchExtractor(tf.keras.layers.Layer):
 
 
 class PatchSampler(tf.keras.layers.Layer):
-    """This layer samples a number of indices from a given distribution.
-    The behavior differs by training and test mode: In training mode, the values are sampled randomly (according to the weights),
-    while in test mode, the top weighted patches are chosen deterministically.
-    """
-
     def __init__(
         self,
         n_sample: int,
@@ -304,7 +296,9 @@ class PatchSampler(tf.keras.layers.Layer):
         name: str = "patch_sampler",
         **kwargs,
     ):
-        """Constructor.
+        """This layer samples a number of indices from a given distribution.
+        The behavior differs by training and test mode: In training mode, the values are sampled randomly (according to the weights),
+        while in test mode, the top weighted patches are chosen deterministically.
 
         :param n_sample: The number of samples to draw.
         :param temperature: At temperature 0, the samples are selected deterministically as the top N.
