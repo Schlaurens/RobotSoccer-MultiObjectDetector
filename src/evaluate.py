@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import matplotlib.widgets as widgets
 import numpy as np
 import tensorflow as tf
+from matplotlib import patches
 
 from train.models import FullModel
 from util import dataset as u_dataset
@@ -113,9 +114,8 @@ class EvaluateApplication:
         self.update_predictions(index)
         self.fig.canvas.draw()
 
-    def update_predictions(self, index):
-        # image = self.data[index]["image"]
-        results = self.model(
+        self.remove_artists()
+        image_rgb = u_image.convert_yuyv_to_rgb(image)
             (
                 self.data[index]["image"][np.newaxis, ...],
                 self.data[index]["camera"][np.newaxis, ...],
@@ -124,7 +124,7 @@ class EvaluateApplication:
             training=False,
         )
 
-        output_penaltyMark = results["results"]["penaltyMark"]["logits"][
+        output_penaltyMark = output["results"]["penaltyMark"]["logits"][
             0
         ].numpy()  # remove batch dimension
 
@@ -132,16 +132,52 @@ class EvaluateApplication:
         self.im_ax_penalty_mark.set_data(np.reshape(output_penaltyMark, (15, 20)))
 
         # Set groundtruth figures
-        self.im_ax_ball_gt.set_data(self.data[index]["ball"]["object_mask"])
-        self.im_ax_penalty_mark_gt.set_data(self.data[index]["penaltyMark"]["object_mask"])
+        self.im_ax_ball_gt.set_data(self.data[self.index]["ball"]["object_mask"])
+        self.im_ax_penalty_mark_gt.set_data(self.data[self.index]["penaltyMark"]["object_mask"])
+        self.im_ax_penalty_mark_patches.set_data(image_rgb)
+        # Set patch figures
+        self.draw_patches(image_rgb, self.ax_penalty_mark_patches, output, "penaltyMark")
 
-    def normalize_array(self, arr):
-        arr_min = arr.min()
-        arr_max = arr.max()
-        if arr_max == arr_min:
-            return np.zeros_like(arr)
+    def remove_artists(self):
+        """Remove all the Artists (texts and patches) for all the axes."""
+        # Remove texts and patches
+        for text in self.ax_ball_patches.texts:
+            text.remove()
+        for patch in self.ax_ball_patches.patches:
+            patch.remove()
+        for text in self.ax_penalty_mark_patches.texts:
+            text.remove()
+        for patch in self.ax_penalty_mark_patches.patches:
+            patch.remove()
 
-        return (arr - arr_min) / (arr_max - arr_min)
+    def draw_patches(self, image, axes, output, object_name):
+        for i, box in enumerate(
+            output["results"][object_name]["boxes"][0]
+        ):  # take index 0 to remove batch dimension
+            patch_index = output["results"][object_name]["patch_indices"][0][i]
+
+            if output["results"][object_name]["logits"][0][patch_index] < self.get_threshold(
+                object_name
+            ):
+                return
+            # Coordinates for each box are y1, x1, y2, x2
+            # Upscale the normalized coordinates
+            coords = (box[1] * (image.shape[1] - 1), box[0] * (image.shape[0] - 1))
+            width = (box[3] - box[1]) * (image.shape[1] - 1)
+            height = (box[2] - box[0]) * (image.shape[0] - 1)
+
+            rect = patches.Rectangle(
+                coords,
+                width,
+                height,
+                linewidth=1,
+                edgecolor="lime",
+                facecolor=(255 / 255, 123 / 255, 0 / 255, 0 / 255),
+            )
+
+            # Each patch has a number to identify the ordering
+            axes.text(x=(coords[0] + 4.0), y=coords[1] + 17.0, s=i + 1, color="lime")
+            axes.add_patch(rect)
 
     def image_slider_changed(self, val):
         self.select_image(int(val))
