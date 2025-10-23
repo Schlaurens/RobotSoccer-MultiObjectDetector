@@ -54,10 +54,10 @@ def _get_common_encoder_output(x, category_names, n_context, image):
     output = []
     for name in category_names:
         # TODO: some activated stuff here?
-        offset = tf.keras.layers.Conv2D(2, 1)(x)
+        offset = tf.keras.layers.Conv2D(2, 1, name="offsets")(x)
 
-        x = tf.keras.layers.Conv2D(1, 1)(x)
-        interest = tf.keras.layers.Activation("sigmoid")(x)
+        x = tf.keras.layers.Conv2D(1, 1, name="interest")(x)
+        interest = tf.keras.layers.Activation("sigmoid", name="sigmoid")(x)
 
         output += [tf.keras.layers.Concatenate(name=name)([offset, interest])]
 
@@ -83,7 +83,12 @@ def _get_encoder_inverted_residual_single_category(
     # 480x320x4
     # cannot be ires block due to uneven stride
     x = tf.keras.layers.Conv2D(16, 3, strides=(2, 1), padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
+    x = Normalization(
+        use_batch_norm,
+        scale=False,
+        groups=-1,
+        name="BatchNormalization" if use_batch_norm else "GroupNormalization",
+    )(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     # 240x320x24
@@ -127,7 +132,12 @@ def _get_encoder_inverted_residual_single_category_v2(
     # 480x320x4
     # cannot be ires block due to uneven stride
     x = tf.keras.layers.Conv2D(16, 3, strides=(2, 1), padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
+    x = Normalization(
+        use_batch_norm,
+        scale=False,
+        groups=-1,
+        name="BatchNormalization" if use_batch_norm else "GroupNormalization",
+    )(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     # 240x320x24
