@@ -160,7 +160,7 @@ class EvaluateApplication:
             ),
             training=False,
         )
-
+        print(output["results"]["penaltyMark"]["classification"][0].numpy())
         output_penaltyMark = output["results"]["penaltyMark"]["logits"][
             0
         ].numpy()  # remove batch dimension
