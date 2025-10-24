@@ -198,6 +198,7 @@ class EvaluateApplication:
             patch_index = output["results"][object_name]["patch_indices"][0][i]
             logit = output["results"][object_name]["logits"][0][patch_index]
             coords_pred = output["results"][object_name]["coords"][0][i]
+            coords_true = u_dataset.get_coords_from_offsets(self.data[self.index][object_name]["offset_mask"])
             position_pred = output["results"][object_name]["positions"][0][i]
 
             # dont draw patch if its prediction is under the threshold
@@ -224,6 +225,7 @@ class EvaluateApplication:
             axes.add_patch(rect)
             axes.plot(coords_pred[0], coords_pred[1], "rx")
             axes.plot(position_pred[0], position_pred[1], "bx")
+            axes.plot(coords_true[0], coords_true[1], "gx")
 
     def image_slider_changed(self, val):
         self.index = int(val)
