@@ -8,7 +8,7 @@ from util import dataset as u_dataset
 from util import image as u_image
 from util import keypoint as u_keypoint
 
-from .layers import PatchExtractor, PatchSampler
+from .layers import IresBlock, Normalization, PatchExtractor, PatchSampler
 
 
 class FullModel(tf.keras.Model):
@@ -359,7 +359,10 @@ class FullModel(tf.keras.Model):
         )
 
         # Load the encoder
-        encoder = tf.keras.models.load_model(os.path.join(filepath, "encoder", f"{filename}"))
+        encoder = tf.keras.models.load_model(
+            os.path.join(filepath, "encoder", f"{filename}"),
+            custom_objects={"IresBlock": IresBlock, "Normalization": Normalization},
+        )
         model.encoder = encoder
 
         if verbose:
@@ -370,7 +373,10 @@ class FullModel(tf.keras.Model):
             for name, value in model.categories.items():
                 try:
                     classifier_path = os.path.join(filepath, "classifier", name, f"{filename}")
-                    classifier = tf.keras.models.load_model(classifier_path)
+                    classifier = tf.keras.models.load_model(
+                        classifier_path,
+                        custom_objects={"IresBlock": IresBlock, "Normalization": Normalization},
+                    )
                     value["classifier"] = classifier
 
                     if verbose:
