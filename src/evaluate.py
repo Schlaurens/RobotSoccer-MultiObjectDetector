@@ -226,6 +226,8 @@ class EvaluateApplication:
             axes.plot(coords_pred[0], coords_pred[1], "rx")
             axes.plot(position_pred[0], position_pred[1], "bx")
             axes.plot(coords_true[0], coords_true[1], "gx")
+            
+            print(np.linalg.norm(position_pred - coords_true))
 
     def image_slider_changed(self, val):
         self.index = int(val)
