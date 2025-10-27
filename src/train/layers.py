@@ -3,7 +3,12 @@ import tensorflow as tf
 
 class Normalization(tf.keras.layers.Layer):
     def __init__(
-        self, batch_norm: bool = False, scale: bool = False, groups: int = -1, name: str = None
+        self,
+        batch_norm: bool = False,
+        scale: bool = False,
+        groups: int = -1,
+        name: str = None,
+        **kwargs,
     ):
         """This Layer returns a normalization layer that is either BatchNormalization or GroupNormalization.
 
@@ -13,7 +18,7 @@ class Normalization(tf.keras.layers.Layer):
             groups: Size of the groups for the GroupNormalization. If -1 the groupsize is the size of the input dimension (InstanceNormalization). Defaults to -1.
             name: The Name of the layer. Defaults to None.
         """
-        super().__init__(name=name)
+        super().__init__(name=name, **kwargs)
         self.norm_layer = (
             tf.keras.layers.BatchNormalization(scale=scale)
             if batch_norm
