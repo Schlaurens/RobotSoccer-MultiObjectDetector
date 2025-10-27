@@ -148,8 +148,9 @@ class FullModel(tf.keras.Model):
         bce = tf.reduce_mean(bce_batched)  # Shape: ()
         mse = tf.reduce_mean(mse_batched)  # Shape: ()
         loss = tf.reduce_mean(loss_batched)  # Shape: ()
+        rmse = tf.math.sqrt(mse)  # Shape: ()
 
-        return {"loss": loss, "mse": mse, "bce": bce}
+        return {"loss": loss, "mse": mse, "rmse": rmse, "bce": bce}
 
     def classifier_loss(self, batch_data, results):
         # Compute MSE
@@ -196,8 +197,9 @@ class FullModel(tf.keras.Model):
         tf.debugging.assert_all_finite(bce, "Classifier BCE")
 
         loss = bce + mse  # Shape: ()
+        rmse = tf.math.sqrt(mse)  # Shape: ()
 
-        return {"loss": loss, "mse": mse, "bce": bce}
+        return {"loss": loss, "mse": mse, "rmse": rmse, "bce": bce}
 
     def _calculate_losses(self, batch_data, results, maps):
         encoder_losses = {
@@ -206,17 +208,21 @@ class FullModel(tf.keras.Model):
         classifier_losses = {
             key: self.classifier_loss(batch_data[key], results=value)
             for key, value in results.items()
-        }  # (loss, mse, bce) for each category
+        }  # (loss, mse, rmse, bce) for each category
 
         return {
             "encoder_loss": tf.reduce_sum([value["loss"] for value in encoder_losses.values()]),
             "encoder_bce": tf.reduce_sum([value["bce"] for value in encoder_losses.values()]),
             "encoder_mse": tf.reduce_sum([value["mse"] for value in encoder_losses.values()]),
+            "encoder_rmse": tf.reduce_sum([value["rmse"] for value in encoder_losses.values()]),
             "classifier_loss": tf.reduce_sum(
                 [value["loss"] for value in classifier_losses.values()]
             ),
             "classifier_bce": tf.reduce_sum([value["bce"] for value in classifier_losses.values()]),
             "classifier_mse": tf.reduce_sum([value["mse"] for value in classifier_losses.values()]),
+            "classifier_rmse": tf.reduce_sum(
+                [value["rmse"] for value in classifier_losses.values()]
+            ),
         }
 
     def train_step(self, batch_data):
@@ -243,9 +249,11 @@ class FullModel(tf.keras.Model):
             "total_loss": total_loss,
             "encoder_bce": losses["encoder_bce"],
             "encoder_mse": losses["encoder_mse"],
+            "encoder_rmse": losses["encoder_rmse"],
             "encoder_loss": losses["encoder_loss"],
             "classifier_bce": losses["classifier_bce"],
             "classifier_mse": losses["classifier_mse"],
+            "classifier_rmse": losses["classifier_rmse"],
             "classifier_loss": losses["classifier_loss"],
         }
 
@@ -266,9 +274,11 @@ class FullModel(tf.keras.Model):
             "total_loss": total_loss,
             "encoder_bce": losses["encoder_bce"],
             "encoder_mse": losses["encoder_mse"],
+            "encoder_rmse": losses["encoder_rmse"],
             "encoder_loss": losses["encoder_loss"],
             "classifier_bce": losses["classifier_bce"],
             "classifier_mse": losses["classifier_mse"],
+            "classifier_rmse": losses["classifier_rmse"],
             "classifier_loss": losses["classifier_loss"],
         }
 
