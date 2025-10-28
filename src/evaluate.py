@@ -157,8 +157,13 @@ class EvaluateApplication:
             combined_predictions[best_score_index]
             >= self.thresholds["encoder"][object_name] + self.thresholds["classifier"][object_name]
         ):
+            best_classification = output["results"][object_name]["classification"][0][
+                best_score_index
+            ].numpy()
             axes.plot(*best_position, "bx")
-            axes.text(x=0.0, y=2.0, s=best_score_index + 1, color="lime")
+            axes.text(0, 2, f"cand.: {best_score_index + 1}", color="lime")
+            axes.text(0, 4, f"enc.: {best_logits[best_score_index].numpy():.3f}", color="lime")
+            axes.text(0, 6, f"cla.: {best_classification:.3f}", color="lime")
             return axes.imshow(
                 output["results"][object_name]["patches"][0][best_score_index][..., 0], cmap="gray"
             )
