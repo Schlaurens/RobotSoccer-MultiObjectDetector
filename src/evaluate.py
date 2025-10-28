@@ -91,64 +91,20 @@ class EvaluateApplication:
         self.ball_threshold = 0.8
 
         self.index = 0
-
-        self.ax_penalty_mark_slider = self.fig.add_axes([0.1, 0.25, 0.0225, 0.2725])
-        self.penalty_mark_slider = Slider(
-            ax=self.ax_penalty_mark_slider,
-            label="t",
-            valmin=0,
-            valmax=1,
-            valinit=self.penalty_mark_threshold,
-            orientation="vertical",
-        )
-        self.ax_ball_slider = self.fig.add_axes([0.1, 0.61, 0.0225, 0.2725])
-        self.ball_slider = Slider(
-            ax=self.ax_ball_slider,
-            label="t",
-            valmin=0,
-            valmax=1,
-            valinit=self.ball_threshold,
-            orientation="vertical",
-        )
-
-        self.ax_slider_image = self.fig.add_subplot(self.gs[10, :])
-        self.slider_image = Slider(
-            self.ax_slider_image,
-            "Index",
-            0,
-            len(self.data) - 1,
-            valinit=0,
-            valfmt="%i",
-        )
-
-        self.im_ax_ball_patches = self.ax_ball_patches.imshow(
-            u_image.convert_yuyv_to_rgb(self.data[0]["image"])
-        )
-        self.im_ax_penalty_mark_patches = self.ax_penalty_mark_patches.imshow(
-            u_image.convert_yuyv_to_rgb(self.data[0]["image"])
-        )
-        stuff = np.zeros((15, 20))
-        stuff[0][0] = 1
-        stuff_patch = np.zeros((32, 32))
-
-        self.im_ax_ball = self.ax_ball.imshow(stuff)
-        self.im_ax_ball_gt = self.ax_ball_gt.imshow(stuff)
-        self.im_ax_ball_result = self.ax_ball_result.imshow(stuff_patch)
-        self.im_ax_penalty_mark = self.ax_penalty_mark.imshow(stuff)
-        self.im_ax_penalty_mark_gt = self.ax_penalty_mark_gt.imshow(stuff)
-        self.im_ax_penalty_mark_result = self.ax_penalty_mark_result.imshow(stuff_patch)
-
-        self.ball_slider.on_changed(lambda val: self.update_threshold(val, "ball"))
-        self.penalty_mark_slider.on_changed(lambda val: self.update_threshold(val, "penaltyMark"))
-
-        self.slider_image.on_changed(lambda val: self.image_slider_changed(val))
-        self.fig.canvas.mpl_disconnect(self.fig.canvas.manager.key_press_handler_id)
-        self.fig.canvas.mpl_connect("key_release_event", lambda event: self.key_released(event))
-
+        self.thresholds = {
+            "encoder": {
+                "ball": 0.8,
+                "penaltyMark": 0.8,
+            },
+            "classifier": {
+                "ball": 0.6,
+                "penaltyMark": 0.6,
+            },
+        }
         self.select_image()
 
-    def update_threshold(self, val, object_name):
-        self.set_threshold(object_name, val)
+    def update_threshold(self, encoder: bool, object_name: str, val: float):
+        self.thresholds["encoder" if encoder else "classifier"][object_name] = val
         self.update_predictions()
 
     def run(self):
@@ -229,8 +185,11 @@ class EvaluateApplication:
 
         # The classifier_offset need to be added the center coordinates of the patch.
         best_position = (best_width / 2 + best_classifier_offset) * patch_to_box_ratio
-        
-        if combined_predictions[best_score_index] >= 1.3:
+
+        if (
+            combined_predictions[best_score_index]
+            >= self.thresholds["encoder"][object_name] + self.thresholds["classifier"][object_name]
+        ):
             axes.plot(*best_position, "bx")
             axes.text(x=0.0, y=2.0, s=best_score_index + 1, color="lime")
             return axes.imshow(
@@ -272,7 +231,7 @@ class EvaluateApplication:
             position_pred = output["results"][object_name]["positions"][0][i]
 
             # dont draw patch if its prediction is under the threshold
-            if logit < self.get_threshold(object_name):
+            if logit < self.thresholds["encoder"][object_name]:
                 continue
 
             # Coordinates for each box are y1, x1, y2, x2
