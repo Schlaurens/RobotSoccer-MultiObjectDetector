@@ -161,25 +161,18 @@ class EvaluateApplication:
 
     def remove_artists(self):
         """Remove all the Artists (texts, patches and lines) for all the axes."""
-        # Remove texts and patches
-        for text in self.ax_ball_patches.texts:
-            text.remove()
-        for patch in self.ax_ball_patches.patches:
-            patch.remove()
-        for line in self.ax_ball_patches.lines:
-            line.remove()
-        for line in self.ax_ball_result.lines:
-            line.remove()
-        for text in self.ax_penalty_mark_patches.texts:
-            text.remove()
-        for patch in self.ax_penalty_mark_patches.patches:
-            patch.remove()
-        for line in self.ax_penalty_mark_patches.lines:
-            line.remove()
-        for line in self.ax_penalty_mark_result.lines:
-            line.remove()
-        for test in self.ax_penalty_mark_result.texts:
-            test.remove()
+        axes_to_clear = [
+            self.ax_ball_patches,
+            self.ax_ball_result,
+            self.ax_penalty_mark_patches,
+            self.ax_penalty_mark_result,
+        ]
+
+        for ax in axes_to_clear:
+            for artist_type in ["lines", "texts", "patches"]:
+                artists = getattr(ax, artist_type, [])
+                for artist in artists:
+                    artist.remove()
 
     def draw_patch_candidates(self, image, axes, output, object_name):
         for i, box in enumerate(
