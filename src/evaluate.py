@@ -52,27 +52,40 @@ class EvaluateApplication:
             )
         )
 
-        self.fig = plt.figure(figsize=(12, 8))
-        self.gs = GridSpec(11, 16, figure=self.fig)
+        self.fig = plt.figure(figsize=(15, 8))
+        self.gs = GridSpec(11, 18, figure=self.fig)
 
         self.ax_ball_patches = self.fig.add_subplot(self.gs[0:4, 0:5])
         self.ax_ball_patches.axis("off")
         self.ax_ball_patches.set_title("Ball Patches")
+
         self.ax_ball = self.fig.add_subplot(self.gs[0:4, 5:10])
         self.ax_ball.axis("off")
         self.ax_ball.set_title("Ball")
+
         self.ax_ball_gt = self.fig.add_subplot(self.gs[0:4, 10:15])
         self.ax_ball_gt.axis("off")
         self.ax_ball_gt.set_title("Ball Groundtruth")
+
+        self.ax_ball_result = self.fig.add_subplot(self.gs[0:4, 15:18])
+        self.ax_ball_result.axis("off")
+        self.ax_ball_result.set_title("Ball Result")
+
         self.ax_penalty_mark_patches = self.fig.add_subplot(self.gs[5:9, 0:5])
         self.ax_penalty_mark_patches.axis("off")
         self.ax_penalty_mark_patches.set_title("PenaltyMark Patches")
+
         self.ax_penalty_mark = self.fig.add_subplot(self.gs[5:9, 5:10])
         self.ax_penalty_mark.axis("off")
         self.ax_penalty_mark.set_title("PenaltyMark")
+
         self.ax_penalty_mark_gt = self.fig.add_subplot(self.gs[5:9, 10:15])
         self.ax_penalty_mark_gt.axis("off")
         self.ax_penalty_mark_gt.set_title("PenaltyMark Groundtruth")
+
+        self.ax_penalty_mark_result = self.fig.add_subplot(self.gs[5:9, 15:18])
+        self.ax_penalty_mark_result.axis("off")
+        self.ax_penalty_mark_result.set_title("Ball Result")
 
         self.penalty_mark_threshold = 0.8
         self.ball_threshold = 0.8
@@ -116,10 +129,14 @@ class EvaluateApplication:
         )
         stuff = np.zeros((15, 20))
         stuff[0][0] = 1
+        stuff_patch = np.zeros((32, 32))
+
         self.im_ax_ball = self.ax_ball.imshow(stuff)
         self.im_ax_ball_gt = self.ax_ball_gt.imshow(stuff)
+        self.im_ax_ball_result = self.ax_ball_result.imshow(stuff_patch)
         self.im_ax_penalty_mark = self.ax_penalty_mark.imshow(stuff)
         self.im_ax_penalty_mark_gt = self.ax_penalty_mark_gt.imshow(stuff)
+        self.im_ax_penalty_mark_result = self.ax_penalty_mark_result.imshow(stuff_patch)
 
         self.ball_slider.on_changed(lambda val: self.update_threshold(val, "ball"))
         self.penalty_mark_slider.on_changed(lambda val: self.update_threshold(val, "penaltyMark"))
@@ -168,12 +185,59 @@ class EvaluateApplication:
         # Set prediction figures
         self.im_ax_penalty_mark.set_data(np.reshape(output_penaltyMark, (15, 20)))
 
+        # Set best patches
+        self.im_ax_penalty_mark_result = self.get_best_patch(
+            self.ax_penalty_mark_result, output, "penaltyMark"
+        )
+
         # Set groundtruth figures
         self.im_ax_ball_gt.set_data(self.data[self.index]["ball"]["object_mask"])
         self.im_ax_penalty_mark_gt.set_data(self.data[self.index]["penaltyMark"]["object_mask"])
         self.im_ax_penalty_mark_patches.set_data(image_rgb)
         # Set patch figures
-        self.draw_patches(image_rgb, self.ax_penalty_mark_patches, output, "penaltyMark")
+        self.draw_patch_candidates(image_rgb, self.ax_penalty_mark_patches, output, "penaltyMark")
+
+    def get_best_patch(self, axes, output, object_name):
+        """Find the best candidate and draw the patch with the predicted object position in the gives pyplot axes.
+
+        Args:
+            axes: Axes that will contain the patch and the predicted coordinates.
+            output: The output of the classifier.
+            object_name: The object name for which the best patch should be drawn
+
+        Returns:
+            The axes with the prediction. Or a zeros array if no object has been found that exceeds the combined threshold of encoder and classifier confidence.
+        """
+        patch_indices = output["results"][object_name]["patch_indices"][0]
+        best_logits = [output["results"][object_name]["logits"][0][i] for i in patch_indices]
+        # The sum of the encoder's and classifier's prediction values
+        combined_predictions = best_logits + output["results"][object_name]["classification"][0]
+
+        best_score_index = np.argmax(combined_predictions)
+        # Get the offset predicted by the classifier. This works because (position = coords + classifier_offset).
+        best_classifier_offset = (
+            output["results"][object_name]["positions"][0][best_score_index]
+            - output["results"][object_name]["coords"][0][best_score_index]
+        )
+        best_box = output["results"][object_name]["boxes"][0][best_score_index]
+
+        # We only need the width because the patch is a square.
+        best_width = (best_box[3] - best_box[1]) * (640 - 1)
+
+        # Used to scale the box with variable size to the fixed patch size
+        patch_to_box_ratio = 32 / best_width
+
+        # The classifier_offset need to be added the center coordinates of the patch.
+        best_position = (best_width / 2 + best_classifier_offset) * patch_to_box_ratio
+        
+        if combined_predictions[best_score_index] >= 1.3:
+            axes.plot(*best_position, "bx")
+            axes.text(x=0.0, y=2.0, s=best_score_index + 1, color="lime")
+            return axes.imshow(
+                output["results"][object_name]["patches"][0][best_score_index][..., 0], cmap="gray"
+            )
+        else:
+            return axes.imshow(np.zeros((32, 32)))
 
     def remove_artists(self):
         """Remove all the Artists (texts, patches and lines) for all the axes."""
@@ -182,16 +246,22 @@ class EvaluateApplication:
             text.remove()
         for patch in self.ax_ball_patches.patches:
             patch.remove()
-        for lines in self.ax_ball_patches.lines:
-            lines.remove()
+        for line in self.ax_ball_patches.lines:
+            line.remove()
+        for line in self.ax_ball_result.lines:
+            line.remove()
         for text in self.ax_penalty_mark_patches.texts:
             text.remove()
         for patch in self.ax_penalty_mark_patches.patches:
             patch.remove()
-        for lines in self.ax_penalty_mark_patches.lines:
-            lines.remove()
+        for line in self.ax_penalty_mark_patches.lines:
+            line.remove()
+        for line in self.ax_penalty_mark_result.lines:
+            line.remove()
+        for test in self.ax_penalty_mark_result.texts:
+            test.remove()
 
-    def draw_patches(self, image, axes, output, object_name):
+    def draw_patch_candidates(self, image, axes, output, object_name):
         for i, box in enumerate(
             output["results"][object_name]["boxes"][0]
         ):  # take index 0 to remove batch dimension
