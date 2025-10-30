@@ -101,14 +101,15 @@ class EvaluateApplication:
             ),
             training=False,
         )
-        output_penaltyMark = output["results"]["penaltyMark"]["logits"][
-            0
-        ].numpy()  # remove batch dimension
+        output_ball = output["results"]["ball"]["logits"][0].numpy()
+        output_penaltyMark = output["results"]["penaltyMark"]["logits"][0].numpy()
 
         # Set prediction figures
+        self.im_ax_ball.set_data(np.reshape(output_ball, (15, 20)))
         self.im_ax_penalty_mark.set_data(np.reshape(output_penaltyMark, (15, 20)))
 
         # Set best patches
+        self.im_ax_ball_result = self.get_best_patch(self.ax_ball_result, output, "ball")
         self.im_ax_penalty_mark_result = self.get_best_patch(
             self.ax_penalty_mark_result, output, "penaltyMark"
         )
@@ -116,8 +117,10 @@ class EvaluateApplication:
         # Set groundtruth figures
         self.im_ax_ball_gt.set_data(self.data[self.index]["ball"]["object_mask"])
         self.im_ax_penalty_mark_gt.set_data(self.data[self.index]["penaltyMark"]["object_mask"])
+        self.im_ax_ball_patches.set_data(image_rgb)
         self.im_ax_penalty_mark_patches.set_data(image_rgb)
         # Set patch figures
+        self.draw_patch_candidates(image_rgb, self.ax_ball_patches, output, "ball")
         self.draw_patch_candidates(image_rgb, self.ax_penalty_mark_patches, output, "penaltyMark")
 
     def get_best_patch(self, axes, output, object_name):
