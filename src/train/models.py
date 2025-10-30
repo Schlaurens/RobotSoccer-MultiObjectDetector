@@ -508,7 +508,7 @@ class FullModel(tf.keras.Model):
         classification, offsets = classifier(
             [
                 tf.reshape(
-                    patches,
+                    tf.stop_gradient(patches),
                     (
                         tf.shape(intrinsics)[0] * sampler.n_sample,
                         *self.patch_size,
@@ -521,9 +521,9 @@ class FullModel(tf.keras.Model):
         classification = tf.reshape(classification, (tf.shape(intrinsics)[0], sampler.n_sample))
         boxes = tf.reshape(boxes, (tf.shape(intrinsics)[0], sampler.n_sample, 4))
 
-        positions = coords + tf.reshape(
+        positions = tf.stop_gradient(coords) + tf.reshape(
             offsets, (tf.shape(intrinsics)[0], sampler.n_sample, 2)
-        )  # TODO: stop gradient for coords?
+        )
 
         return {
             "patches": patches,
