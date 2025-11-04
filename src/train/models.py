@@ -488,16 +488,14 @@ class FullModel(tf.keras.Model):
         )  # [B, N_out, H_out, W_out, C], [B, N_out]
 
         classification, offsets = classifier(
-            [
-                tf.reshape(
-                    tf.stop_gradient(patches),
-                    (
-                        tf.shape(intrinsics)[0] * sampler.n_sample,
-                        *self.patch_size,
-                        self.patch_channels,
-                    ),
-                )
-            ]
+            tf.reshape(
+                tf.stop_gradient(patches),
+                (
+                    tf.shape(intrinsics)[0] * sampler.n_sample,
+                    *self.patch_size,
+                    self.patch_channels,
+                ),
+            )
         )  # + meta + context
 
         classification = tf.reshape(classification, (tf.shape(intrinsics)[0], sampler.n_sample))
