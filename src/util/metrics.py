@@ -4,6 +4,7 @@ import tensorflow as tf
 
 from . import camera as u_camera
 from . import dataset as u_dataset
+from . import keypoint as u_keypoint
 
 
 class Error_Metric(tf.keras.metrics.Metric):
@@ -189,3 +190,93 @@ class RMSE(Error_Metric):
     def result(self):
         # Scale the RMSE back to m.
         return tf.sqrt(self.abs_error / self.num_samples) / self.scaling_factor
+
+
+def calculate_binary_metrics(
+    predictions,
+    groundtruth,
+    encoder_threshold,
+    classifier_threshold,
+    include_encoder_logits=False,
+):
+    """Calculate y_pred. A binary tensor which is True if an object was detected in the sample and False if no object was detected.
+
+    A prediction counts as positive if:
+        - the combined prediction (encoder prediction + classifier prediction) is greater-equal than the combined threshold (encoder_threshold + classifier_threshold)
+        - The predicted patch coordinates could be projected on the ground
+        - If the predicted patch is actually over the object.
+
+    Args:
+        predictions: The model predictions.
+        groundtruth: The corresponding groundtruth data.
+        encoder_threshold: The threshold of the encoder.
+        classifier_threshold: The threshold of the classifier.
+        include_encoder_logits: Whether the predicted probably of the encoder should be considered when getting the patch with the highest probility. Defaults to False
+
+    Returns:
+        dict() containing confusion matrix, precision, recall, indices of false_positives and false_negatives, false_positive rate and false_negative rate
+    """
+
+    # Get the encoder logits where a patch was drawn (those are the one with the highest predicted probability)
+    best_logits = tf.gather(
+        predictions["logits"], predictions["patch_indices"], batch_dims=1
+    )  # (B, N)
+
+    # Add the encoder prediction and the classifier prediction to a combined prediction
+    combined_predictions = (
+        best_logits + predictions["classification"]
+        if include_encoder_logits
+        else predictions["classification"]
+    )  # (B, N)
+
+    # The groundtruth coordinates of the object
+    coords_true = u_keypoint.get_coords_from_offsets(groundtruth["offset_mask"])  # (B, 2)
+    object_in_image = tf.math.reduce_any(
+        tf.cast(groundtruth["object_mask"], tf.bool), axis=[1, 2]
+    )  # (B, )
+
+    # The patch_indices with the best combined prediction score
+    best_score_index = tf.argmax(combined_predictions, axis=-1)  # (B, )
+
+    # The best prediction of each sample.
+    best_predictions = tf.gather(combined_predictions, best_score_index, batch_dims=1)  # (B, )
+
+    # The best box of each sample
+    best_boxes = tf.gather(predictions["boxes"], best_score_index, batch_dims=1)  # (B, 4)
+
+    coords_true_normalized = coords_true / [640, 480]  # [B, 2]
+    # Is True if the best predicted box is actually on the object.
+    valid_boxes = u_keypoint.are_coords_in_patch(coords_true_normalized, best_boxes)  # (B, )
+    # print(best_boxes)
+
+    # Is True if the prediction of the best patch is greater-equal the combined threshold
+    over_threshold = best_predictions >= (encoder_threshold + classifier_threshold)  # (B, )
+
+    fp = over_threshold & tf.math.logical_not(valid_boxes)  # (B, )
+    tp = over_threshold & valid_boxes  # (B, )
+    fn = tf.math.logical_not(over_threshold) & object_in_image  # (B, )
+    tn = tf.math.logical_not(over_threshold) & tf.logical_not(object_in_image)  # (B, )
+
+    fp_indices = tf.where(fp).numpy()
+    fn_indices = tf.where(fn).numpy()
+
+    fp_count = tf.math.count_nonzero(fp).numpy()
+    tp_count = tf.math.count_nonzero(tp).numpy()
+    fn_count = tf.math.count_nonzero(fn).numpy()
+    tn_count = tf.math.count_nonzero(tn).numpy()
+
+    precision = tp_count / (tp_count + fp_count)
+    recall = tp_count / (tp_count + fn_count)
+
+    fp_rate = fp_count / (fp_count + tp_count)
+    fn_rate = fn_count / (fn_count + tn_count)
+
+    return {
+        "confusion_matrix": np.array([[tn_count, fp_count], [fn_count, tp_count]]),
+        "precision": precision,
+        "recall": recall,
+        "fp_indices": fp_indices,
+        "fn_indices": fn_indices,
+        "fp_rate": fp_rate,
+        "fn_rate": fn_rate,
+    }
