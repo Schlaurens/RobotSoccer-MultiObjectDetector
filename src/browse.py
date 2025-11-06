@@ -147,17 +147,23 @@ class BrowseApplication:
             self.label_mode = LabelMode.OBSTACLES
         elif event.key == "p":
             self.label_mode = LabelMode.PENALTY_MARK
-        elif event.key == "q":
+        elif event.key == ",":
             self.label_mode = LabelMode.INTERSECTION_L
-        elif event.key == "w":
+        elif event.key == ".":
             self.label_mode = LabelMode.INTERSECTION_T
-        elif event.key == "e":
+        elif event.key == "-":
             self.label_mode = LabelMode.INTERSECTION_X
+        elif event.key == "alt":
+            self.unset_current_label()
+        elif event.key == "cmd":
+            plt.gcf().canvas.manager.toolbar.home()
         elif event.key == "s":
             u_dataset.save_labels(self.directory, self.labels)
         elif event.key == "a":
             self.augmentation = not self.augmentation
             self.select_image(int(self.slider_image.val))
+        else:
+            print(event.key)
 
     def image_button_pressed(self, event):
         if event.inaxes != self.ax_img:
@@ -210,34 +216,35 @@ class BrowseApplication:
                 else u_labels.ObstaclesOp.INVERT,
             )
         elif self.label_mode == LabelMode.PENALTY_MARK:
-            if remove:
-                u_labels.unset_penalty_mark(self.labels[current])
-            else:
-                u_labels.set_penalty_mark(self.labels[current], event.xdata, event.ydata)
+            u_labels.set_penalty_mark(self.labels[current], event.xdata, event.ydata)
         elif self.label_mode == LabelMode.INTERSECTION_L:
-            if remove:
-                u_labels.unset_intersection(self.labels[current], u_labels.IntersectionType.L)
-            else:
-                u_labels.set_intersections(
-                    self.labels[current], event.xdata, event.ydata, u_labels.IntersectionType.L
-                )
+            u_labels.set_intersections(
+                self.labels[current], event.xdata, event.ydata, u_labels.IntersectionType.L
+            )
         elif self.label_mode == LabelMode.INTERSECTION_T:
-            if remove:
-                u_labels.unset_intersection(self.labels[current], u_labels.IntersectionType.T)
-            else:
-                u_labels.set_intersections(
-                    self.labels[current], event.xdata, event.ydata, u_labels.IntersectionType.T
-                )
+            u_labels.set_intersections(
+                self.labels[current], event.xdata, event.ydata, u_labels.IntersectionType.T
+            )
         elif self.label_mode == LabelMode.INTERSECTION_X:
-            if remove:
-                u_labels.unset_intersection(self.labels[current], u_labels.IntersectionType.X)
-            else:
-                u_labels.set_intersections(
-                    self.labels[current], event.xdata, event.ydata, u_labels.IntersectionType.X
-                )
+            u_labels.set_intersections(
+                self.labels[current], event.xdata, event.ydata, u_labels.IntersectionType.X
+            )
         self.redraw_labels(self.labels[current])
         self.drag_start_pos = None
 
+    def unset_current_label(self):
+        current = int(self.slider_image.val)
+        if self.label_mode == LabelMode.BALL:
+            u_labels.unset_ball(self.labels[current])
+        elif self.label_mode == LabelMode.PENALTY_MARK:
+            u_labels.unset_penalty_mark(self.labels[current])
+        elif self.label_mode == LabelMode.INTERSECTION_L:
+            u_labels.unset_intersection(self.labels[current], u_labels.IntersectionType.L)
+        elif self.label_mode == LabelMode.INTERSECTION_T:
+            u_labels.unset_intersection(self.labels[current], u_labels.IntersectionType.T)
+        elif self.label_mode == LabelMode.INTERSECTION_X:
+            u_labels.unset_intersection(self.labels[current], u_labels.IntersectionType.X)
+        self.redraw_labels(self.labels[current])#
 
 if __name__ == "__main__":
     import argparse
