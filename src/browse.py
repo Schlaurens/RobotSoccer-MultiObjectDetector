@@ -181,30 +181,24 @@ class BrowseApplication:
         if event.inaxes != self.ax_img or self.augmentation:
             return
         current = int(self.slider_image.val)
-        remove = event.button != 1  # MouseButton 1 is left click
         if self.label_mode == LabelMode.BALL:
-            if remove:
-                u_labels.unset_ball(self.labels[current])
-            else:
-                camera_intr = u_dataset.intrinsics_from_label(self.labels[current])
-                camera = u_dataset.camera_from_label(self.labels[current])
-                ball_size = 0.1  # m
+            camera_intr = u_dataset.intrinsics_from_label(self.labels[current])
+            camera = u_dataset.camera_from_label(self.labels[current])
+            ball_size = 0.1  # m
 
-                # Transform camera coords to world coords
-                data_in_world = u_camera.image_to_world(
-                    camera, camera_intr, (event.xdata, event.ydata), object_size=ball_size
-                )
+            # Transform camera coords to world coords
+            data_in_world = u_camera.image_to_world(
+                camera, camera_intr, (event.xdata, event.ydata), object_size=ball_size
+            )
 
-                distance_to_camera = (
-                    np.linalg.norm(data_in_world) if data_in_world is not None else 1.0
-                )
+            distance_to_camera = np.linalg.norm(data_in_world) if data_in_world is not None else 1.0
 
-                # Get the size of a single pixel at the position of the ball
-                pixel_size = (ball_size * camera_intr[2]) / distance_to_camera
+            # Get the size of a single pixel at the position of the ball
+            pixel_size = (ball_size * camera_intr[2]) / distance_to_camera
 
-                radius = pixel_size / 2
+            radius = pixel_size / 2
 
-                u_labels.set_ball(self.labels[current], event.xdata, event.ydata, radius)
+            u_labels.set_ball(self.labels[current], event.xdata, event.ydata, radius)
         elif self.label_mode == LabelMode.OBSTACLES:
             x, y = int(event.xdata / 16), int(event.ydata / 16)  # TODO: 16
             x_start, y_start = (
