@@ -28,23 +28,23 @@ def main(data_path: str):
     number_of_ball_samples = len([_ for _ in labels_concat if u_labels.has_ball(_)])
     number_of_penalty_mark_samples = len([_ for _ in labels_concat if u_labels.has_penalty_mark(_)])
 
-    number_of_l_intersection_samples = len(
+    number_of_l_intersection_samples = sum(
         [
-            x["intersections"][u_labels.IntersectionType.L.value]
+            len(x["intersections"][u_labels.IntersectionType.L.value])
             for x in labels_concat
             if u_labels.has_intersections(x)
         ]
     )
-    number_of_t_intersection_samples = len(
+    number_of_t_intersection_samples = sum(
         [
-            x["intersections"][u_labels.IntersectionType.T.value]
+            len(x["intersections"][u_labels.IntersectionType.T.value])
             for x in labels_concat
             if u_labels.has_intersections(x)
         ]
     )
-    number_of_x_intersection_samples = len(
+    number_of_x_intersection_samples = sum(
         [
-            x["intersections"][u_labels.IntersectionType.X.value]
+            len(x["intersections"][u_labels.IntersectionType.X.value])
             for x in labels_concat
             if u_labels.has_intersections(x)
         ]
