@@ -269,7 +269,7 @@ class BrowseApplication:
             u_labels.unset_intersection(self.labels[current], u_labels.IntersectionType.T)
         elif self.label_mode == LabelMode.INTERSECTION_X:
             u_labels.unset_intersection(self.labels[current], u_labels.IntersectionType.X)
-        self.redraw_labels(self.labels[current])#
+        self.redraw_labels(self.labels[current])
 
     def on_motion(self, event):
         """Check whether the cursor has been dragged over a certain distance. If the cursor has been dragged more than 2 pixels the drag_distance variable gets set to True.
