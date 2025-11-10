@@ -156,6 +156,14 @@ class BrowseApplication:
             self.label_mode = LabelMode.INTERSECTION_T
         elif event.key == "-":
             self.label_mode = LabelMode.INTERSECTION_X
+        elif event.key == "n":  # Unignore the (non-existing) intersection labels in this sample
+            current = int(self.slider_image.val)
+            u_labels.set_ignore_intersection_sample_flag(self.labels[current], False)
+            self.redraw_labels(self.labels[current])
+        elif event.key == "m":  # Ignore the (non-existing) intersection labels in this sample
+            current = int(self.slider_image.val)
+            u_labels.set_ignore_intersection_sample_flag(self.labels[current], True)
+            self.redraw_labels(self.labels[current])
         elif event.key == "alt":
             self.unset_current_label()
         elif event.key == "cmd":
