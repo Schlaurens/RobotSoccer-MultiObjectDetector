@@ -14,6 +14,13 @@ def main(data_path: str):
     labels_concat = list(itertools.chain.from_iterable(labels))
 
     number_of_samples = len(labels_concat)
+    number_of_intersection_samples = len(
+        [
+            sample
+            for sample in labels_concat
+            if u_labels.has_intersections(sample) and not sample["intersections"]["ignore_sample"]
+        ]
+    )
     number_of_non_empty_samples = len(
         [
             _
@@ -76,6 +83,7 @@ def main(data_path: str):
 
     print("Number of logs: ", len(labels))
     print("Number of samples: ", number_of_samples)
+    print("Number of intersection samples: ", number_of_intersection_samples)
     print("Number of non empty samples: ", number_of_non_empty_samples)
     print("Number of ball samples:", number_of_ball_samples)
     print("Number of penaltyMark samples:", number_of_penalty_mark_samples)
@@ -96,13 +104,13 @@ def main(data_path: str):
         f"% of penaltyMark samples: {((number_of_penalty_mark_samples / number_of_samples) * 100):.2f}"
     )
     print(
-        f"% of L intersection samples: {((number_of_l_intersection_samples / number_of_samples) * 100):.2f}"
+        f"% of L intersection samples: {((number_of_l_intersection_samples / number_of_intersection_samples) * 100):.2f}"
     )
     print(
-        f"% of T intersection samples: {((number_of_t_intersection_samples / number_of_samples) * 100):.2f}"
+        f"% of T intersection samples: {((number_of_t_intersection_samples / number_of_intersection_samples) * 100):.2f}"
     )
     print(
-        f"% of X intersection samples: {((number_of_x_intersection_samples / number_of_samples) * 100):.2f}"
+        f"% of X intersection samples: {((number_of_x_intersection_samples / number_of_intersection_samples) * 100):.2f}"
     )
 
 
