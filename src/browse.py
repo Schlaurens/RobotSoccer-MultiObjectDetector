@@ -85,6 +85,7 @@ class BrowseApplication:
             self.patches.append(
                 self.ax_img.add_patch(plt.Circle((x, y), radius, color="r", fill=False))
             )
+            self.patches.append(self.ax_img.add_patch(plt.Circle((x, y), 2, color="r", fill=True)))
         if u_labels.has_penalty_mark(labels):
             x, y = u_labels.get_penalty_mark(labels)
             self.patches.append(
