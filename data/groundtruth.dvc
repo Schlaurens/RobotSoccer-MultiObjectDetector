@@ -1,6 +1,6 @@
 outs:
-- md5: 2ec0af08268040460fee611726cf3251.dir
-  size: 8687701211
+- md5: 21b3c397204f10d5d1b93a5c9f84121c.dir
+  size: 8687918719
   nfiles: 12291
   hash: md5
   path: groundtruth
