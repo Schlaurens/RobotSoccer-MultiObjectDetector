@@ -182,6 +182,7 @@ def get_masks(
         return {"offsets": offsets, "object_mask": object_mask, "loss_mask": loss_mask}
 
     # Case 1: Direct coordinates provided
+    # TODO: make possible with a list of cooordinates.
     if coordinates is not None:
         if tf.reduce_all(tf.math.equal(coordinates, -1.0)):
             return _empty_masks()
@@ -189,6 +190,9 @@ def get_masks(
     elif label is not None and object_name is not None:
         if object_name not in label:
             return _empty_masks()
+        # if object_name == "intersections":
+        #     coordinates == label[object_name].
+        # else:
         coordinates = list(label[object_name].values())[
             :2
         ]  # Only take x and y coordinates (ignore radius)
@@ -209,8 +213,20 @@ def get_masks(
             axis=-1,
         ),
         dtype=tf.float32,
-    )
+    )  # (15, 20)
 
+    # TODO: only (coordinates - cells) for coordiantes that are closest to the cell.
+    # distance masks for each intersection type?
+    #
+    l_coords = coordinates["L"]  # (dict) coordinates for all L intersections from a coords dict
+    t_coords = coordinates["T"]
+    x_coords = coordinates["X"]
+
+    l_distances = tf.sqrt(l_coords**2 + cells**2)
+    t_distances = tf.sqrt(t_coords**2 + cells**2)
+    x_distances = tf.sqrt(x_coords**2 + cells**2)
+    
+    
     offsets = coordinates - cells
 
     # Scale offsets to the output size
