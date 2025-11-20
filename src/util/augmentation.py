@@ -7,18 +7,20 @@ from . import labels as u_labels
 
 TRANSFORM = A.Compose(
     [
-        A.HorizontalFlip(),
-        A.SomeOf(
-            [
-                A.MultiplicativeNoise(multiplier=(0.8, 1.2), per_channel=True, elementwise=False),
-                A.RGBShift(r_shift_limit=20, g_shift_limit=20, b_shift_limit=20),
-                A.GaussianBlur(blur_limit=0, sigma_limit=(0.5, 3)),
-                A.GaussNoise(std_range=(0, 1), per_channel=False),
-            ],
-            2,
-            replace=False,
-            p=0.5,
-        ),
+        # TODO: do the right augmentations
+        # A.HorizontalFlip(),
+        A.CLAHE(p=1.0),
+        # A.SomeOf(
+        #     [
+        #         A.MultiplicativeNoise(multiplier=(0.8, 1.2), per_channel=True, elementwise=False),
+        #         A.RGBShift(r_shift_limit=20, g_shift_limit=20, b_shift_limit=20),
+        #         A.GaussianBlur(blur_limit=0, sigma_limit=(0.5, 3)),
+        #         A.GaussNoise(std_range=(0, 1), per_channel=False),
+        #     ],
+        #     2,
+        #     replace=False,
+        #     p=0.5,
+        # ),
     ],
     keypoint_params=A.KeypointParams(format="xy", remove_invisible=False),
     is_check_shapes=False,
