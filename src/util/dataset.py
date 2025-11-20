@@ -263,6 +263,32 @@ def get_masks(
     loss_mask = _generate_loss_mask(object_mask)
 
     # return offsets_scaled, object_mask, loss_mask
+def _generate_offset_mask(cells, coordinates, scale):
+    """Generate the offset_mask for the given list of coordinates.
+
+    Args:
+        cells: A tf.Tensor of the cellgrid.
+        coordinates: A tf.Tensor that contains the coords that make up the offset_mask.
+        scale: The scaling factor to scale the offset_mask to the image dimensions.
+
+    Returns:
+        The offset_mask
+    """
+    # Prepare cells for broadcast
+    cells_reshaped = tf.expand_dims(cells, axis=2)  # (H, W, 1, 2)
+
+    distances = tf.sqrt(tf.reduce_sum((coordinates - cells_reshaped) ** 2, axis=-1))  # (H, W, N_X)
+    closest_indices = tf.argmin(distances, axis=-1)  # (H, W)
+    closest_coords = tf.gather(coordinates, closest_indices)  # (H, W)
+
+    offsets = closest_coords - cells
+    
+    # TODO: if multiple intersection per cell. Take the lower one
+
+    # Scale offsets to the output size
+    return offsets * scale
+
+
 def are_coords_in_same_cell(coords_a: np.array, coords_b: np.array, cell_dims: np.array) -> bool:
     """Checks whether two given coordinate pairs are inside the same cell in the cellgrid.
 
