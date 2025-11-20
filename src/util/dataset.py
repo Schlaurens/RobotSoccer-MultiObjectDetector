@@ -190,12 +190,35 @@ def get_masks(
     elif label is not None and object_name is not None:
         if object_name not in label:
             return _empty_masks()
-        # if object_name == "intersections":
-        #     coordinates == label[object_name].
-        # else:
-        coordinates = list(label[object_name].values())[
-            :2
-        ]  # Only take x and y coordinates (ignore radius)
+
+        if object_name == "intersections":
+            if label[object_name]["ignore_sample"]:
+                return _empty_masks(ignore_sample=True)
+
+            # Intersection coords
+            l_coords = (
+                tf.constant([list(x.values()) for x in label[object_name]["L"]], dtype=tf.float32)
+                if len(label[object_name]["L"]) > 0
+                else tf.constant([], dtype=tf.float32, shape=(0, 2))
+            )  # (N_L, 2)
+            t_coords = (
+                tf.constant([list(x.values()) for x in label[object_name]["T"]], dtype=tf.float32)
+                if len(label[object_name]["T"]) > 0
+                else tf.constant([], dtype=tf.float32, shape=(0, 2))
+            )  # (N_T, 2)
+            x_coords = (
+                tf.constant([list(x.values()) for x in label[object_name]["X"]], dtype=tf.float32)
+                if len(label[object_name]["X"]) > 0
+                else tf.constant([], dtype=tf.float32, shape=(0, 2))
+            )  # (N_X, 2)
+            coordinate_list = tf.concat([l_coords, t_coords, x_coords], axis=0)  # (N_O, 2)
+
+            if tf.size(coordinate_list) == 0:
+                return _empty_masks()
+        else:
+            coordinate_list = [
+                list(label[object_name].values())[:2]
+            ]  # Only take x and y coordinates (ignore radius) # has to be list of lists
     else:
         raise ValueError("Either (label and object_name) or coordinates must be provided.")
 
