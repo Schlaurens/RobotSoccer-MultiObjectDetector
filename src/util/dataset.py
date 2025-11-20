@@ -295,11 +295,11 @@ def _generate_object_mask(object_name, label, cells):
         pass
 
 
-def _generate_classification_mask():
+def _generate_classification_mask(cells, object_name, coordinates, object_mask, scale):
     """Generate a mask that has a value in each cell that corresponds to the class type of the object category.
     Example:
-    The classification mask for line intersections can have four values: NONE, L, T, X. The values 
-    
+    The classification mask for line intersections can have four values: NONE, L, T, X. The values
+
     Returns:
         A mask like described above.
     """
