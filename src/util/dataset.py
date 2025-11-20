@@ -238,31 +238,25 @@ def get_masks(
         dtype=tf.float32,
     )  # (15, 20)
 
-    # TODO: only (coordinates - cells) for coordiantes that are closest to the cell.
-    # distance masks for each intersection type?
-    #
-    l_coords = coordinates["L"]  # (dict) coordinates for all L intersections from a coords dict
-    t_coords = coordinates["T"]
-    x_coords = coordinates["X"]
-
-    l_distances = tf.sqrt(l_coords**2 + cells**2)
-    t_distances = tf.sqrt(t_coords**2 + cells**2)
-    x_distances = tf.sqrt(x_coords**2 + cells**2)
-    
-    
-    offsets = coordinates - cells
-
-    # Scale offsets to the output size
-    offsets_scaled = offsets * scale
+    offset_mask = _generate_offset_mask(cells, coordinate_list, scale)
 
     # Mark all cells with true, where the value is between 0 and 1 (object is in that cell)
-    object_mask = [[all(n >= 0 and n < 1 for n in x) for x in row] for row in offsets_scaled]
+    object_mask = [[all(n >= 0 and n < 1 for n in x) for x in row] for row in offset_mask]
 
-    classification_mask = _generate_classification_mask()
+    l_offsets = _generate_offset_mask(cells, l_coords, scale)  # (H, W, 2)
+    l_object_mask = [[all(n >= 0 and n < 1 for n in x) for x in row] for row in l_offsets]
+    print(l_object_mask)
+
+    # classification_mask = _generate_classification_mask(
+    #     cells, object_name, coordinates, object_mask, scale
+    # )
 
     loss_mask = _generate_loss_mask(object_mask)
 
     # return offsets_scaled, object_mask, loss_mask
+    return {"offsets": offset_mask, "object_mask": object_mask, "loss_mask": loss_mask}
+
+
 def _generate_offset_mask(cells, coordinates, scale):
     """Generate the offset_mask for the given list of coordinates.
 
