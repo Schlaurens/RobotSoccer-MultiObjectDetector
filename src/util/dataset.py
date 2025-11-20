@@ -166,7 +166,7 @@ def get_masks(
 
     """
 
-    def _empty_masks():
+    def _empty_masks(ignore_sample: bool = False):
         """generate default empty masks for when there are no objects in the image.
         The offset_mask will contains only -1.0. This is an arbitrary value, that indicates that no object is in the image.
         The object_mask will only contain False values as there are no objects any of the cells.
@@ -177,7 +177,7 @@ def get_masks(
         """
         offsets = tf.cast(tf.fill((*output_dims, 2), -1), dtype=tf.float32)
         object_mask = tf.fill(output_dims, value=False)
-        loss_mask = tf.fill(output_dims, value=True)
+        loss_mask = tf.fill(output_dims, value=not ignore_sample)
         # return offsets, object_mask, loss_mask
         return {"offsets": offsets, "object_mask": object_mask, "loss_mask": loss_mask}
 
