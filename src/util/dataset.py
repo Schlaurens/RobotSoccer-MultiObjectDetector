@@ -1,14 +1,32 @@
-import glob
-import json
+from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 
 import keras
 import numpy as np
 import tensorflow as tf
-from shapely.geometry import Point, Polygon
 
-from . import image as u_image
+
+@dataclass
+class DatasetConfig:
+    input_dims: tuple = (480, 640)
+    output_dims: tuple = (15, 20)
+    cell_dims: np.ndarray = None
+    scale: float = None
+    cell_grid: tf.Tensor = None
+
+    def __post_init__(self):
+        self.scale = np.array(self.output_dims) / np.array(self.input_dims)
+        self.cell_dims = np.array(self.input_dims) // np.array(self.output_dims)
+        self.cell_grid = tf.cast(
+            tf.stack(
+                tf.meshgrid(
+                    range(self.input_dims[1])[:: self.cell_dims[1]],
+                    range(self.input_dims[0])[:: self.cell_dims[0]],
+                ),
+                axis=-1,
+            ),
+            dtype=tf.float32,
+        )  # (15, 20)
 
 
 class IntersectionType(Enum):
