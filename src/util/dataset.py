@@ -321,7 +321,7 @@ class DatasetUtils:
             image_dims: the dimensions of the input image
 
         Returns:
-            The coordinates of the object (x, y). (-1.0, -1.0) if the object is not in the image
+            A `tf.Tensor` of shape (N, 2) with N := Number of objects in the sample. The `tf.Tensor` contains the coordinates (x, y) of the objects. (-1.0, -1.0) if the object is not in the image
         """
 
         # Generate mask that is False if the offset is -1.0 and True else. The offset_cell is [-1.0, -1.0] if there are no objects in the image.
