@@ -3,7 +3,11 @@ import numpy as np
 from matplotlib import patches
 
 from util import dataset as u_dataset
+from util import dataset_io as u_dataset_io
 from util import image as u_image
+
+dataset_config = u_dataset.DatasetConfig()
+dataset_utils = u_dataset.DatasetUtils(dataset_config)
 
 
 def show_masks_on_image(
@@ -13,7 +17,6 @@ def show_masks_on_image(
     coordinates=None,
     object_name=None,
     mask_name=None,
-    grid_dims=(15, 20),
 ):
     """Show the given image with an illustrated cell grid of given dimension.
 
@@ -31,22 +34,21 @@ def show_masks_on_image(
         grid_dims: The dimensions of the cell_grid. Defaults to (15,20).
 
     """
+
     if coordinates is not None and image is not None:
-        masks = u_dataset.get_masks(coordinates=coordinates, output_dims=grid_dims)
+        masks = dataset_utils.get_masks(coordinates=coordinates)
     elif directory is not None and label is not None:
-        image = u_dataset.load_image(directory, label, image_format=u_image.ImageFormat.RGB)
-        masks = u_dataset.get_masks(label, object_name, output_dims=grid_dims)
+        image = u_dataset_io.load_image(directory, label, image_format=u_image.ImageFormat.RGB)
+        masks = dataset_utils.get_masks(label, object_name)
     else:
         raise ValueError(
             "Either (directory and label) or (coordinates and image) must be provided."
         )
 
-    # The dimension of a single cell
-    cell_dims = np.array(image.shape[1::-1])[::-1] // np.array(grid_dims)
-
+    cell_dims = dataset_config.cell_dims
     _, ax = plt.subplots()
     ax.imshow(image)
-    ax.set_title(f"grid_dims={grid_dims}, cell_size={cell_dims}, mask={mask_name}")
+    ax.set_title(f"grid_dims={dataset_config.output_dims}, cell_size={cell_dims}, mask={mask_name}")
 
     # Draw cell grid with the given grid dimensions
     for i in range(image.shape[1])[:: cell_dims[1]]:
