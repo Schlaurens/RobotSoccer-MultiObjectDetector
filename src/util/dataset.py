@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
 
-import keras
 import numpy as np
 import tensorflow as tf
 
