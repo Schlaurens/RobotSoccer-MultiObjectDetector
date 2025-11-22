@@ -78,7 +78,7 @@ class DatasetUtils:
             """generate default empty masks for when there are no objects in the image.
             The offset_mask will contains only -1.0. This is an arbitrary value, that indicates that no object is in the image.
             The object_mask will only contain False values as there are no objects any of the cells.
-            The loss_mask will only contain True values as no loss should be ignored.
+            The loss_mask will only contain `True` if `ignore_sample` is set to `False` and only `False` values otherwise.
 
             Args:
                 ignore_sample: If `ignore_sample` is set to `True` the `loss_mask` consists of only `False` values so that this sample is ignored in the loss function. This is useful for the case that there are objects in the image that are not annotated. If `ignore_sample` is False the `loss_mask` consists of only `True` values.
