@@ -82,7 +82,7 @@ class DatasetUtils:
 
             Args:
                 ignore_sample: If `ignore_sample` is set to `True` the `loss_mask` consists of only `False` values so that this sample is ignored in the loss function. This is useful for the case that there are objects in the image that are not annotated. If `ignore_sample` is False the `loss_mask` consists of only `True` values.
-            
+
             Returns:
                 The masks in a dictionary
             """
