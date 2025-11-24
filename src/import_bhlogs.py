@@ -5,7 +5,7 @@ if __name__ == "__main__":
 
     import pybh.logs as bhlogs
 
-    from util import dataset as u_dataset
+    from util import dataset_io as u_dataset_io
     from util import labels as u_labels
 
     parser = argparse.ArgumentParser()
@@ -63,7 +63,7 @@ if __name__ == "__main__":
 
         name = f"{frame.thread}{index}"
         assert len(jpeg_image._data) == jpeg_image.size + 16
-        with open(u_dataset.get_image_path(destination, name), "wb") as f:
+        with open(u_dataset_io.get_image_path(destination, name), "wb") as f:
             f.write(jpeg_image._data[16:])
 
         label = u_labels.create_empty_label(name)
@@ -107,4 +107,4 @@ if __name__ == "__main__":
 
         labels.append(label)
 
-    u_dataset.save_labels(destination, labels)
+    u_dataset_io.save_labels(destination, labels)
