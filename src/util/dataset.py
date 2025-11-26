@@ -167,18 +167,46 @@ class DatasetUtils:
         Returns:
             The offset_mask
         """
-        filtered_coords = []
+        filtered_coords = self.filter_coordinates(coordinates)
 
+        # Prepare cells for broadcast
+        cells_reshaped = tf.expand_dims(self.config.cell_grid, axis=2)  # (H, W, 1, 2)
+
+        distances = tf.sqrt(
+            tf.reduce_sum((filtered_coords - cells_reshaped) ** 2, axis=-1)
+        )  # (H, W, N_O)
+        closest_indices = tf.argmin(distances, axis=-1)  # (H, W)
+        closest_coords = tf.gather(filtered_coords, closest_indices)  # (H, W)
+
+        offsets = closest_coords - self.config.cell_grid
+
+        # TODO: if multiple intersection per cell. Take the lower one
+
+        # Scale offsets to the output size
+        return offsets * self.config.scale
+
+    def filter_coordinates(self, coordinates: tf.Tensor) -> tf.Tensor:
+        """Filter a Tensor of coordinates so that it does not contain any duplicates. And if two coordinates share the same cell only keep the coordinates pair with the higher y-value. If the y-values are equal keep the pair with the higher x-value.
+
+        Args:
+            coordinates: The tensor of coordinates that is to be filtered. Shape (N, 2)
+
+        Returns:
+            A filtered tensor. Shape (N, 2).
+        """
+        
         # TODO: remove duplicates from coords?
-
+        filtered_coords = []
         for coords in coordinates:
             keep = True
             for other_coords in coordinates:
                 if tf.reduce_all(coords == other_coords):
                     continue
-                
-                if self.are_coords_in_same_cell(coords, other_coords) and not tf.reduce_all(coords <= other_coords):
-                    keep=False
+
+                if self.are_coords_in_same_cell(coords, other_coords) and not tf.reduce_all(
+                    coords <= other_coords
+                ):
+                    keep = False
                 # if self.are_coords_in_same_cell(coords, other_coords):
                 #     diff = coords < other_coords
 
@@ -198,22 +226,7 @@ class DatasetUtils:
 
         print(len(filtered_coords))
         print(filtered_coords)
-
-        # Prepare cells for broadcast
-        cells_reshaped = tf.expand_dims(self.config.cell_grid, axis=2)  # (H, W, 1, 2)
-
-        distances = tf.sqrt(
-            tf.reduce_sum((filtered_coords - cells_reshaped) ** 2, axis=-1)
-        )  # (H, W, N_O)
-        closest_indices = tf.argmin(distances, axis=-1)  # (H, W)
-        closest_coords = tf.gather(filtered_coords, closest_indices)  # (H, W)
-
-        offsets = closest_coords - self.config.cell_grid
-
-        # TODO: if multiple intersection per cell. Take the lower one
-
-        # Scale offsets to the output size
-        return offsets * self.config.scale
+        return filtered_coords
 
     def are_coords_in_same_cell(
         self,
