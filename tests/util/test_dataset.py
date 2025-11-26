@@ -7,6 +7,15 @@ dataset_utils = u_dataset.DatasetUtils(dataset_config)
 
 
 class TestFilterCoordinates:
+    def test_single_coordinate(self):
+        coordinates = tf.constant([[32, 54]], tf.float32)
+        expected = coordinates
+
+        result = dataset_utils.filter_coordinates(coordinates)
+
+        # assert result.shape == expected.shape
+        assert tf.reduce_all(result == expected)
+    
     def test_unique_coordinates(self):
         # No need for filtering.
         coordinates = tf.constant([[32, 54], [100, 102]], tf.float32)
