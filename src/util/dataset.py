@@ -155,8 +155,16 @@ class DatasetUtils:
 
         loss_mask = self._generate_loss_mask(object_mask)
 
-        # return offsets_scaled, object_mask, loss_mask
-        return {"offsets": offset_mask, "object_mask": object_mask, "loss_mask": loss_mask}
+    def generate_object_mask(self, offset_mask: tf.Tensor) -> tf.Tensor:
+        """Generate a binary object_mask that is 1.0 in every cell where there is an object. And 0.0 in all the other cells.
+
+        Args:
+            offset_mask: The offset_mask. Shape (H_out, W_out, 2)
+
+        Returns:
+            The object mask. Shape (H_out, W_out)
+        """
+        return [[all(n >= 0 and n < 1 for n in x) for x in row] for row in offset_mask]
 
     def _generate_offset_mask(self, coordinates) -> tf.Tensor:
         """Generate the offset_mask for the given list of coordinates.
