@@ -209,7 +209,7 @@ class DatasetUtils:
             tf.reduce_sum((filtered_coords - cells_reshaped) ** 2, axis=-1)
         )  # (H, W, N_O)
         closest_indices = tf.argmin(distances, axis=-1)  # (H, W)
-        closest_coords = tf.gather(filtered_coords, closest_indices)  # (H, W)
+        closest_coords = tf.cast(tf.gather(filtered_coords, closest_indices), tf.float32)  # (H, W)
 
         offsets = closest_coords - self.config.cell_grid
 
