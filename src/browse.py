@@ -185,7 +185,8 @@ class BrowseApplication:
         elif event.key == "cmd":
             plt.gcf().canvas.manager.toolbar.home()
         elif event.key == "s":
-            u_dataset.save_labels(self.directory, self.labels)
+            u_dataset_io.save_labels(self.directory, self.labels)
+            print("Labels saved!")
         elif event.key == "a":
             self.augmentation = not self.augmentation
             self.select_image(int(self.slider_image.val))
