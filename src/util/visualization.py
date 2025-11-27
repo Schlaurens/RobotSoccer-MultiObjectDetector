@@ -64,6 +64,8 @@ def show_masks_on_image(
         ax = _add_object_mask_axes(masks, ax)
     elif mask_name == "loss":
         ax = _add_loss_mask_axes(masks, ax)
+    elif mask_name == "classification":
+        ax = _add_classification_mask_axes(masks, ax)
     else:
         print("Error: Unknown Mask requested.")
         return
@@ -158,6 +160,69 @@ def _add_loss_mask_axes(masks, ax):
             linewidth=1,
             edgecolor="black",
             facecolor=(255 / 255, 0 / 255, 0 / 255, 75 / 255),  # red color
+        )
+        ax.add_patch(rect_loss_mask)
+
+    return ax
+
+
+def _add_classification_mask_axes(masks, ax):
+    class_mask = masks["classification_mask"]
+
+    indices_no_intersections = np.dstack(
+        np.where(class_mask == u_dataset.IntersectionType.NONE.value)
+    )[0] * np.array(dataset_config.cell_dims)
+    indices_l_intersections = np.dstack(np.where(class_mask == u_dataset.IntersectionType.L.value))[
+        0
+    ] * np.array(dataset_config.cell_dims)
+    indices_t_intersections = np.dstack(np.where(class_mask == u_dataset.IntersectionType.T.value))[
+        0
+    ] * np.array(dataset_config.cell_dims)
+    indices_x_intersections = np.dstack(np.where(class_mask == u_dataset.IntersectionType.X.value))[
+        0
+    ] * np.array(dataset_config.cell_dims)
+
+    for i in indices_no_intersections:
+        rect_loss_mask = patches.Rectangle(
+            i[::-1],  # Flip x and y coordinates for matplotlib
+            dataset_config.cell_dims[0],
+            dataset_config.cell_dims[1],
+            linewidth=1,
+            edgecolor="black",
+            facecolor=(255 / 255, 0 / 255, 0 / 255, 75 / 255),  # red color
+        )
+        ax.add_patch(rect_loss_mask)
+
+    for i in indices_l_intersections:
+        rect_loss_mask = patches.Rectangle(
+            i[::-1],  # Flip x and y coordinates for matplotlib
+            dataset_config.cell_dims[0],
+            dataset_config.cell_dims[1],
+            linewidth=1,
+            edgecolor="black",
+            facecolor=(227 / 255, 14 / 255, 236 / 255, 150 / 255),  # purple color
+        )
+        ax.add_patch(rect_loss_mask)
+
+    for i in indices_t_intersections:
+        rect_loss_mask = patches.Rectangle(
+            i[::-1],  # Flip x and y coordinates for matplotlib
+            dataset_config.cell_dims[0],
+            dataset_config.cell_dims[1],
+            linewidth=1,
+            edgecolor="black",
+            facecolor=(18 / 255, 18 / 255, 221 / 255, 120 / 255),  # blue color
+        )
+        ax.add_patch(rect_loss_mask)
+
+    for i in indices_x_intersections:
+        rect_loss_mask = patches.Rectangle(
+            i[::-1],  # Flip x and y coordinates for matplotlib
+            dataset_config.cell_dims[0],
+            dataset_config.cell_dims[1],
+            linewidth=1,
+            edgecolor="black",
+            facecolor=(63 / 255, 255 / 255, 0 / 255, 70 / 255),  # lime color
         )
         ax.add_patch(rect_loss_mask)
 
