@@ -158,12 +158,9 @@ class DatasetUtils:
         if object_name == CategoryNames.INTERSECTIONS.value:
             filtered_coords = self.filter_coordinates(coordinate_list)
             classification_mask = tf.Variable(tf.zeros(self.config.output_dims))
-            tf.print(classification_mask[0, 0])
             for c in filtered_coords:
                 if tf.reduce_any(c == l_coords):
                     indices = self.get_cell_of_coordinate(c)
-                    tf.print(c)
-                    print(indices)
                     classification_mask[indices[1], indices[0]].assign(IntersectionType.L.value)
                 elif tf.reduce_any(c == t_coords):
                     indices = self.get_cell_of_coordinate(c)
@@ -241,7 +238,6 @@ class DatasetUtils:
                 if self.are_coords_in_same_cell(coords, other_coords):
                     diff = coords > other_coords
                     if not diff[1]:
-                        tf.print("False")
                         keep = False
                     if coords[1] == other_coords[1] and diff[0] and not diff[1]:
                         # Covers the case if the y-values are the same but coords is bigger on the x-axis.
