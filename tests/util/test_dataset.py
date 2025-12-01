@@ -149,7 +149,9 @@ class TestGetCoordsFromOffset:
 
         result = dataset_utils.get_coords_from_offsets(offset_mask)
         assert tf.reduce_all(
-            tf.keras.ops.isclose(tf.sort(result, axis=0), tf.sort(coordinates, axis=0))
+            tf.keras.ops.isclose(
+                tf.sort(result, axis=1), tf.sort(tf.expand_dims(coordinates, axis=0), axis=1)
+            )
         )
 
     def test_multiple_coordinate_pairs(self):
@@ -161,7 +163,9 @@ class TestGetCoordsFromOffset:
 
         result = dataset_utils.get_coords_from_offsets(offset_mask)
         assert tf.reduce_all(
-            tf.keras.ops.isclose(tf.sort(result, axis=0), tf.sort(coordinates, axis=0))
+            tf.keras.ops.isclose(
+                tf.sort(result, axis=1), tf.sort(tf.expand_dims(coordinates, axis=0), axis=1)
+            )
         )
 
     def test_multiple_coordinate_pairs_with_negative(self):
@@ -172,7 +176,9 @@ class TestGetCoordsFromOffset:
 
         result = dataset_utils.get_coords_from_offsets(offset_mask)
         assert tf.reduce_all(
-            tf.keras.ops.isclose(tf.sort(result, axis=0), tf.sort(coordinates, axis=0))
+            tf.keras.ops.isclose(
+                tf.sort(result, axis=1), tf.sort(tf.expand_dims(coordinates, axis=0), axis=1)
+            )
         )
 
     def test_no_coordinates(self):
@@ -183,7 +189,9 @@ class TestGetCoordsFromOffset:
 
         result = dataset_utils.get_coords_from_offsets(offset_mask)
         assert tf.reduce_all(
-            tf.keras.ops.isclose(tf.sort(result, axis=0), tf.sort(expected, axis=0))
+            tf.keras.ops.isclose(
+                tf.sort(result, axis=1), tf.sort(tf.expand_dims(expected, axis=0), axis=1)
+            )
         )
 
     def test_coords_at_cell_edge(self):
@@ -213,7 +221,71 @@ class TestGetCoordsFromOffset:
         offset_mask = dataset_utils._generate_offset_mask(coordinates)
 
         result = dataset_utils.get_coords_from_offsets(offset_mask)
-        # tf.print(result)
+
         assert tf.reduce_all(
-            tf.keras.ops.isclose(tf.sort(result, axis=0), tf.sort(expected, axis=0))
+            tf.keras.ops.isclose(
+                tf.sort(result, axis=1), tf.sort(tf.expand_dims(expected, axis=0), axis=1)
+            )
         )
+
+    def test_coords_batched(self):
+        coordinates = tf.constant(
+            [[34.0534, 67.432], [24.7644, 67.954], [340.0534, 500.652]], tf.float32
+        )
+        offset_mask = tf.expand_dims(
+            dataset_utils._generate_offset_mask(coordinates), axis=0
+        )  # (H, W, 2)
+        coordinates_empty = tf.constant([[]], tf.float32)
+        offset_mask_empty = tf.expand_dims(
+            dataset_utils.get_masks(coordinates=coordinates_empty)["offsets"], axis=0
+        )
+
+        input_mask = tf.concat(
+            [offset_mask, offset_mask_empty, offset_mask], axis=0
+        )  # (2, H, W, 2)
+
+        result = dataset_utils.get_coords_from_offsets(input_mask)  # (B, N, 2)
+
+        expected = tf.stack(
+            [coordinates, [[-1.0, -1.0], [-1.0, -1.0], [-1.0, -1.0]], coordinates], axis=0
+        )  # (B, N, 2)
+
+        assert tf.reduce_all(
+            tf.keras.ops.isclose(
+                tf.sort(result, axis=1),
+                tf.sort(expected, axis=1),
+            )
+        )
+
+    # def test_coords_batched_diff_num_of_coords(self):
+    #     coordinates_1 = tf.constant(
+    #         [[34.0534, 67.432], [24.7644, 67.954], [340.0534, 500.652]], tf.float32
+    #     )
+    #     coordinates_2 = tf.constant([[34.0534, 67.432], [340.0534, 500.652]], tf.float32)
+    #     offset_mask_1 = tf.expand_dims(
+    #         dataset_utils._generate_offset_mask(coordinates_1), axis=0
+    #     )  # (H, W, 2)
+    #     offset_mask_2 = tf.expand_dims(
+    #         dataset_utils._generate_offset_mask(coordinates_2), axis=0
+    #     )  # (H, W, 2)
+    #     coordinates_empty = tf.constant([[]], tf.float32)
+    #     offset_mask_empty = tf.expand_dims(
+    #         dataset_utils.get_masks(coordinates=coordinates_empty)["offsets"], axis=0
+    #     )
+
+    #     input_mask = tf.concat(
+    #         [offset_mask_1, offset_mask_empty, offset_mask_2], axis=0
+    #     )  # (2, H, W, 2)
+
+    #     result = dataset_utils.get_coords_from_offsets(input_mask)  # (B, N, 2)
+    #     tf.print("results: ", result)
+    #     expected = tf.stack(
+    #         [coordinates_1, [[-1.0, -1.0], [-1.0, -1.0], [-1.0, -1.0]], coordinates_2], axis=0
+    #     )  # (B, N, 2)
+
+    #     assert tf.reduce_all(
+    #         tf.keras.ops.isclose(
+    #             tf.sort(result, axis=1),
+    #             tf.sort(expected, axis=1),
+    #         )
+    #     )
