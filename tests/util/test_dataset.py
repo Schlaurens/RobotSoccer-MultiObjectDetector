@@ -103,6 +103,13 @@ class TestFilterCoordinates:
         result = dataset_utils.filter_coordinates(coordinates)
         assert tf.reduce_all(result == expected)
 
+    def test_multiple_zero_coords(self):
+        coordinates = tf.constant([[0, 0], [0, 0], [0, 0]], tf.float32)
+        expected = tf.constant([[0, 0]], tf.float32)
+
+        result = dataset_utils.filter_coordinates(coordinates)
+        assert tf.reduce_all(result == expected)
+
     def test_close_floating_valuesdd(self):
         # floats that are very close to each other
         coordinates = tf.constant(
