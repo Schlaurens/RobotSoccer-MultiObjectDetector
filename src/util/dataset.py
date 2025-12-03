@@ -338,16 +338,6 @@ class DatasetUtils:
     #     if object_name == "penaltyMark":
     #         pass
 
-    def _generate_classification_mask(self, object_name: str, coordinates, object_mask):
-        """Generate a mask that has a value in each cell that corresponds to the class type of the object category.
-        Example:
-        The classification mask for line intersections can have four values: NONE, L, T, X. The values
-
-        Returns:
-            A mask like described above.
-        """
-        pass
-
     def _generate_loss_mask(self, object_mask: tf.Tensor | np.ndarray):
         """Generate a binary mask that is 0 in each cell where the loss function should be ignored and 1 everywhere else
 
