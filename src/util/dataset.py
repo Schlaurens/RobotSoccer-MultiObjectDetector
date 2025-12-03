@@ -187,7 +187,15 @@ class DatasetUtils:
         Returns:
             The object mask. Shape (H_out, W_out)
         """
-        return [[all(n >= 0 and n < 1 for n in x) for x in row] for row in offset_mask]
+
+        coords = self.get_coords_from_offsets(offset_mask)[0]  # (N, 2)
+
+        # Invert index order from (y, x) to (x, y)
+        mask_indices = tf.cast(coords // self.config.cell_dims, tf.int32)[..., ::-1]  # (N, 2)
+        updates = tf.fill(tf.shape(mask_indices)[0], True)
+
+        # scatter the values of update into a mask of shape (H, W) according to the mask_indices which point to the locations of object in the image.
+        return tf.scatter_nd(mask_indices, updates, self.config.cell_grid.shape[0:-1])
 
     def _generate_offset_mask(self, coordinates) -> tf.Tensor:
         """Generate the offset_mask for the given list of coordinates.
