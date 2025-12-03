@@ -212,7 +212,7 @@ class DatasetUtils:
 
         # Remove duplicates and handle multiple coords in one cell
         filtered_coords = self.filter_coordinates(coordinates)
-        
+
         # Prepare cells for broadcast
         cells_reshaped = (
             tf.expand_dims(self.config.cell_grid, axis=2) + self.config.cell_center
@@ -410,9 +410,7 @@ class DatasetUtils:
         )
 
         # Convert the offset_mask to an absolute coord_mask where all values that are [-1.0, -1.0] are set to 0.
-        coord_mask = offset_mask / self.config.scale + (
-            self.config.cell_grid + self.config.cell_center
-        )  # (B, H, W, 2)
+        coord_mask = self.get_coordinate_mask(offset_mask)  # (B, H, W, 2)
 
         flat_mask = tf.reshape(
             coord_mask, [-1, self.config.output_dims[0] * self.config.output_dims[1], 2]
@@ -431,3 +429,14 @@ class DatasetUtils:
         unique_coords, _ = tf.raw_ops.UniqueV2(x=rounded_coords, axis=[1])  # (B, N, 2)
 
         return unique_coords
+
+    def get_coordinate_mask(self, offset_mask: tf.Tensor):
+        """Calculate a mask of absolute coordinates from the given offset_mask.
+
+        Args:
+            offset_mask: The offset_mask (B, H, W, 2)
+
+        Returns:
+            The absolute coordinate mask (B, H, W, 2)
+        """
+        return offset_mask / self.config.scale + self.config.cell_grid + self.config.cell_center
