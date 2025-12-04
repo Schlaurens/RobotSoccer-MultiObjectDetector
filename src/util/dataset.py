@@ -194,15 +194,18 @@ class DatasetUtils:
         coords = self.get_coords_from_offsets(offset_mask)[0]  # (N, 2)
 
         # Clip coords that are out of bounds (only affects the object_mask)
-        coords = tf.minimum(
+        clipped_coords = tf.clip_by_value(
             coords,
-            tf.constant(
+            clip_value_min=tf.constant([0.0, 0.0], dtype=coords.dtype),
+            clip_value_max=tf.constant(
                 [self.config.input_dims[1] - 1, self.config.input_dims[0] - 1], dtype=coords.dtype
             ),
         )  # (N, 2)
 
         # Invert index order from (y, x) to (x, y)
-        mask_indices = tf.cast(coords // self.config.cell_dims, tf.int32)[..., ::-1]  # (N, 2)
+        mask_indices = tf.cast(clipped_coords // self.config.cell_dims, tf.int32)[
+            ..., ::-1
+        ]  # (N, 2)
 
         updates = tf.fill(tf.shape(mask_indices)[0], True)
 
