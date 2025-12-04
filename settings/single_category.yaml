@@ -48,6 +48,11 @@ categories:
   # player:
   #   object_size: 0.5
   #   n_classes: 1
+  intersections:
+    object_size: 17.5
+    object_height: 0
+    n_classes: 4 # types + background class
+    n_candidates: 10
 
 callbacks:
   reduce_lr:
