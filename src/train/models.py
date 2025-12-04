@@ -10,7 +10,8 @@ from util import keypoint as u_keypoint
 
 from .layers import IresBlock, Normalization, PatchExtractor, PatchSampler
 
-dataset_utils = u_dataset.DatasetUtils(u_dataset.DatasetConfig())
+dataset_config = u_dataset.DatasetConfig()
+dataset_utils = u_dataset.DatasetUtils(dataset_config)
 
 
 class FullModel(tf.keras.Model):
@@ -154,62 +155,106 @@ class FullModel(tf.keras.Model):
 
         return {"loss": loss, "mse": mse, "rmse": rmse, "bce": bce}
 
-    def classifier_loss(self, batch_data, results):
+    def classifier_loss(self, batch_data, results, object_name):
         # Compute MSE
-        boxes = results["boxes"]  # [B, N, 4]
-        coords_pred = results["positions"]  # [B, N, 2]
-        coords_true = tf.expand_dims(
-            dataset_utils.get_coords_from_offsets(batch_data["offset_mask"]), axis=1
-        )  # [B, 1, 2] (x, y)
+        boxes = results["boxes"]  # (B, N, 4)
+        coords_pred = results["positions"]  # (B, N, 2)
+
+        # Reshape is needed for tf.gather to work.
+        coord_mask = tf.reshape(
+            dataset_utils.get_coordinate_mask(batch_data["offset_mask"]),
+            (-1, dataset_config.output_dims[0] * dataset_config.output_dims[1], 2),
+        )  # (B, 15 * 20, 2)
 
         # Theoretical maximum error, distance between (0,0) and (max, max) of patch
         max_error = tf.norm(tf.cast(self.patch_size, dtype=tf.float32))  # Shape: ()
 
+        # Get the coords of the cells of which patches were extracted.
+        coords_true_of_patches = tf.gather(
+            coord_mask, results["patch_indices"], batch_dims=1
+        )  # (B, N, 2)
+
         # Normalize coords to the image dimensions. Because the boxes coords are also normalized.
         # Switch axes of full_image_size because: coords_true (x, y), full_image_size (y, x)
         coords_true_normalized = (
-            coords_true / self.full_image_size[::-1][tf.newaxis, :]
-        )  # [B, 1, 2]
+            coords_true_of_patches / self.full_image_size[::-1][tf.newaxis, :]
+        )  # (B, N, 2)
+
+        # Check whether the object coordinates in inside their respective patches.
         are_coords_true_inside_patch = u_keypoint.are_coords_in_patch(
             coords_true_normalized, boxes
-        )  # [B, N]
+        )  # (B, N)
 
         squared_error = tf.where(
             are_coords_true_inside_patch,
-            tf.reduce_mean(tf.square(coords_pred - coords_true), axis=-1),
+            tf.reduce_mean(tf.square(coords_pred - coords_true_normalized), axis=-1),
             tf.square(
                 max_error
             ),  # If coords_true are inside the patch always calculate the MSE. Else the classifier's offset predictions are useless and should be ignored. Assign a constant max error that has gradient of zero.
-        )  # [B, N]
+        )  # (B, N)
 
-        # TODO: implement solution for multi-class problems with categorical crossentropy (like line crossings)
         # Compute BinaryCrossEntropy / CategoricalCrossEntropy
-        y_pred = results["classification"]  # [B, N]
-        y_true = are_coords_true_inside_patch  # [B, N]
+        y_pred = results["classification"]  # (B, N) | (B, N, N_O) depending on category type
 
-        bce = tf.keras.losses.BinaryCrossentropy(from_logits=False, name="classifier_bce")(
-            y_true, y_pred
-        )  # Shape: ()
+        error_factor = y_pred  # (B, N) | (B, N, N_O) Used to scale the squared_error
+
+        # Categories with more than two classes use CCE
+        if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+            one_hot_mask = tf.reshape(
+                dataset_utils.classification_mask_to_one_hot(
+                    batch_data["classification_mask"], u_dataset.CategoryNames.INTERSECTIONS.value
+                ),
+                (
+                    -1,
+                    dataset_config.output_dims[0] * dataset_config.output_dims[1],
+                    len(u_dataset.IntersectionType),
+                ),
+            )  # (B, H * W, N_O)
+
+            tf.debugging.assert_equal(
+                tf.reduce_sum(one_hot_mask, axis=-1),
+                tf.ones_like(tf.reduce_sum(one_hot_mask, axis=-1)),
+                message="Invalid one-hot classification mask.",
+            )
+            # tf.reduce_all(tf.reduce_sum(one_hot_mask, axis=-1) == tf.ones(one_hot_mask.shape[0:-1])))
+
+            y_true = tf.gather(one_hot_mask, results["patch_indices"], batch_dims=1)  # (B, N, N_O)
+            cross_entropy = tf.keras.losses.CategoricalCrossentropy(
+                from_logits=False, name="classifier_cce"
+            )(y_true, y_pred)  # Shape: ()
+
+            error_factor = tf.reduce_sum(error_factor, axis=-1)  # (B, N)
+        elif object_name in [
+            u_dataset.CategoryNames.BALL.value,
+            u_dataset.CategoryNames.PENALTYMARK.value,
+        ]:  # For binary categories use BCE
+            y_true = are_coords_true_inside_patch  # (B, N)
+
+            cross_entropy = tf.keras.losses.BinaryCrossentropy(
+                from_logits=False, name="classifier_bce"
+            )(y_true, y_pred)  # Shape: ()
+        else:
+            raise ValueError("Invalid object_name.")
 
         # If the classifier thinks that there is no object in the image, this error has a smaller contribution to the loss
-        squared_error_multiplied = squared_error * tf.stop_gradient(y_pred)  # [B, N]
+        squared_error_multiplied = squared_error * tf.stop_gradient(error_factor)  # (B, N)
 
         mse = tf.reduce_mean(squared_error_multiplied)  # Shape: ()
 
         tf.debugging.assert_all_finite(mse, "Classifier MSE")
-        tf.debugging.assert_all_finite(bce, "Classifier BCE")
+        tf.debugging.assert_all_finite(cross_entropy, "Classifier CE")
 
-        loss = bce + mse  # Shape: ()
+        loss = cross_entropy + mse  # Shape: ()
         rmse = tf.math.sqrt(mse)  # Shape: ()
 
-        return {"loss": loss, "mse": mse, "rmse": rmse, "bce": bce}
+        return {"loss": loss, "mse": mse, "rmse": rmse, "bce": cross_entropy}
 
     def _calculate_losses(self, batch_data, results, maps):
         encoder_losses = {
             key: self.encoder_loss(batch_data[key], maps[key]) for key in self.categories
         }
         classifier_losses = {
-            key: self.classifier_loss(batch_data[key], results=value)
+            key: self.classifier_loss(batch_data[key], results=value, object_name=key)
             for key, value in results.items()
         }  # (loss, mse, rmse, bce) for each category
         result = {}
@@ -420,6 +465,7 @@ class FullModel(tf.keras.Model):
                 intrinsics,
                 maps[key][..., 2],
                 maps[key][..., :2],
+                value["n_classes"],
                 value["sampler"],
                 value["extractor"],
                 value["classifier"],
@@ -439,6 +485,7 @@ class FullModel(tf.keras.Model):
         intrinsics,
         logits,
         offsets,
+        n_classes,
         sampler,
         extractor,
         classifier,
@@ -470,13 +517,12 @@ class FullModel(tf.keras.Model):
         res_in = tf.shape(image)[-3:-1]  # [H_in, W_in] (ignore batch and channel dimensions)
         res_out = tf.shape(offsets)[-3:-1]  # [H_out, W_out]
         scale = tf.cast((res_in / res_out)[::-1], offsets.dtype)
-        # TODO: we need a correction factor here if image is YUYV->YUV converted
+
         pixels = tf.cast(
             tf.stack(tf.meshgrid(tf.range(res_out[1]), tf.range(res_out[0])), axis=-1),
             offsets.dtype,
         )
 
-        # TODO: maybe do something about the shape here?
         coords = tf.reshape(
             (offsets + pixels) * scale, (-1, res_out[0] * res_out[1], 2)
         )  # Per cell one coordinate pair
@@ -500,7 +546,9 @@ class FullModel(tf.keras.Model):
             )
         )  # + meta + context
 
-        classification = tf.reshape(classification, (tf.shape(intrinsics)[0], sampler.n_sample))
+        classification = tf.reshape(
+            classification, (tf.shape(intrinsics)[0], sampler.n_sample, n_classes)
+        )
         boxes = tf.reshape(boxes, (tf.shape(intrinsics)[0], sampler.n_sample, 4))
 
         positions = tf.stop_gradient(coords) + tf.reshape(
