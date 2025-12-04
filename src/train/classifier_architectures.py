@@ -142,7 +142,7 @@ def _get_common_classifier_output(x, n_classes, with_offset, inputs):
         x = tf.keras.layers.Dense(1)(x)
         out = tf.keras.layers.Activation("sigmoid")(x)
     else:
-        tf.keras.layers.Dense(n_classes + 1)(x)  # + 1 for the background class
+        x = tf.keras.layers.Dense(n_classes)(x)
         out = tf.keras.layers.Activation("softmax")(x)
 
     if with_offset:
