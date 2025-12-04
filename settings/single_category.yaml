@@ -69,5 +69,5 @@ callbacks:
   checkpoint_dir: "models/checkpoints/"
 
 data:
-  train_path: "data/tfrecords/train_ds*.tfrecords"
-  val_path: "data/tfrecords/val_ds*.tfrecords"
+  train_path: "data/tfrecords/train_ds_v2*.tfrecords"
+  val_path: "data/tfrecords/val_ds_v2*.tfrecords"
