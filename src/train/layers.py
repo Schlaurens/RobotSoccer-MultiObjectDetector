@@ -327,7 +327,7 @@ class PatchSampler(tf.keras.layers.Layer):
         :return: The indices that were sampled.
             [B, N_out]
         """
-        if training and self.temperature > 0 and False:
+        if training and self.temperature > 0:
             # Apply the so-called Gumbel-max trick:
             # https://github.com/tensorflow/tensorflow/issues/9260
             # https://lips.cs.princeton.edu/the-gumbel-max-trick-for-discrete-distributions/
