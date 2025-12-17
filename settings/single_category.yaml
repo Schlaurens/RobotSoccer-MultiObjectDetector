@@ -3,7 +3,7 @@ model:
     architecture: "inverted_residual_single_category_v2"
     input_dims: [480, 320]
     n_context: 0
-    only_train_encoder: True
+    only_train_encoder: False
     use_batch_norm: False
   classifier:
     architecture: "classifier_ires_single_category_v3"
