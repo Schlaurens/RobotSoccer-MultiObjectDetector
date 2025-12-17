@@ -337,10 +337,9 @@ class EvaluateApplication:
             pos = config["pos"]
             label = config["label"]
 
-            ax_name = f"ax_{name}_{slider_type}_slider"
-            self.axes[ax_name] = self.fig.add_axes(pos)
+            axis = self.fig.add_axes(pos)
             self.sliders[f"{name}_{slider_type}_slider"] = Slider(
-                ax=self.axes[ax_name],
+                ax=axis,
                 label=label,
                 valmin=0,
                 valmax=1,
