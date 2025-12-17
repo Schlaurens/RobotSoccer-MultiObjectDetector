@@ -79,6 +79,10 @@ class EvaluateApplication:
 
     def update_threshold(self, encoder: bool, object_name: str, val: float):
         self.thresholds["encoder" if encoder else "classifier"][object_name] = val
+
+        print(
+            f"Updated threshold for {'encoder' if encoder else 'classifier'} for {object_name} with new value {val}"
+        )
         self.update_predictions()
 
     def run(self):
