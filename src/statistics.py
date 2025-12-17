@@ -1,8 +1,26 @@
 import itertools
 import os
 
+import numpy as np
+
 from util import dataset_io as u_dataset_io
 from util import labels as u_labels
+
+
+def get_bce_baseline(p: int, n: int):
+    """Calculates the baseline binary cross entropy that would accur if the classifier would simply guess.
+
+    Args:
+        p: Number of positive samples.
+        n: Number of samples.
+
+    Returns:
+        The baseline binary crossentropy.
+    """
+    pos_percentage = p / n
+    return -(
+        pos_percentage * np.log(pos_percentage) + (1 - pos_percentage) * np.log(1 - pos_percentage)
+    )
 
 
 def main(data_path: str):
@@ -81,6 +99,10 @@ def main(data_path: str):
     number_of_t_intersection_samples = sum(number_of_t_intersections_for_each_log)
     number_of_x_intersection_samples = sum(number_of_x_intersections_for_each_log)
 
+    # ===== Cross-Entropy baselines ======
+    ball_bce_baseline = get_bce_baseline(number_of_ball_samples, number_of_samples)
+    penalty_mark_bce_baseline = get_bce_baseline(number_of_penalty_mark_samples, number_of_samples)
+
     print("Number of logs: ", len(labels))
     print("Number of samples: ", number_of_samples)
     print("Number of intersection samples: ", number_of_intersection_samples)
@@ -112,6 +134,9 @@ def main(data_path: str):
     print(
         f"% of X intersection samples: {((number_of_x_intersection_samples / number_of_intersection_samples) * 100):.2f}"
     )
+    print("=========")
+    print(f"Ball BCE Baseline: {ball_bce_baseline:.5f}")
+    print(f"PenaltyMark BCE Baseline: {penalty_mark_bce_baseline:.5f}")
 
 
 if __name__ == "__main__":
