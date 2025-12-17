@@ -234,9 +234,7 @@ class FullModel(tf.keras.Model):
 
             # If a sample should be ignored the cross_entropy of that sample is set to a constant 0 which is not differentiable.
             cross_entropy_multiplied = cross_entropy_batched * use_sample  # (B, N)
-            cross_entropy = tf.reduce_mean(
-                tf.reduce_sum(cross_entropy_multiplied, axis=-1)
-            )  # Shape: ()
+            cross_entropy = tf.reduce_mean(cross_entropy_multiplied)  # Shape: ()
 
             error_factor = tf.reduce_sum(error_factor, axis=-1)  # (B, N)
         elif object_name in [
