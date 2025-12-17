@@ -31,7 +31,6 @@ from train.models import FullModel
 from util import dataset as u_dataset
 from util import dataset_io as u_dataset_io
 from util import image as u_image
-from util import metrics as u_metrics
 
 dataset_utils = u_dataset.DatasetUtils(u_dataset.DatasetConfig())
 
