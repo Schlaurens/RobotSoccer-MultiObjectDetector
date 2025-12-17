@@ -109,6 +109,7 @@ class FullModel(tf.keras.Model):
             batch_data["object_mask"] * tf.math.log(maps[..., 2] + epsilon)
             + (1.0 - batch_data["object_mask"]) * tf.math.log(1.0 - maps[..., 2] + epsilon)
         )  # (B, 15, 20)
+
         tf.debugging.assert_non_negative(maps[..., 2], "maps[..., 2] is negative")
         tf.debugging.assert_all_finite(tf.math.log(epsilon), "tf.math.log(epsilon)")
         tf.debugging.assert_all_finite(
@@ -122,16 +123,14 @@ class FullModel(tf.keras.Model):
         tf.debugging.assert_all_finite(
             (1.0 - batch_data["object_mask"]), "(1.0 - batch_data[object_mask])"
         )
-
         tf.debugging.assert_all_finite(element_wise_bce, "element_wise_bce")
+
         element_wise_bce_multiplied = tf.multiply(
             element_wise_bce, batch_data["loss_mask"]
         )  # (B, 15, 20)
 
         tf.debugging.assert_all_finite(batch_data["loss_mask"], "batch_data[loss_mask]")
         tf.debugging.assert_all_finite(element_wise_bce_multiplied, "element_wise_bce_multiplied")
-
-        bce_batched = tf.reduce_sum(element_wise_bce_multiplied, axis=[1, 2])  # (B, )
 
         # Compute MSE
         squared_error = tf.square(
@@ -141,9 +140,11 @@ class FullModel(tf.keras.Model):
             squared_error, batch_data["object_mask"]
         )  # (B, 15, 20)
 
+        bce_batched = tf.reduce_sum(element_wise_bce_multiplied, axis=[1, 2])  # (B, )
         mse_batched = tf.reduce_mean(squared_error_multiplied, axis=[1, 2]) * 10000  # (B)
+
         tf.debugging.assert_all_finite(bce_batched, "encoder BCE")
-        tf.debugging.assert_all_finite(mse_batched, "encoder mse")
+        tf.debugging.assert_all_finite(mse_batched, "encoder MSE")
 
         # Total loss
         loss_batched = bce_batched + mse_batched  # (B, )
