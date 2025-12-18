@@ -282,3 +282,131 @@ def calculate_binary_metrics(
         "fp_rate": fp_rate,
         "fn_rate": fn_rate,
     }
+
+
+def calculate_multiclass_metrics(
+    predictions: tf.Tensor,
+    groundtruth: tf.Tensor,
+    encoder_threshold: float,
+    classifier_threshold: float,
+    object_name: str,
+    include_encoder_logits: bool = False,
+    pooled: bool = False,
+):
+    """
+    Calculate metrics for multi-class predictions.
+
+    A prediction counts as positive for a class if:
+        - The combined prediction (encoder + classifier) for that class is >= combined threshold
+        - The predicted patch coordinates could be projected on the ground
+        - The predicted patch is actually over the object.
+
+    Args:
+        predictions: The model predictions (logits and classification scores for each class).
+        groundtruth: The corresponding groundtruth data (classification_mask to be converted to one-hot).
+        encoder_threshold: The threshold of the encoder.
+        classifier_threshold: The threshold of the classifier.
+        include_encoder_logits: Whether to include encoder logits in combined prediction.
+
+    Returns:
+        dict() containing per-class confusion matrices, precision, recall, and error indices.
+    """
+    output_dims = tf.shape(groundtruth["offset_mask"])[-3:-1]
+    groundtruth_one_hot_mask = dataset_utils.classification_mask_to_one_hot(
+        groundtruth["classification_mask"], object_name
+    )
+    num_classes = tf.shape(groundtruth_one_hot_mask)[-1]
+
+    # Reshape mask to prepare for tf.gather
+    groundtruth_one_hot_mask_reshaped = tf.reshape(
+        groundtruth_one_hot_mask,
+        (-1, output_dims[0] * output_dims[1], num_classes),
+    )  # (B, H * W, num_classes)
+    groundtruth_coords_mask = tf.reshape(
+        dataset_utils.get_coordinate_mask(groundtruth["offset_mask"]),
+        (-1, output_dims[0] * output_dims[1], 2),
+    )  # (B, H * W, 2)
+
+    predicted_positions = predictions["positions"]  # (B, N, 2)
+    groundtruth_positions = tf.gather(
+        groundtruth_coords_mask, predictions["patch_indices"], batch_dims=1
+    )  # (B, N, 2)
+
+    predicted_probabilities = predictions["classification"]  # (B, N, num_classes)
+    groundtruth_probabilities = tf.gather(
+        groundtruth_one_hot_mask_reshaped, predictions["patch_indices"], batch_dims=1
+    )  # (B, N, num_classes)
+
+    tf.assert_equal(tf.shape(predicted_positions), tf.shape(groundtruth_positions))
+    tf.assert_equal(tf.shape(predicted_probabilities), tf.shape(groundtruth_probabilities))
+
+    y_pred_flat = tf.reshape(predicted_probabilities, (-1, num_classes))  # (B * N, num_classes)
+    y_true_flat = tf.reshape(groundtruth_probabilities, (-1, num_classes))  # (B * N, num_classes)
+
+    y_pred_labels = tf.argmax(y_pred_flat, axis=-1)  # (B * N, )
+    y_true_labels = tf.argmax(y_true_flat, axis=-1)  # (B * N, )
+
+    tf.assert_equal(tf.shape(y_pred_labels), tf.shape(y_true_labels))
+
+    # The (num_classes, num_classes) confusion matrix
+    confusion_matrix = tf.math.confusion_matrix(y_true_labels, y_pred_labels, num_classes)
+
+    # Calculate precision and recall for every class.
+    precisions = tf.linalg.diag_part(confusion_matrix) / tf.reduce_sum(
+        confusion_matrix, axis=1
+    )  # (num_classes, )
+    recalls = tf.linalg.diag_part(confusion_matrix) / tf.reduce_sum(
+        confusion_matrix, axis=0
+    )  # (num_classes, )
+
+    total_samples = tf.reduce_sum(confusion_matrix)
+    # Calculate fp, tp, fn, fp for every class.
+    true_positives = tf.linalg.diag_part(confusion_matrix)
+    false_positives = tf.reduce_sum(confusion_matrix, axis=0) - true_positives  # (num_classes, )
+    false_negatives = tf.reduce_sum(confusion_matrix, axis=1) - true_positives  # (num_classes, )
+    true_negatives = total_samples - (
+        true_positives + false_positives + false_negatives
+    )  # (num_classes, )
+
+    # The (2, 2, num_classes) confusion matrix
+    confusion_matrices = tf.reshape(
+        tf.stack([true_positives, false_negatives, false_positives, true_negatives], -1),
+        (4, num_classes),
+    )
+
+    # Pooled metrics
+    pooled_confusion_matrix = tf.reshape(tf.reduce_sum(confusion_matrices, axis=0), (2, 2))
+    pooled_precision = (
+        pooled_confusion_matrix[0][0] / (pooled_confusion_matrix[0][0]
+        + pooled_confusion_matrix[1][0])
+    )
+    pooled_recall = (
+        pooled_confusion_matrix[0][0] / (pooled_confusion_matrix[0][0]
+        + pooled_confusion_matrix[0][1])
+    )
+
+    # TODO: use theshold!!
+    
+    # # False positive/negative rates per class
+    # fp_rate = fp_count / (fp_count + tp_count + 1e-7)
+    # fn_rate = fn_count / (fn_count + tn_count + 1e-7)
+
+    # # Confusion matrix per class
+    # confusion_matrices = [
+    #     np.array([[tn_count[i], fp_count[i]], [fn_count[i], tp_count[i]]])
+    #     for i in range(num_classes)
+    # ]
+
+    # # Indices of false positives/negatives per class
+    # fp_indices = [tf.where(fp[:, i]).numpy() for i in range(num_classes)]
+    # fn_indices = [tf.where(fn[:, i]).numpy() for i in range(num_classes)]
+
+    return {
+        "confusion_matrix": pooled_confusion_matrix.numpy() if pooled else confusion_matrix.numpy(),
+        "precision": pooled_precision if pooled else precisions,
+        "recall": pooled_recall if pooled else recalls,
+        # "fp_indices": fp_indices,
+        # "fn_indices": fn_indices,
+        # "fp_rate": fp_rate,
+        # "fn_rate": fn_rate,
+    }
