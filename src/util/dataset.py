@@ -288,22 +288,20 @@ class DatasetUtils:
         Returns:
             True if coords_a and coords_b share the same cell.
         """
-        return self.get_cell_of_coordinate(coords_a) == self.get_cell_of_coordinate(coords_b)
+        return tf.reduce_all(
+            self.get_cell_of_coordinate(coords_a) == self.get_cell_of_coordinate(coords_b)
+        )
 
-    def get_cell_of_coordinate(self, coordinate: tf.Tensor) -> tuple[int, int]:
-        """Returns the index of the cell in the cell_grid of the given coordinate pair.
+    def get_cell_of_coordinate(self, coordinate: tf.Tensor) -> tf.Tensor:
+        """Returns the indices of the cell in the cell_grid of the given coordinate pair.
 
         Args:
-            coordinate: The absolute coordinate pair
+            coordinate: The absolute coordinate pair (..., 2)
 
         Returns:
-            the index tuple in the cell_grid where the coordinate points to.
+            The x and y indices in the cell_grid where the coordinate pair points to.
         """
-
-        return (
-            int(coordinate[0] // self.config.cell_dims[0]),
-            int(coordinate[1] // self.config.cell_dims[1]),
-        )
+        return tf.cast(tf.math.floordiv(coordinate, self.config.cell_dims), tf.int32)  # (..., 2)
 
     # def _generate_object_mask(self, object_name, label, cells):
     #     """Generate the binary object_mask using the cell coverage values for each object_category.
