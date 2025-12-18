@@ -322,3 +322,41 @@ class TestObjectMask:
 
         assert tf.reduce_sum(object_mask) == coordinates.shape[0]
         assert tf.reduce_all(mask_values == 1)
+
+
+class TestGetCellOfCoordinates:
+    def test_basic_case(self):
+        coords_a = tf.constant([15, 15], tf.float32)
+        coords_b = tf.constant([50, 70], tf.float32)
+
+        expected_a = tf.constant([0, 0], tf.int32)
+        expected_b = tf.constant([1, 2], tf.int32)
+
+        result_a = dataset_utils.get_cell_of_coordinate(coords_a)
+        result_b = dataset_utils.get_cell_of_coordinate(coords_b)
+
+        assert tf.reduce_all(expected_a == result_a)
+        assert tf.reduce_all(expected_b == result_b)
+
+    def test_batched_coords(self):
+        coords = tf.constant([[[15, 15], [50, 70]], [[80, 15], [50, 300]]], tf.float32)  # (B, N, 2)
+        expected = tf.constant([[[0, 0], [1, 2]], [[2, 0], [1, 9]]], tf.int32)
+
+        results = dataset_utils.get_cell_of_coordinate(coords)
+        assert tf.reduce_all(expected == results)
+
+    def test_negative_coords(self):
+        coords = tf.constant([[-10, -50]], tf.float32)
+
+        expected = tf.constant([[-1, -2]], tf.int32)
+
+        results = dataset_utils.get_cell_of_coordinate(coords)
+        assert tf.reduce_all(expected == results)
+
+    def test_coords_at_cell_edge(self):
+        coords = tf.constant([[31, 31], [31, 32]], tf.float32)
+
+        expected = tf.constant([[0, 0], [0, 1]], tf.int32)
+
+        results = dataset_utils.get_cell_of_coordinate(coords)
+        assert tf.reduce_all(expected == results)
