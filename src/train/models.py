@@ -242,7 +242,9 @@ class FullModel(tf.keras.Model):
             cross_entropy_multiplied = cross_entropy_batched * use_sample  # (B, N)
             cross_entropy = tf.reduce_mean(cross_entropy_multiplied)  # Shape: ()
 
-            error_factor = tf.reduce_sum(error_factor, axis=-1)  # (B, N)
+            # Get probability of the predicted class for each candidate.
+            error_factor = tf.math.reduce_max(y_pred, axis=-1)  # (B, N)
+
         elif object_name in [
             u_dataset.CategoryNames.BALL.value,
             u_dataset.CategoryNames.PENALTYMARK.value,
