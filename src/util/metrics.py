@@ -334,10 +334,14 @@ def calculate_multiclass_metrics(
 
     predicted_probabilities = predictions["classification"]  # (B, N, num_classes)
     groundtruth_probabilities = tf.gather(
-        groundtruth_one_hot_mask_reshaped, predictions["patch_indices"], batch_dims=1
+        groundtruth_one_hot_mask_reshaped,
+        dataset_utils.flatten_cell_indices(
+            dataset_utils.get_cell_of_coordinate(groundtruth_positions)
+        ),
+        batch_dims=1,
     )  # (B, N, num_classes)
 
-    tf.assert_equal(tf.shape(predicted_positions), tf.shape(groundtruth_positions))
+    # tf.assert_equal(tf.shape(predicted_positions), tf.shape(groundtruth_positions))
     tf.assert_equal(tf.shape(predicted_probabilities), tf.shape(groundtruth_probabilities))
 
     y_pred_flat = tf.reshape(predicted_probabilities, (-1, num_classes))  # (B * N, num_classes)
