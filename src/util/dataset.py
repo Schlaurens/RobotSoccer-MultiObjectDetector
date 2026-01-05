@@ -8,7 +8,7 @@ import tensorflow as tf
 @dataclass
 class DatasetConfig:
     input_dims: tuple = (480, 640)
-    output_dims: tuple = (15, 20)
+    output_dims: np.ndarray = np.array((15, 20))
     cell_dims: np.ndarray = None
     cell_center: float = None
     scale: float = None
@@ -292,16 +292,26 @@ class DatasetUtils:
             self.get_cell_of_coordinate(coords_a) == self.get_cell_of_coordinate(coords_b)
         )
 
-    def get_cell_of_coordinate(self, coordinate: tf.Tensor) -> tf.Tensor:
+    def get_cell_of_coordinate(self, coordinate: tf.Tensor, clip: bool = False) -> tf.Tensor:
         """Returns the indices of the cell in the cell_grid of the given coordinate pair.
 
         Args:
             coordinate: The absolute coordinate pair (..., 2)
+            clip: Clip the resulting cell_indices to the minimum and maximum bounds of the cell_grid. Example: [[3, -3]] -> [[3, 0]] or [[max+4, 5]] -> [[max, 5]]
 
         Returns:
             The x and y indices in the cell_grid where the coordinate pair points to.
         """
-        return tf.cast(tf.math.floordiv(coordinate, self.config.cell_dims), tf.int32)  # (..., 2)
+        cell_indices = tf.cast(
+            tf.math.floordiv(coordinate, self.config.cell_dims), tf.int32
+        )  # (..., 2)
+        return (
+            tf.clip_by_value(
+                cell_indices, clip_value_min=0, clip_value_max=self.config.output_dims - 1
+            )
+            if clip
+            else cell_indices
+        )
 
     def flatten_cell_indices(self, cell_indices: tf.Tensor) -> tf.Tensor:
         """Flatten 2-dimensional cell_indices into 1-dimension cell indices of a flattend cell_grid.
