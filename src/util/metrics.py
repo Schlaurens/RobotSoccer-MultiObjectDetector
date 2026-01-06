@@ -394,13 +394,11 @@ def calculate_multiclass_metrics(
 
     # Pooled metrics
     pooled_confusion_matrix = tf.reshape(tf.reduce_sum(confusion_matrices, axis=0), (2, 2))
-    pooled_precision = (
-        pooled_confusion_matrix[0][0] / (pooled_confusion_matrix[0][0]
-        + pooled_confusion_matrix[1][0])
+    pooled_precision = pooled_confusion_matrix[0][0] / (
+        pooled_confusion_matrix[0][0] + pooled_confusion_matrix[1][0]
     )
-    pooled_recall = (
-        pooled_confusion_matrix[0][0] / (pooled_confusion_matrix[0][0]
-        + pooled_confusion_matrix[0][1])
+    pooled_recall = pooled_confusion_matrix[0][0] / (
+        pooled_confusion_matrix[0][0] + pooled_confusion_matrix[0][1]
     )
 
     # TODO: use theshold!!
