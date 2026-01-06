@@ -311,6 +311,10 @@ def calculate_multiclass_metrics(
     Returns:
         dict() containing per-class confusion matrices, precision, recall, and error indices.
     """
+
+
+    tf.print("Number of Intersections", tf.reduce_sum(groundtruth["object_mask"]))
+
     # True for every sample that should be used. False else.
     use_sample = tf.cast(
         tf.reduce_any(tf.cast(groundtruth["loss_mask"], tf.bool), axis=[1, 2]),
@@ -322,6 +326,12 @@ def calculate_multiclass_metrics(
     groundtruth_one_hot_mask = dataset_utils.classification_mask_to_one_hot(
         groundtruth["classification_mask"], object_name
     )
+
+    tf.print(
+        "one_hot contains zeros: ",
+        tf.reduce_any(tf.reduce_sum(groundtruth_one_hot_mask, axis=-1) == 0),
+    )
+
     num_classes = tf.shape(groundtruth_one_hot_mask)[-1]
 
     # Reshape mask to prepare for tf.gather
@@ -339,6 +349,8 @@ def calculate_multiclass_metrics(
         groundtruth_coords_mask, predictions["patch_indices"], batch_dims=1
     )  # (B, N, 2)
 
+    tf.print("Coords shape: ", tf.shape(predictions["coords"]))
+    
     predicted_probabilities = predictions["classification"]  # (B, N, num_classes)
     groundtruth_probabilities = tf.gather(
         groundtruth_one_hot_mask_reshaped,
@@ -357,14 +369,55 @@ def calculate_multiclass_metrics(
     y_true_filtered = tf.boolean_mask(
         groundtruth_probabilities, use_sample
     )  # (#use_samples, N, num_classes)
+    
+    tf.print(
+        "gt_one_hot_resh contains zeros: ",
+        tf.reduce_any(tf.reduce_sum(groundtruth_one_hot_mask_reshaped, axis=-1) == 0),
+    )
+    tf.print("gt_probs reduced: ", tf.shape(tf.reduce_sum(groundtruth_probabilities, axis=-1)))
+    tf.print(
+        "gt_probs contains zeros: ",
+        tf.reduce_any(tf.reduce_sum(groundtruth_probabilities, axis=-1) == 0),
+    )
 
     y_pred_flat = tf.reshape(y_pred_filtered, (-1, num_classes))  # (B * N, num_classes)
     y_true_flat = tf.reshape(y_true_filtered, (-1, num_classes))  # (B * N, num_classes)
+    tf.print(
+        "y_true flat contains zeros: ",
+        tf.reduce_any(tf.reduce_sum(y_true_filtered, axis=-1) == 0),
+    )
+    # y_pred_thresholded = tf.cast(y_pred_flat >= classifier_threshold, tf.float32)  # (B * N, num_classes)
 
     y_pred_labels = tf.argmax(y_pred_flat, axis=-1)  # (B * N, )
     y_true_labels = tf.argmax(y_true_flat, axis=-1)  # (B * N, )
-
     tf.assert_equal(tf.shape(y_pred_labels), tf.shape(y_true_labels))
+
+    tf.print("Max value in true_labels:", tf.reduce_max(y_true_labels))
+    tf.print("Min value in true_labels:", tf.reduce_min(y_true_labels))
+
+    tf.print("Use_samples: ", tf.reduce_sum(use_sample))
+
+    y, idx, count = tf.unique_with_counts(y_pred_labels)
+    tf.print("y_pred_unfiltered: ", tf.shape(groundtruth_probabilities))
+    tf.print("y_pred_filtered: ", tf.shape(y_true_filtered))
+    tf.print("y_pred_labels: ", tf.shape(y_true_labels))
+
+    tf.print("y_true_unfiltered: ", tf.shape(predicted_probabilities))
+    tf.print("y_true_filtered: ", tf.shape(y_pred_filtered))
+    tf.print("y_true_labels: ", tf.shape(y_pred_labels))
+
+    tf.print("Dist of true labels: ")
+    tf.print("None: ", tf.reduce_sum(tf.cast(y_true_flat[:, 0], tf.int32)))
+    tf.print("L: ", tf.reduce_sum(tf.cast(y_true_flat[:, 1], tf.int32)))
+    tf.print("T: ", tf.reduce_sum(tf.cast(y_true_flat[:, 2], tf.int32)))
+    tf.print("X: ", tf.reduce_sum(tf.cast(y_true_flat[:, 3], tf.int32)))
+    tf.print("GT Example: ", y_true_filtered[1])
+
+    tf.print("Dist of pred labels: ")
+    tf.print("None: ", count[0])
+    tf.print("L: ", count[1])
+    tf.print("T: ", count[2])
+    tf.print("X: ", count[3])
 
     # The (num_classes, num_classes) confusion matrix
     confusion_matrix = tf.math.confusion_matrix(y_true_labels, y_pred_labels, num_classes)
