@@ -541,22 +541,6 @@ class DatasetUtils:
 
         groundtruth_coords_normed = groundtruth_coords / self.config.input_dims[::-1]  # (B, N, 2)
 
-        tf.print("classification_mask_flat: ", tf.shape(classification_mask_flat))
-        tf.print("coordinate_mask_flat: ", tf.shape(coordinate_mask_flat))
-        tf.print("groundtruth_coords", tf.shape(groundtruth_coords))
-        tf.print("cell_index_of_coords:", tf.shape(cell_index_of_coords))
-        tf.print("groundtruth_patch_class", tf.shape(groundtruth_patch_class))
-        tf.print("groundtruth_coords_normed: ", tf.shape(groundtruth_coords_normed))
-
-        tf.print(
-            "Condition: ",
-            tf.shape(
-                u_keypoint.are_coords_in_patch(
-                    groundtruth_coords_normed, model_results["boxes"], padding
-                )
-            ),
-        )
-
         groundtruth_patch_class_filtered = tf.where(
             tf.logical_not(
                 u_keypoint.are_coords_in_patch(
@@ -566,5 +550,5 @@ class DatasetUtils:
             0.0,
             groundtruth_patch_class,
         )
-        
+
         return groundtruth_patch_class_filtered
