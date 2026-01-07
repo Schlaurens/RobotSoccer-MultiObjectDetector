@@ -191,9 +191,6 @@ class EvaluateApplication:
             patch_index = output["results"][object_name]["patch_indices"][0][i]
             logit = output["results"][object_name]["logits"][0][patch_index]
             coords_pred = output["results"][object_name]["coords"][0][i]
-            coords_true = dataset_utils.get_coords_from_offsets(
-                self.data[self.index][object_name]["offset_mask"]
-            )[0]
             position_pred = output["results"][object_name]["positions"][0][i]
 
             # dont draw patch if its prediction is under the threshold
@@ -220,6 +217,10 @@ class EvaluateApplication:
             axes.add_patch(rect)
             axes.plot(coords_pred[0], coords_pred[1], "rx")
             axes.plot(position_pred[0], position_pred[1], "bx")
+
+            coords_true = dataset_utils.get_coords_from_offsets(
+                self.data[self.index][object_name]["offset_mask"]
+            )[0]
             for c_true in coords_true:
                 if tf.reduce_all(c_true == -1.0):
                     continue
