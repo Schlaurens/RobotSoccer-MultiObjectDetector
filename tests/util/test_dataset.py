@@ -451,7 +451,7 @@ class TestGetDistanceMaskFromOffsets:
         [[320, 240, 618.663391, 617.159], [320, 240, 618.663391, 617.159]], tf.float32
     )  # (B, 4)
 
-    empty_offset_mask = tf.expand_dims(tf.fill((*dataset_config.output_dims, 2), -1.0), axis=0)  #
+    empty_offset_mask = tf.expand_dims(tf.fill((*dataset_config.output_dims, 2), -1.0), axis=0)
     non_empty_offset_mask = tf.expand_dims(
         dataset_utils._generate_offset_mask(tf.constant([[100, 400]], tf.float32)), axis=0
     )
@@ -459,10 +459,95 @@ class TestGetDistanceMaskFromOffsets:
     offset_mask_batch = tf.concat([empty_offset_mask, non_empty_offset_mask], axis=0)
     tf.print("offset_masks: ", tf.shape(offset_mask_batch))
 
-    # def test_shape(self):
-    #     distance_mask = dataset_utils.get_distance_mask_from_offsets(
-    #         self.offset_mask_batch, self.camera, self.camera_intr, object_size = 0.0
-    #     )
-    #     tf.print(tf.unique(tf.reshape(distance_mask[1], [-1])))
-    #     assert tf.reduce_all(tf.shape(distance_mask) == tf.constant([2, *dataset_config.output_dims, 1]))
-    #     assert tf.reduce_all(distance_mask[0] == 0)
+    def test_shape(self):
+        offset_mask_batched = tf.expand_dims(
+            dataset_utils._generate_offset_mask(tf.constant([[100, 400]], tf.float32)), axis=0
+        )
+
+        distance_mask = dataset_utils.get_distance_mask_from_offsets(
+            offset_mask_batched, self.camera[0:1, :], self.camera_intr[0:1, :], object_height=0.0
+        )
+        tf.print(tf.unique(tf.reshape(distance_mask, [-1])))
+        tf.print("Distances: ", tf.shape(distance_mask))
+        assert tf.reduce_all(
+            tf.shape(distance_mask) == tf.constant([1, *dataset_config.output_dims, 1])
+        )
+
+    def test_mult_coords_one_offset_mask(self):
+        # Index 0 and 1 are valid. Index 3 is invalid
+        coords = tf.constant([[225, 400], [400, 300], [1, 4]], tf.float32)
+        offset_mask_batched = tf.expand_dims(dataset_utils._generate_offset_mask(coords), axis=0)
+
+        number_of_valid_coords = 2
+
+        distance_mask = dataset_utils.get_distance_mask_from_offsets(
+            offset_mask_batched, self.camera[0:1, :], self.camera_intr[0:1, :], object_height=0.0
+        )
+
+        y, _ = tf.unique(tf.reshape(distance_mask, [-1]))
+
+        _, _, unique_count_distances = tf.unique_with_counts(tf.reshape(distance_mask, [-1]))
+        _, _, unique_count_coordinates = tf.unique_with_counts(
+            tf.reshape(dataset_utils.get_coordinate_mask(offset_mask_batched)[..., 0], [-1])
+        )
+
+        tf.print(y)
+        tf.print(number_of_valid_coords)
+
+        # Are distribution of distances and coordinates the same?
+        assert tf.reduce_all(unique_count_distances == unique_count_coordinates)
+        assert len(y) == number_of_valid_coords + 1
+
+    def test_empty_offset_mask(self):
+        distance_mask = dataset_utils.get_distance_mask_from_offsets(
+            self.empty_offset_mask, self.camera[0:1, :], self.camera_intr[0:1, :], object_height=0.0
+        )
+
+        assert tf.reduce_all(distance_mask == -1.0)
+
+    def test_mult_offset_masks(self):
+        empty_offset_mask = tf.expand_dims(tf.fill((*dataset_config.output_dims, 2), -1.0), axis=0)
+        non_empty_offset_mask = tf.expand_dims(
+            dataset_utils._generate_offset_mask(tf.constant([[300, 400]], tf.float32)), axis=0
+        )
+
+        offset_mask_batch = tf.concat([empty_offset_mask, non_empty_offset_mask], axis=0)
+
+        distance_mask = dataset_utils.get_distance_mask_from_offsets(
+            offset_mask_batch, self.camera, self.camera_intr, object_height=0.0
+        )
+
+        y0, _ = tf.unique(tf.reshape(distance_mask[0], [-1]))
+        y1, _ = tf.unique(tf.reshape(distance_mask[1], [-1]))
+
+        # First distance mask should be -1.0
+        assert tf.reduce_all(distance_mask[0] == -1.0)
+        # Second distance mask should be valid
+        assert tf.reduce_all(distance_mask[1] >= 0)
+        # Test number of unique elements in distance masks
+        assert len(y0) == 1
+        assert len(y1) == 1
+
+
+class TestGetCoordinateMask:
+    def test_empty_mask(self):
+        empty_offset_mask = tf.expand_dims(tf.fill((*dataset_config.output_dims, 2), -1.0), axis=0)
+        result = dataset_utils.get_coordinate_mask(empty_offset_mask)
+
+        assert tf.reduce_all(result == empty_offset_mask)
+
+    def test_single_coordinate_pair(self):
+        coord_pair = tf.constant([[400, 300]], tf.float32)  # (1, 2)
+        offset_mask = tf.expand_dims(dataset_utils._generate_offset_mask(coord_pair), axis=0)
+
+        expected = tf.tile(
+            coord_pair[:, tf.newaxis, tf.newaxis, :],  # (1, 1, 1, 2)
+            [1, *dataset_config.output_dims, 1],
+        )  # (1, 15, 20, 2)
+
+        tf.print("offset_mask: ", tf.shape(offset_mask))
+        tf.print("expected: ", tf.shape(expected))
+
+        result = dataset_utils.get_coordinate_mask(offset_mask)
+
+        assert tf.reduce_all(result == expected)
