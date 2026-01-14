@@ -397,7 +397,7 @@ class EvaluateApplication:
                 lambda val, category=category: self.update_threshold(True, category, val)
             )
             self.sliders[f"{category}_classifier_slider"].on_changed(
-                lambda val, category=category: self.update_threshold(True, category, val)
+                lambda val, category=category: self.update_threshold(False, category, val)
             )
         self.slider_image.on_changed(lambda val: self.image_slider_changed(val))
 
