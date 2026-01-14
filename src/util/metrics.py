@@ -382,13 +382,14 @@ def calculate_multiclass_metrics(
 
     y_pred_flat = tf.reshape(y_pred_filtered, (-1, num_classes))  # (B * N, num_classes)
     y_true_flat = tf.reshape(y_true_filtered, (-1, num_classes))  # (B * N, num_classes)
-    tf.print(
-        "y_true flat contains zeros: ",
-        tf.reduce_any(tf.reduce_sum(y_true_filtered, axis=-1) == 0),
-    )
-    # y_pred_thresholded = tf.cast(y_pred_flat >= classifier_threshold, tf.float32)  # (B * N, num_classes)
 
-    y_pred_labels = tf.argmax(y_pred_flat, axis=-1)  # (B * N, )
+    # y_pred_labels = tf.argmax(y_pred_flat, axis=-1)  # (B * N, )
+    y_pred_thresholded = tf.where(
+        tf.reduce_max(y_pred_flat, axis=-1) < classifier_threshold,
+        0,
+        tf.argmax(y_pred_flat, axis=-1),
+    )  # (B * N, )
+
     y_true_labels = tf.argmax(y_true_flat, axis=-1)  # (B * N, )
     tf.assert_equal(tf.shape(y_pred_labels), tf.shape(y_true_labels))
 
