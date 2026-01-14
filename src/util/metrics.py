@@ -312,9 +312,6 @@ def calculate_multiclass_metrics(
         dict() containing per-class confusion matrices, precision, recall, and error indices.
     """
 
-
-    tf.print("Number of Intersections", tf.reduce_sum(groundtruth["object_mask"]))
-
     # True for every sample that should be used. False else.
     use_sample = tf.cast(
         tf.reduce_any(tf.cast(groundtruth["loss_mask"], tf.bool), axis=[1, 2]),
@@ -322,43 +319,23 @@ def calculate_multiclass_metrics(
     )
     # (B, )
 
-    output_dims = tf.shape(groundtruth["offset_mask"])[-3:-1]
     groundtruth_one_hot_mask = dataset_utils.classification_mask_to_one_hot(
         groundtruth["classification_mask"], object_name
     )
 
-    tf.print(
-        "one_hot contains zeros: ",
-        tf.reduce_any(tf.reduce_sum(groundtruth_one_hot_mask, axis=-1) == 0),
-    )
-
     num_classes = tf.shape(groundtruth_one_hot_mask)[-1]
 
-    # Reshape mask to prepare for tf.gather
-    groundtruth_one_hot_mask_reshaped = tf.reshape(
-        groundtruth_one_hot_mask,
-        (-1, output_dims[0] * output_dims[1], num_classes),
-    )  # (B, H * W, num_classes)
-    groundtruth_coords_mask = tf.reshape(
-        dataset_utils.get_coordinate_mask(groundtruth["offset_mask"]),
-        (-1, output_dims[0] * output_dims[1], 2),
-    )  # (B, H * W, 2)
-
-    predicted_positions = predictions["positions"]  # (B, N, 2)
-    groundtruth_positions = tf.gather(
-        groundtruth_coords_mask, predictions["patch_indices"], batch_dims=1
-    )  # (B, N, 2)
-
-    tf.print("Coords shape: ", tf.shape(predictions["coords"]))
-    
     predicted_probabilities = predictions["classification"]  # (B, N, num_classes)
-    groundtruth_probabilities = tf.gather(
-        groundtruth_one_hot_mask_reshaped,
-        dataset_utils.flatten_cell_indices(
-            dataset_utils.get_cell_of_coordinate(predictions["coords"], clip=True)
+
+    groundtruth_probabilities = tf.one_hot(
+        tf.cast(
+            dataset_utils.get_groundtruth_class_of_patches(
+                predictions, groundtruth, padding=0.2, batch_dims=1
+            ),
+            tf.int32,
         ),
-        batch_dims=1,
-        axis=1,
+        num_classes,
+        axis=-1,
     )  # (B, N, num_classes)
     # tf.assert_equal(tf.shape(predicted_positions), tf.shape(groundtruth_positions))
     tf.assert_equal(tf.shape(predicted_probabilities), tf.shape(groundtruth_probabilities))
@@ -369,59 +346,23 @@ def calculate_multiclass_metrics(
     y_true_filtered = tf.boolean_mask(
         groundtruth_probabilities, use_sample
     )  # (#use_samples, N, num_classes)
-    
-    tf.print(
-        "gt_one_hot_resh contains zeros: ",
-        tf.reduce_any(tf.reduce_sum(groundtruth_one_hot_mask_reshaped, axis=-1) == 0),
-    )
-    tf.print("gt_probs reduced: ", tf.shape(tf.reduce_sum(groundtruth_probabilities, axis=-1)))
-    tf.print(
-        "gt_probs contains zeros: ",
-        tf.reduce_any(tf.reduce_sum(groundtruth_probabilities, axis=-1) == 0),
-    )
 
     y_pred_flat = tf.reshape(y_pred_filtered, (-1, num_classes))  # (B * N, num_classes)
     y_true_flat = tf.reshape(y_true_filtered, (-1, num_classes))  # (B * N, num_classes)
 
-    # y_pred_labels = tf.argmax(y_pred_flat, axis=-1)  # (B * N, )
+    # Thresholding
     y_pred_thresholded = tf.where(
         tf.reduce_max(y_pred_flat, axis=-1) < classifier_threshold,
         0,
         tf.argmax(y_pred_flat, axis=-1),
     )  # (B * N, )
+    # y_pred_labels = tf.argmax(y_pred_flat, axis=-1)  # (B * N, )
 
     y_true_labels = tf.argmax(y_true_flat, axis=-1)  # (B * N, )
-    tf.assert_equal(tf.shape(y_pred_labels), tf.shape(y_true_labels))
-
-    tf.print("Max value in true_labels:", tf.reduce_max(y_true_labels))
-    tf.print("Min value in true_labels:", tf.reduce_min(y_true_labels))
-
-    tf.print("Use_samples: ", tf.reduce_sum(use_sample))
-
-    y, idx, count = tf.unique_with_counts(y_pred_labels)
-    tf.print("y_pred_unfiltered: ", tf.shape(groundtruth_probabilities))
-    tf.print("y_pred_filtered: ", tf.shape(y_true_filtered))
-    tf.print("y_pred_labels: ", tf.shape(y_true_labels))
-
-    tf.print("y_true_unfiltered: ", tf.shape(predicted_probabilities))
-    tf.print("y_true_filtered: ", tf.shape(y_pred_filtered))
-    tf.print("y_true_labels: ", tf.shape(y_pred_labels))
-
-    tf.print("Dist of true labels: ")
-    tf.print("None: ", tf.reduce_sum(tf.cast(y_true_flat[:, 0], tf.int32)))
-    tf.print("L: ", tf.reduce_sum(tf.cast(y_true_flat[:, 1], tf.int32)))
-    tf.print("T: ", tf.reduce_sum(tf.cast(y_true_flat[:, 2], tf.int32)))
-    tf.print("X: ", tf.reduce_sum(tf.cast(y_true_flat[:, 3], tf.int32)))
-    tf.print("GT Example: ", y_true_filtered[1])
-
-    tf.print("Dist of pred labels: ")
-    tf.print("None: ", count[0])
-    tf.print("L: ", count[1])
-    tf.print("T: ", count[2])
-    tf.print("X: ", count[3])
+    tf.assert_equal(tf.shape(y_pred_thresholded), tf.shape(y_true_labels))
 
     # The (num_classes, num_classes) confusion matrix
-    confusion_matrix = tf.math.confusion_matrix(y_true_labels, y_pred_labels, num_classes)
+    confusion_matrix = tf.math.confusion_matrix(y_true_labels, y_pred_thresholded, num_classes)
 
     # Calculate precision and recall for every class.
     precisions = tf.linalg.diag_part(confusion_matrix) / tf.reduce_sum(
@@ -454,22 +395,6 @@ def calculate_multiclass_metrics(
     pooled_recall = pooled_confusion_matrix[0][0] / (
         pooled_confusion_matrix[0][0] + pooled_confusion_matrix[0][1]
     )
-
-    # TODO: use theshold!!
-    
-    # # False positive/negative rates per class
-    # fp_rate = fp_count / (fp_count + tp_count + 1e-7)
-    # fn_rate = fn_count / (fn_count + tn_count + 1e-7)
-
-    # # Confusion matrix per class
-    # confusion_matrices = [
-    #     np.array([[tn_count[i], fp_count[i]], [fn_count[i], tp_count[i]]])
-    #     for i in range(num_classes)
-    # ]
-
-    # # Indices of false positives/negatives per class
-    # fp_indices = [tf.where(fp[:, i]).numpy() for i in range(num_classes)]
-    # fn_indices = [tf.where(fn[:, i]).numpy() for i in range(num_classes)]
 
     return {
         "confusion_matrix": pooled_confusion_matrix.numpy() if pooled else confusion_matrix.numpy(),
