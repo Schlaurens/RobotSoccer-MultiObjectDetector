@@ -1,5 +1,6 @@
 import glob
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -132,6 +133,22 @@ def intrinsics_from_label(label: dict) -> tuple[float, float, float, float]:
         label["cintr"]["fx"],
         label["cintr"]["fy"],
     )
+
+
+def get_sample_name(label: dict, directory: str) -> str:
+    """Returns a unique identifier for the label that corresponds to the log and image
+
+    Args:
+        label: The label from the dataset
+        directory: The directory of the label
+
+    Returns:
+        A unique identifier. Consists of the image name and the log name.
+    """
+    image_name = label["name"]
+    log_name = os.path.normpath(directory).split(os.sep)[-1]
+
+    return f"{log_name}_{image_name}"
 
 
 def get_dataset(directory: str) -> tf.data.Dataset:
