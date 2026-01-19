@@ -7,3 +7,4 @@ uv.lock
 *.tfrecords
 *.keras
 data/gamelogs/
+.coverage
