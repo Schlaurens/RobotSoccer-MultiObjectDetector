@@ -530,12 +530,12 @@ class DatasetUtils:
 
         classification_mask_flat = tf.reshape(
             batch_data["classification_mask"],
-            (-1, self.config.output_dims[0] * self.config.output_dims[1]),
+            (-1, tf.reduce_prod(self.config.output_dims)),
         )  # (B, H_o * W_o)
 
         coordinate_mask_flat = tf.reshape(
             self.get_coordinate_mask(batch_data["offset_mask"]),
-            (-1, self.config.output_dims[0] * self.config.output_dims[1], 2),
+            (-1, tf.reduce_prod(self.config.output_dims), 2),
         )  # (B, H_o * W_o, 2)
 
         # The groundtruth coord the cell of the patch is pointing to.
@@ -555,13 +555,11 @@ class DatasetUtils:
         groundtruth_coords_normed = groundtruth_coords / self.config.input_dims[::-1]  # (B, N, 2)
 
         groundtruth_patch_class_filtered = tf.where(
-            tf.logical_not(
-                u_keypoint.are_coords_in_patch(
-                    groundtruth_coords_normed, model_results["boxes"], padding
-                )
+            u_keypoint.are_coords_in_patch(
+                groundtruth_coords_normed, model_results["boxes"], padding
             ),
-            0.0,
             groundtruth_patch_class,
+            0.0,
         )
 
         return groundtruth_patch_class_filtered
