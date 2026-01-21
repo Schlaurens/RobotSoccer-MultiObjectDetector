@@ -164,6 +164,7 @@ def get_dataset(directory: str) -> tf.data.Dataset:
 
     feature_description = {
         "name": tf.io.FixedLenFeature([], tf.string),
+        "frame_time": tf.io.FixedLenFeature([], tf.string),
         "image": tf.io.FixedLenFeature([], tf.string),
         "camera": tf.io.FixedLenFeature([], tf.string),
         "intrinsics": tf.io.FixedLenFeature([], tf.string),
@@ -194,6 +195,9 @@ def get_dataset(directory: str) -> tf.data.Dataset:
         return {
             "name": tf.ensure_shape(
                 tf.io.parse_tensor(serialized_tensor["name"], out_type=tf.string), []
+            ),
+            "frame_time": tf.ensure_shape(
+                tf.io.parse_tensor(serialized_tensor["frame_time"], out_type=tf.int32), []
             ),
             "image": tf.ensure_shape(
                 tf.io.parse_tensor(serialized_tensor["image"], out_type=tf.uint8), [480, 320, 4]
@@ -322,6 +326,7 @@ def get_sample_at_index(batched_data: dict[str, tf.Tensor], index: int, keep_bat
 
     result = {
         "name": maybe_batch_dim(batched_data["name"]),
+        "frame_time": maybe_batch_dim(batched_data["frame_time"]),
         "image": maybe_batch_dim(batched_data["image"]),
         "camera": maybe_batch_dim(batched_data["camera"]),
         "intrinsics": maybe_batch_dim(batched_data["intrinsics"]),
@@ -339,7 +344,8 @@ def get_sample_at_index(batched_data: dict[str, tf.Tensor], index: int, keep_bat
                 else None,
             }
             for category in batched_data
-            if category not in ["name", "image", "camera", "intrinsics"]  # Skip non-object fields
+            if category
+            not in ["name", "frame_time", "image", "camera", "intrinsics"]  # Skip non-object fields
         }
     )
 
@@ -386,6 +392,15 @@ def make_example(directory: str = None, label: dict = None, sample: dict = None)
                     tf.constant(get_sample_name(label, directory), dtype=tf.string)
                 ).numpy()
             ]
+        )
+    )
+    frame_time_feature = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(sample["frame_time"]).numpy(),
+            ]
+            if from_sample
+            else [tf.io.serialize_tensor(label["frame_time"]).numpy()]
         )
     )
     image_feature = tf.train.Feature(
@@ -576,6 +591,7 @@ def make_example(directory: str = None, label: dict = None, sample: dict = None)
     features = tf.train.Features(
         feature={
             "name": name_feature,
+            "frame_time": frame_time_feature,
             "image": image_feature,
             "camera": camera_feature,
             "intrinsics": intrinsics_feature,
