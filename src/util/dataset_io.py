@@ -135,6 +135,32 @@ def intrinsics_from_label(label: dict) -> tuple[float, float, float, float]:
     )
 
 
+def log_name_from_label(label: dict) -> str:
+    """Returns the name of log which the label is from.
+
+    Args:
+        label: A label from the dataset
+
+    Returns:
+        The log name.
+    """
+
+    return "_".join(label["name"].numpy().decode("utf-8").split("_")[0:-1])
+
+
+def image_name_from_label(label: dict) -> str:
+    """Returns the name of image that this label is for.
+
+    Args:
+        label: A label from the dataset
+
+    Returns:
+        The image name.
+    """
+
+    return label["name"].numpy().decode("utf-8").split("_")[-1]
+
+
 def get_sample_name(label: dict, directory: str) -> str:
     """Returns a unique identifier for the label that corresponds to the log and image
 
