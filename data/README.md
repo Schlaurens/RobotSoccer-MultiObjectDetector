@@ -6,6 +6,7 @@
   - a `.jpg` image for each sample
   - a `labels.json` that contains the following attributes for each sample:
     - `name`: the name of the corresponding image
+    - `frame_time`: the timestamp of the current sample.
     - `cpose`: the camera pose
     - `cintr`: the intrinsic camera parameters
     - `intersections`: image coordinates for L-, T-, X-Intersections if they exist in this sample. And an `ignore_sample` flag that is true if this sample is to be ignored in the training loss.
@@ -13,6 +14,7 @@
     - `ball`: image coordinates and `radius` (in cm) of the ball if it exists in this sample.
 - Also contains `.tfrecords` files for each directory. These files contain all groundtruth data used for training:
   - `name`: The unique identifier (`String`) of the current sample in the dataset. (Name of the logfile + _ + Image name).
+  - `frame_time`: The time stamp (`int32`) od the current sample.
   - `image`: a `tf.Tensor` of shape `[480, 320, 4]` containing the image.
   - `camera`: a `tf.Tensor` of shape `[3]` containing the camera pose.
   - `intrinsics`: a `tf.Tensor` of shape `[4]` containing the intrinsic camera parameters.
