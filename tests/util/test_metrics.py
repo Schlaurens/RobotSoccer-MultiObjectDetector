@@ -162,3 +162,32 @@ class TestMatchKeypointsImage:
         assert result["false_negatives"] == 0
         assert result["false_positives"] == 0
         assert tf.reduce_all(result["matches"] == expected)
+        
+    def testNoTrues(self):
+        y_pred = tf.constant([[6, 5], [8, 4], [7, 9], [7, 10]], tf.float32)
+        y_true = tf.constant([], tf.float32)
+        threshold = 1.5
+
+        expected = tf.constant([], tf.float32)
+        result = u_metrics.match_keypoints_image(y_pred, y_true, threshold)
+
+        assert result["true_positives"] == 0
+        assert result["false_negatives"] == 0
+        assert result["false_positives"] == 4
+        # tf.print(result["matches"] == expected)
+        # tf.print(expected)
+        # tf.print(tf.reduce_all(result["matches"] == expected))
+        assert tf.size(result["matches"]) == tf.size(expected)
+        
+    def testNoPreds(self):
+        y_pred = tf.constant([], tf.float32)
+        y_true = tf.constant([[6, 5], [8, 4], [7, 9], [7, 10]], tf.float32)
+        threshold = 1.5
+
+        expected = tf.constant([], tf.float32)
+        result = u_metrics.match_keypoints_image(y_pred, y_true, threshold)
+
+        assert result["true_positives"] == 0
+        assert result["false_negatives"] == 4
+        assert result["false_positives"] == 0
+        assert tf.size(result["matches"]) == tf.size(expected)
