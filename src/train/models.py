@@ -612,6 +612,9 @@ class FullModel(tf.keras.Model):
             distances_of_chosen_cells = tf.gather(
                 distances_flat, patch_indices, batch_dims=1
             )  # (B, N)
+            distances_reshaped = tf.reshape(
+                tf.stop_gradient(distances_of_chosen_cells), [-1]
+            )  # (B, N)
             classifier_inputs += [distances_reshaped]
 
         # Add context vector to classifier_inputs (if n_context > 0)
