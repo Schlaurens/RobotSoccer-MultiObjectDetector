@@ -604,6 +604,18 @@ class FullModel(tf.keras.Model):
 
         classifier_inputs = [patches_reshaped]
 
+        # Add distances to classifier_input
+        if self.n_meta == 1:
+            distances_flat = tf.reshape(
+                distance_mask, (-1, tf.reduce_prod(res_out))
+            )  # (B, H_out * W_out)
+            distances_of_chosen_cells = tf.gather(
+                distances_flat, patch_indices, batch_dims=1
+            )  # (B, N)
+            distances_reshaped = tf.reshape(distances_of_chosen_cells, [-1])  # (B, N)
+            classifier_inputs += distances_reshaped
+
+        # Add context vector to classifier_inputs (if n_context > 0)
         if context is not None:
             context_flat = tf.reshape(
                 context, (-1, tf.reduce_prod(res_out), self.n_context)
