@@ -8,7 +8,7 @@ model:
   classifier:
     architecture: "classifier_ires_single_category_v2"
     patch_size: [32, 32]
-    n_meta: 0
+    n_meta: 0 # if 1 it's just the distance to the patch center
     with_offsets: True
     use_batch_norm: False
 
