@@ -572,7 +572,7 @@ class DatasetUtils:
         object_height: float,
     ):
         coordinate_mask = self.get_coordinate_mask(offset_mask)  # (B, H_o, W_o, 2)
-        ccoordinate_mask_flat = tf.reshape(coordinate_mask, [-1, 2])  # (B * H_o * W_o, 2)
+        coordinate_mask_flat = tf.reshape(coordinate_mask, [-1, 2])  # (B * H_o * W_o, 2)
 
         # Tile camera and camera_intr to match the number of coordinates
         camera_tiled = tf.tile(
@@ -586,7 +586,7 @@ class DatasetUtils:
         camera_intr_tiled = tf.reshape(camera_intr_tiled, (-1, 4))  # Shape: (B * H_o * W_o, 4)
 
         image_to_wrld = u_camera.image_to_world(
-            camera_tiled, camera_intr_tiled, ccoordinate_mask_flat, object_height
+            camera_tiled, camera_intr_tiled, coordinate_mask_flat, object_height
         )  # (B * H_o * W_o, 3)
 
         image_to_wrld_reshaped = tf.reshape(
