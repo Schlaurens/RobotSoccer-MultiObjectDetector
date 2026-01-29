@@ -638,12 +638,12 @@ class FullModel(tf.keras.Model):
 
         classification = tf.reshape(
             classification, (tf.shape(intrinsics)[0], sampler.n_sample, n_classes)
-        )
-        boxes = tf.reshape(boxes, (tf.shape(intrinsics)[0], sampler.n_sample, 4))
+        ) # (B, N, n_classes)
+        boxes = tf.reshape(boxes, (tf.shape(intrinsics)[0], sampler.n_sample, 4)) # (B, N, 4)
 
         positions = tf.stop_gradient(coords) + tf.reshape(
             offsets, (tf.shape(intrinsics)[0], sampler.n_sample, 2)
-        )
+        ) # (B, N, 2)
 
         return {
             "patches": patches,
