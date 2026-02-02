@@ -67,6 +67,9 @@ def get_distance_from_label(
     distance = tf.linalg.norm(world_coords, axis=-1, keepdims=True)
 
     return tf.reshape(distance, [-1]).numpy()
+
+
+def main(data_path: str, calculate_distances: bool = False):
     label_dirs = [dir[0] for dir in os.walk(data_path)][1:]
     labels = [u_dataset_io.load_labels(dir) for dir in label_dirs]
 
@@ -288,6 +291,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="This script shows statistics about the dataset.")
     parser.add_argument("data_path")
+    parser.add_argument("--calculate_distances", default=False)
     args = parser.parse_args()
 
-    main(args.data_path)
+    main(args.data_path, args.calculate_distances)
