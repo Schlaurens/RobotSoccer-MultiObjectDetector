@@ -599,7 +599,7 @@ class FullModel(tf.keras.Model):
             )  # (B, N)
             distances_reshaped = tf.reshape(
                 tf.stop_gradient(distances_of_chosen_cells), [-1]
-            )  # (B, N)
+            )  # (B * N)
             classifier_inputs += [distances_reshaped]
 
         # Add context vector to classifier_inputs (if n_context > 0)
