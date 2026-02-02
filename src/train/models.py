@@ -235,8 +235,9 @@ class FullModel(tf.keras.Model):
             cross_entropy_multiplied = (
                 cross_entropy_batched * use_sample * tf.stop_gradient(encoder_predictions)
             )  # (B, N)
-            cross_entropy = tf.reduce_sum(tf.reduce_mean(cross_entropy_multiplied, axis=-1))  # Shape: ()
-            
+            cross_entropy = tf.reduce_sum(
+                tf.reduce_mean(cross_entropy_multiplied, axis=-1)
+            )  # Shape: ()
 
             # Get probability of the predicted class for each candidate.
             error_factor = tf.math.reduce_max(y_pred, axis=-1)  # (B, N)
@@ -621,12 +622,12 @@ class FullModel(tf.keras.Model):
 
         classification = tf.reshape(
             classification, (tf.shape(intrinsics)[0], sampler.n_sample, n_classes)
-        ) # (B, N, n_classes)
-        boxes = tf.reshape(boxes, (tf.shape(intrinsics)[0], sampler.n_sample, 4)) # (B, N, 4)
+        )  # (B, N, n_classes)
+        boxes = tf.reshape(boxes, (tf.shape(intrinsics)[0], sampler.n_sample, 4))  # (B, N, 4)
 
         positions = tf.stop_gradient(coords) + tf.reshape(
             offsets, (tf.shape(intrinsics)[0], sampler.n_sample, 2)
-        ) # (B, N, 2)
+        )  # (B, N, 2)
 
         return {
             "patches": patches,
