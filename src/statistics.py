@@ -145,6 +145,10 @@ def main(data_path: str, calculate_distances: bool = False):
     number_of_t_intersection_samples = sum(number_of_t_intersections_for_each_log)
     number_of_x_intersection_samples = sum(number_of_x_intersections_for_each_log)
 
+    # ===== Cross-Entropy baselines ======
+    ball_bce_baseline = get_bce_baseline(number_of_ball_samples, number_of_samples)
+    penalty_mark_bce_baseline = get_bce_baseline(number_of_penalty_mark_samples, number_of_samples)
+
     # ===== Calculate Distances ======
     if calculate_distances:
         print("Calulcating Distances for Balls...")
@@ -245,10 +249,6 @@ def main(data_path: str, calculate_distances: bool = False):
             "Variance X-Intersection distances: ",
             np.var(distances_x_intersections) if len(distances_x_intersections) > 0 else "NaN",
         )
-
-    # ===== Cross-Entropy baselines ======
-    ball_bce_baseline = get_bce_baseline(number_of_ball_samples, number_of_samples)
-    penalty_mark_bce_baseline = get_bce_baseline(number_of_penalty_mark_samples, number_of_samples)
 
     print("Number of logs: ", len(labels))
     print("Number of samples: ", number_of_samples)
