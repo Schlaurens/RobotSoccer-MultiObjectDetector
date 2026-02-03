@@ -1,0 +1,68 @@
+model:
+  encoder:
+    architecture: "inverted_residual_single_category_v2"
+    input_dims: [480, 320]
+    n_context: 64
+    only_train_encoder: False
+    use_batch_norm: False
+  classifier:
+    architecture: "classifier_ires_single_category_v2"
+    patch_size: [32, 32]
+    n_meta: 1 # if 1 it's just the distance to the patch center
+    with_offsets: True
+    use_batch_norm: False
+
+training:
+  epochs: 400
+  initial_epoch: 0
+  batch_size: 32
+  verbose: 1
+  from_checkpoint: False # < when starting training from checkpoint
+  from_model: False # < when loading an existing model
+  load_checkpoint:
+    initial_epoch: 39
+    timestamp: "20251027-123055" 
+    encoder_only: False # < when only loading the encoder
+    verbose: True
+  load_model:
+    timestamp: "20251027-123055"
+    filepath: "models/finished/"
+    encoder_only: True # < when only loading the encoder
+    verbose: True
+
+categories:
+  # ball:
+  #   object_size: 0.175
+  #   object_height: 0.05
+  #   n_classes: 1
+  #   n_candidates: 5
+  # penaltyMark:
+  #   object_size: 0.175
+  #   object_height: 0.0
+  #   n_classes: 1
+  #   n_candidates: 5
+  intersections:
+    object_size: 0.2
+    padding: 0.2 # padding to avoid intersections being cut off by the patch edge
+    object_height: 0.0
+    n_classes: 4 # types + background class
+    n_candidates: 7
+    max_distance: 6.0 # the maximal distance between the object and the camera.
+
+callbacks:
+  reduce_lr:
+    monitor: "val_total_loss"
+    mode: "min"
+    factor: 0.5
+    patience: 25
+    min_lr: 0.000001
+  early_stopping:
+    monitor: "val_total_loss"
+    mode: "min"
+    patience: 40
+  log_dir: "logs/fit/"
+  checkpoint_dir: "models/checkpoints/"
+
+data:
+  train_path: "data/tfrecords/train_ds_v3*.tfrecords"
+  val_path: "data/tfrecords/val_ds_v3*.tfrecords"
