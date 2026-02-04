@@ -262,9 +262,6 @@ def calculate_binary_metrics(
     fn = tf.math.logical_not(over_threshold) & object_in_image  # (B, )
     tn = tf.math.logical_not(over_threshold) & tf.logical_not(object_in_image)  # (B, )
 
-    fp_indices = tf.where(fp).numpy()
-    fn_indices = tf.where(fn).numpy()
-
     fp_count = tf.math.count_nonzero(fp).numpy()
     tp_count = tf.math.count_nonzero(tp).numpy()
     fn_count = tf.math.count_nonzero(fn).numpy()
@@ -280,8 +277,6 @@ def calculate_binary_metrics(
         "confusion_matrix": np.array([[tn_count, fp_count], [fn_count, tp_count]]),
         "precision": precision,
         "recall": recall,
-        "fp_indices": fp_indices,
-        "fn_indices": fn_indices,
         "fp_rate": fp_rate,
         "fn_rate": fn_rate,
     }
