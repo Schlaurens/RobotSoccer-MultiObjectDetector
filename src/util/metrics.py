@@ -1,3 +1,6 @@
+import json
+import os
+
 import numpy as np
 import scipy
 import tensorflow as tf
@@ -535,3 +538,117 @@ def match_keypoints_image(y_pred, y_true, threshold: float, batch_dims: int = 1)
         "false_negatives": false_negatives,
         "false_positives": false_positives,
     }
+def save_predictions(
+    predictions: dict[tf.Tensor],
+    groundtruth: dict[tf.Tensor],
+    object_name: str,
+    save_directory: str,
+    classifier_threshold: float,
+    encoder_threshold: float,
+    nms_iou_threshold: float,
+    nms_max_output_size: float,
+) -> None:
+    """Saves the predictions for each object category into a .json file.
+
+    Args:
+        predictions: The predictions for the given object
+        groundtruth: The groundtruth for the given object
+        object_name: The object name
+        save_directory: The directory where the .json file should be saved to
+        classifier_threshold: The classifier threshold
+        encoder_threshold: The encoder_threshold
+        nms_iou_threshold: The IoU Threshold used for the non-maximum-suppression
+        nms_max_output_size: The max output size for the non-maximum-suppression. The nms used here is padded.
+    """
+
+    def coords_tensor_to_dict_list(tensor):
+        return [
+            {"x": float(x), "y": float(y), "confidence": float(conf)}
+            for x, y, conf in tensor.numpy()
+        ]
+
+    selected_indices = batch_nms(
+        predictions["boxes"],
+        tf.reduce_max(predictions["classification"], axis=-1),
+        nms_max_output_size,
+        nms_iou_threshold,
+    )
+
+    best_logits = tf.gather(
+        predictions["logits"],
+        predictions["patch_indices"],
+        batch_dims=1,
+    )  # (B, N)
+    classifier_preds = tf.reduce_max(predictions["classification"], axis=-1)  # (B, N)
+    positions = predictions["positions"]  # (B, N, 2)
+
+    tresholding_mask = get_thresholding_mask(
+        classifier_preds,
+        classifier_threshold,
+        best_logits,
+        encoder_threshold,
+    )  # (B, N)
+
+    intersections_thresholded = tf.reshape(
+        tf.where(
+            tf.reshape(tresholding_mask, [-1]),
+            tf.reshape(tf.argmax(predictions["classification"], axis=-1), [-1]),
+            0,
+        ),
+        tf.shape(tresholding_mask),
+    )  # (B, N)
+
+    preds = []
+    for idx, name in enumerate(groundtruth["name"]):
+        frame_time = groundtruth["frame_time"][idx]
+
+        sample = {
+            "name": name.numpy().decode("utf-8"),
+            "frame_time": int(frame_time.numpy()),
+        }
+
+        intersections_thresholded_supressed = tf.gather(
+            intersections_thresholded[idx], selected_indices[idx]
+        )
+        positions_supressed = tf.gather(positions[idx], selected_indices[idx])
+        classifier_preds_supressed = tf.gather(classifier_preds[idx], selected_indices[idx])
+
+        if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+            l_intersections = intersections_thresholded_supressed == 1
+            l_positions = tf.boolean_mask(positions_supressed, l_intersections)
+            l_confidence = tf.boolean_mask(classifier_preds_supressed, l_intersections)
+            l_tensor = tf.concat([l_positions, tf.expand_dims(l_confidence, axis=-1)], axis=-1)
+
+            t_intersections = intersections_thresholded_supressed == 2
+            t_positions = tf.boolean_mask(positions_supressed, t_intersections)
+            t_confidence = tf.boolean_mask(classifier_preds_supressed, t_intersections)
+            t_tensor = tf.concat([t_positions, tf.expand_dims(t_confidence, axis=-1)], axis=-1)
+
+            x_intersections = intersections_thresholded_supressed == 3
+            x_positions = tf.boolean_mask(positions_supressed, x_intersections)
+            x_confidence = tf.boolean_mask(classifier_preds_supressed, x_intersections)
+            x_tensor = tf.concat([x_positions, tf.expand_dims(x_confidence, axis=-1)], axis=-1)
+
+            sample[object_name] = {
+                "L": coords_tensor_to_dict_list(l_tensor),
+                "T": coords_tensor_to_dict_list(t_tensor),
+                "X": coords_tensor_to_dict_list(x_tensor),
+            }
+
+        elif object_name in [
+            u_dataset.CategoryNames.BALL.value,
+            u_dataset.CategoryNames.PENALTYMARK.value,
+        ]:
+            tensor = tf.concat(
+                [positions_supressed, tf.expand_dims(classifier_preds_supressed, axis=-1)], axis=-1
+            )
+
+            sample[object_name] = coords_tensor_to_dict_list(tensor)
+        else:
+            raise ValueError("Invalid object_name.")
+
+        preds.append(sample)
+
+    os.makedirs(save_directory, exist_ok=True)
+    with open(f"{save_directory}/{object_name}.json", "w") as f:
+        json.dump(preds, f, indent=4)
