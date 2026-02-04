@@ -27,7 +27,7 @@ def get_bce_baseline(p: int, n: int):
     )
 
 
-def _clean_up_list(input):
+def _clean_up_list(input: list):
     filtered = [x for x in input if x is not None]
     flattened = [
         item for d in filtered for item in (d if isinstance(d, (list | np.ndarray)) else [d])
@@ -93,10 +93,16 @@ def count_intersections_per_log(labels: dict, intersection_type: str):
         )
         for log_labels in labels
     ]
+
+
+def main(
+    data_path: str,
+    calculate_distances: bool,
+    no_filesave: bool,
+    print_output: bool,
+):
     label_dirs = [dir[0] for dir in os.walk(data_path)][1:]
     labels = [u_dataset_io.load_labels(dir) for dir in label_dirs]
-
-    log_names = [label_dir.split("/")[-1] for label_dir in label_dirs]
 
     labels_concat = list(itertools.chain.from_iterable(labels))
 
@@ -292,7 +298,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="This script shows statistics about the dataset.")
     parser.add_argument("data_path")
     parser.add_argument("--calculate_distances", action="store_true", default=False)
-    parser.add_argument("--no_filesave", action="store_false")
+    parser.add_argument("--no_filesave", action="store_true")
     parser.add_argument("--print_output", action="store_true", default=False)
     args = parser.parse_args()
 
