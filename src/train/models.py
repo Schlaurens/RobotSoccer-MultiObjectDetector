@@ -194,8 +194,6 @@ class FullModel(tf.keras.Model):
         # Compute BinaryCrossEntropy / CategoricalCrossEntropy
         y_pred = results["classification"]  # (B, N) | (B, N, N_O) depending on category type
 
-        error_factor = y_pred  # (B, N) | (B, N, N_O) Used to scale the squared_error
-
         # Categories with more than two classes use CCE
         if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
             y_true = tf.one_hot(
