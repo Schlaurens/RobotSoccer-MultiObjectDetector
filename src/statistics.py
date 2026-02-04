@@ -70,7 +70,29 @@ def get_distance_from_label(
     return tf.reshape(distance, [-1]).numpy()
 
 
-def main(data_path: str, calculate_distances: bool = False, to_yaml: bool = False):
+def compute_distances(
+    labels: dict, object_name: str, object_height: float, intersection_type: str = None
+):
+    distances = _clean_up_list(
+        [
+            get_distance_from_label(label, object_name, object_height, intersection_type)
+            for label in labels
+        ]
+    )
+    return distances
+
+
+def count_intersections_per_log(labels: dict, intersection_type: str):
+    return [
+        sum(
+            [
+                len(sample["intersections"][intersection_type])
+                for sample in log_labels
+                if u_labels.has_intersections(sample)
+            ]
+        )
+        for log_labels in labels
+    ]
     label_dirs = [dir[0] for dir in os.walk(data_path)][1:]
     labels = [u_dataset_io.load_labels(dir) for dir in label_dirs]
 
