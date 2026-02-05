@@ -231,7 +231,7 @@ def calculate_binary_metrics(
     combined_predictions = (
         best_logits + tf.squeeze(predictions["classification"], axis=-1)
         if include_encoder_logits
-        else predictions["classification"]
+        else tf.squeeze(predictions["classification"], axis=-1)
     )  # (B, N)
 
     # The groundtruth coordinates of the object
