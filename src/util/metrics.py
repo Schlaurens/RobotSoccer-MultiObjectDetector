@@ -270,7 +270,7 @@ def calculate_binary_metrics(
     fn_count = tf.math.count_nonzero(fn).numpy()
     tn_count = tf.math.count_nonzero(tn).numpy()
 
-    confusion_matrix = np.array([[tn_count, fp_count], [fn_count, tp_count]])
+    confusion_matrix = np.array([[tp_count, fn_count], [fp_count, tn_count]])
 
     precision = tp_count / (tp_count + fp_count)
     recall = tp_count / (tp_count + fn_count)
