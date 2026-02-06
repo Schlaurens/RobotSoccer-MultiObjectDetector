@@ -227,7 +227,7 @@ def calculate_binary_metrics(
         predictions["logits"], predictions["patch_indices"], batch_dims=1
     )  # (B, N)
 
-    classification_scores = tf.squeeze(predictions["classification"], axis=-1) # (B, N)
+    classification_scores = tf.squeeze(predictions["classification"], axis=-1)  # (B, N)
 
     combined_threshold_mask = get_thresholding_mask(
         classification_scores,
@@ -235,9 +235,9 @@ def calculate_binary_metrics(
         best_logits,
         encoder_threshold,
     )  # (B, N)
-    
+
     # The groundtruth coordinates of the object. Assumes there is only ONE instance of the object in the image.
-    coords_true = dataset_utils.get_coordinate_mask(groundtruth["offset_mask"])[:, 0, 0,:]
+    coords_true = dataset_utils.get_coordinate_mask(groundtruth["offset_mask"])[:, 0, 0, :]
 
     object_in_image = tf.math.reduce_any(
         tf.cast(groundtruth["object_mask"], tf.bool), axis=[1, 2]
@@ -245,8 +245,10 @@ def calculate_binary_metrics(
 
     # The index of the candidate with the best classification score
     best_score_index = tf.argmax(combined_threshold_mask, axis=-1)  # (B, )
-    
-    thresholding_mask_of_best_candidate = tf.gather(combined_threshold_mask, best_score_index, batch_dims=1) # (B, )
+
+    thresholding_mask_of_best_candidate = tf.gather(
+        combined_threshold_mask, best_score_index, batch_dims=1
+    )  # (B, )
 
     # The best box of each sample
     best_box = tf.gather(predictions["boxes"], best_score_index, batch_dims=1)  # (B, 4)
@@ -261,7 +263,9 @@ def calculate_binary_metrics(
     fp = thresholding_mask_of_best_candidate & tf.math.logical_not(is_box_valid)  # (B, )
     tp = thresholding_mask_of_best_candidate & is_box_valid  # (B, )
     fn = tf.math.logical_not(thresholding_mask_of_best_candidate) & object_in_image  # (B, )
-    tn = tf.math.logical_not(thresholding_mask_of_best_candidate) & tf.logical_not(object_in_image)  # (B, )
+    tn = tf.math.logical_not(thresholding_mask_of_best_candidate) & tf.logical_not(
+        object_in_image
+    )  # (B, )
 
     fp_count = tf.math.count_nonzero(fp).numpy()
     tp_count = tf.math.count_nonzero(tp).numpy()
