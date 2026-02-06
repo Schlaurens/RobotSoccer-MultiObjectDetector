@@ -626,20 +626,11 @@ def save_predictions(
     classifier_preds = tf.reduce_max(predictions["classification"], axis=-1)  # (B, N)
     positions = predictions["positions"]  # (B, N, 2)
 
-    tresholding_mask = get_thresholding_mask(
+    thresholding_mask = get_thresholding_mask(
         classifier_preds,
         classifier_threshold,
         best_logits,
         encoder_threshold,
-    )  # (B, N)
-
-    intersections_thresholded = tf.reshape(
-        tf.where(
-            tf.reshape(tresholding_mask, [-1]),
-            tf.reshape(tf.argmax(predictions["classification"], axis=-1), [-1]),
-            0,
-        ),
-        tf.shape(tresholding_mask),
     )  # (B, N)
 
     preds = []
@@ -651,13 +642,22 @@ def save_predictions(
             "frame_time": int(frame_time.numpy()),
         }
 
-        intersections_thresholded_supressed = tf.gather(
-            intersections_thresholded[idx], selected_indices[idx]
-        )
-        positions_supressed = tf.gather(positions[idx], selected_indices[idx])
-        classifier_preds_supressed = tf.gather(classifier_preds[idx], selected_indices[idx])
-
         if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+            intersections_thresholded = tf.reshape(
+                tf.where(
+                    tf.reshape(thresholding_mask, [-1]),
+                    tf.reshape(tf.argmax(predictions["classification"], axis=-1), [-1]),
+                    0,
+                ),
+                tf.shape(thresholding_mask),
+            )  # (B, N)
+
+            intersections_thresholded_supressed = tf.gather(
+                intersections_thresholded[idx], selected_indices[idx]
+            )
+            positions_supressed = tf.gather(positions[idx], selected_indices[idx])
+            classifier_preds_supressed = tf.gather(classifier_preds[idx], selected_indices[idx])
+
             l_intersections = intersections_thresholded_supressed == 1
             l_positions = tf.boolean_mask(positions_supressed, l_intersections)
             l_confidence = tf.boolean_mask(classifier_preds_supressed, l_intersections)
@@ -683,11 +683,15 @@ def save_predictions(
             u_dataset.CategoryNames.BALL.value,
             u_dataset.CategoryNames.PENALTYMARK.value,
         ]:
+            best_score_index = tf.argmax(thresholding_mask[idx])  # Shape: ( )
+            best_position = tf.gather(positions[idx], best_score_index)  # (2, )
+            best_classifier_preds = tf.gather(classifier_preds[idx], best_score_index)  # Shape: ( )
+
             tensor = tf.concat(
-                [positions_supressed, tf.expand_dims(classifier_preds_supressed, axis=-1)], axis=-1
+                [best_position, tf.expand_dims(best_classifier_preds, axis=-1)], axis=-1
             )
 
-            sample[object_name] = coords_tensor_to_dict_list(tensor)
+            sample[object_name] = coords_tensor_to_dict_list(tf.expand_dims(tensor, 0))
         else:
             raise ValueError("Invalid object_name.")
 
