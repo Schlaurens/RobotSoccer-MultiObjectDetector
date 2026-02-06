@@ -114,9 +114,13 @@ class EvaluateApplication:
         for category in self.categories:
             output_logits = output["results"][category]["logits"][0].numpy()
             self.images[f"im_ax_{category}"].set_data(np.reshape(output_logits, (15, 20)))
-            # self.images[f"im_ax_{category}_result"] = self.get_best_patch(
-            #     self.images[f"im_ax_{category}_result"], output, category
-            # )
+            if category in [
+                u_dataset.CategoryNames.BALL.value,
+                u_dataset.CategoryNames.PENALTYMARK.value,
+            ]:
+                self.images[f"im_ax_{category}_result"] = self.get_best_patch(
+                    self.axes[f"ax_{category}_result"], output, category
+                )
             self.images[f"im_ax_{category}_gt"].set_data(
                 self.data[self.index][category]["object_mask"]
             )
@@ -138,11 +142,16 @@ class EvaluateApplication:
             The axes with the prediction. Or a zeros array if no object has been found that exceeds the combined threshold of encoder and classifier confidence.
         """
         patch_indices = output["results"][object_name]["patch_indices"][0]
-        best_logits = [output["results"][object_name]["logits"][0][i] for i in patch_indices]
-        # The sum of the encoder's and classifier's prediction values
-        combined_predictions = output["results"][object_name]["classification"][0]
+        best_logit = tf.reduce_max(
+            tf.gather(output["results"][object_name]["logits"][0], patch_indices)
+        )  # ( )
 
-        best_score_index = np.argmax(combined_predictions)
+        # The sum of the encoder's and classifier's prediction values
+        predictions_scores = tf.squeeze(
+            output["results"][object_name]["classification"][0], axis=-1
+        )
+        best_score_index = np.argmax(predictions_scores)
+
         # Get the offset predicted by the classifier. This works because (position = coords + classifier_offset).
         best_classifier_offset = (
             output["results"][object_name]["positions"][0][best_score_index]
@@ -160,15 +169,15 @@ class EvaluateApplication:
         best_position = (best_width / 2 + best_classifier_offset) * patch_to_box_ratio
 
         if (
-            combined_predictions[best_score_index]
-            >= self.thresholds["encoder"][object_name] + self.thresholds["classifier"][object_name]
+            predictions_scores[best_score_index] >= self.thresholds["classifier"][object_name]
+            and best_logit >= self.thresholds["encoder"][object_name]
         ):
-            best_classification = output["results"][object_name]["classification"][0][
-                best_score_index
-            ].numpy()
+            best_classification = tf.squeeze(
+                output["results"][object_name]["classification"][0], axis=-1
+            )[best_score_index].numpy()
             axes.plot(*best_position, "bx")
             axes.text(0, 2, f"cand.: {best_score_index + 1}", color="lime")
-            axes.text(0, 4, f"enc.: {best_logits[best_score_index].numpy():.3f}", color="lime")
+            axes.text(0, 4, f"enc.: {best_logit.numpy():.3f}", color="lime")
             axes.text(0, 6, f"cla.: {best_classification:.3f}", color="lime")
             return axes.imshow(
                 output["results"][object_name]["patches"][0][best_score_index][..., 0], cmap="gray"
