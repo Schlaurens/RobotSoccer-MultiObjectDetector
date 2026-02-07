@@ -70,6 +70,8 @@ class TestMatchKeypointsImage:
         assert result["false_negatives"] == 0
         assert result["false_positives"] == 0
         assert tf.reduce_all(result["matches"] == expected)
+        assert tf.size(result["fp_tensor"]) == 0
+        assert tf.size(result["fn_tensor"]) == 0
 
     def testNoMatch(self):
         y_pred = tf.constant([[5, 5], [1, 0]], tf.float32)
@@ -115,6 +117,7 @@ class TestMatchKeypointsImage:
         y_true = tf.constant([[7, 10]], tf.float32)
         threshold = 1.5
 
+        fp_tensor = tf.constant([[6, 5], [8, 4], [7, 10]], tf.float32)
         expected = tf.constant([[7, 9], [7, 10]], tf.float32)
         result = u_metrics.match_keypoints_image(y_pred, y_true, threshold)
 
@@ -122,11 +125,14 @@ class TestMatchKeypointsImage:
         assert result["false_negatives"] == 0
         assert result["false_positives"] == 3
         assert tf.reduce_all(result["matches"] == expected)
+        assert tf.reduce_all(fp_tensor == result["fp_tensor"])
+        assert tf.size(result["fn_tensor"]) == 0
 
     def testMultipleToOneFalseNegatives(self):
         y_pred = tf.constant([[7, 10]], tf.float32)
         y_true = tf.constant([[6, 5], [8, 4], [7, 9], [7, 10]], tf.float32)
 
+        fn_tensor = tf.constant([[6, 5], [8, 4], [7, 10]], tf.float32)
         threshold = 1.5
 
         expected = tf.constant([[7, 10], [7, 9]], tf.float32)
@@ -136,6 +142,8 @@ class TestMatchKeypointsImage:
         assert result["false_negatives"] == 3
         assert result["false_positives"] == 0
         assert tf.reduce_all(result["matches"] == expected)
+        assert tf.reduce_all(fn_tensor == result["fn_tensor"])
+        assert tf.size(result["fp_tensor"]) == 0
 
     def testNoInput(self):
         y_pred = tf.constant([], tf.float32)
@@ -149,6 +157,8 @@ class TestMatchKeypointsImage:
         assert result["false_negatives"] == 0
         assert result["false_positives"] == 0
         assert tf.reduce_all(result["matches"] == expected)
+        assert tf.size(result["fp_tensor"]) == 0
+        assert tf.size(result["fn_tensor"]) == 0
 
     def testSingleCoord(self):
         y_pred = tf.constant([3, 4], tf.float32)
@@ -162,6 +172,8 @@ class TestMatchKeypointsImage:
         assert result["false_negatives"] == 0
         assert result["false_positives"] == 0
         assert tf.reduce_all(result["matches"] == expected)
+        assert tf.size(result["fp_tensor"]) == 0
+        assert tf.size(result["fn_tensor"]) == 0
 
     def testNoTrues(self):
         y_pred = tf.constant([[6, 5], [8, 4], [7, 9], [7, 10]], tf.float32)
@@ -178,6 +190,7 @@ class TestMatchKeypointsImage:
         # tf.print(expected)
         # tf.print(tf.reduce_all(result["matches"] == expected))
         assert tf.size(result["matches"]) == tf.size(expected)
+        assert tf.reduce_all(y_pred == result["fp_tensor"])
 
     def testNoPreds(self):
         y_pred = tf.constant([], tf.float32)
@@ -187,7 +200,44 @@ class TestMatchKeypointsImage:
         expected = tf.constant([], tf.float32)
         result = u_metrics.match_keypoints_image(y_pred, y_true, threshold)
 
+        tf.print(result)
         assert result["true_positives"] == 0
         assert result["false_negatives"] == 4
         assert result["false_positives"] == 0
         assert tf.size(result["matches"]) == tf.size(expected)
+        assert tf.reduce_all(y_true == result["fn_tensor"])
+
+    def testCustom(self):
+        y_pred = tf.constant([[162.10165, 240.43121]], tf.float32)  # (1, 2)
+        y_true = tf.constant([[161.52292, 240.90753]], tf.float32)  # (1, 2)
+        threshold = 15.0
+
+        expected = tf.constant([[162.10165, 240.43121], [161.52292, 240.90753]], tf.float32)
+        result = u_metrics.match_keypoints_image(y_pred, y_true, threshold)
+
+        assert result["true_positives"] == 1
+        assert result["false_negatives"] == 0
+        assert result["false_positives"] == 0
+        assert tf.size(result["matches"]) == tf.size(expected)
+        assert tf.reduce_all(expected == result["matches"])
+
+    def testWithDistanceThresholding(self):
+        y_pred = tf.constant([[162.10165, 240.43121], [163, 300], [160, 240]], tf.float32)  # (1, 2)
+        y_true = tf.constant([[161.52292, 240.90753], [163, 100]], tf.float32)  # (1, 2)
+        threshold = 15.0
+
+        expected = tf.constant([[162.10165, 240.43121], [161.52292, 240.90753]], tf.float32)
+
+        fn_tensor = tf.constant([[163, 100]], tf.float32)
+        fp_tensor = tf.constant([[163, 300], [160, 240]], tf.float32)
+
+        result = u_metrics.match_keypoints_image(y_pred, y_true, threshold)
+
+        assert result["true_positives"] == 1
+        assert result["false_negatives"] == 1
+        assert result["false_positives"] == 2
+        assert tf.size(result["matches"]) == tf.size(expected)
+
+        assert tf.reduce_all(fn_tensor == result["fn_tensor"])
+        assert tf.reduce_all(fp_tensor == result["fp_tensor"])
+        assert tf.reduce_all(expected == result["matches"])
