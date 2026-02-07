@@ -715,15 +715,18 @@ def save_predictions(
             u_dataset.CategoryNames.BALL.value,
             u_dataset.CategoryNames.PENALTYMARK.value,
         ]:
-            best_score_index = tf.argmax(thresholding_mask[idx])  # Shape: ( )
-            best_position = tf.gather(positions[idx], best_score_index)  # (2, )
-            best_classifier_preds = tf.gather(classifier_preds[idx], best_score_index)  # Shape: ( )
+            best_position = tf.boolean_mask(positions[idx], thresholding_mask[idx])  # (1, 2)
+            best_classifier_preds = tf.boolean_mask(
+                classifier_preds[idx], thresholding_mask[idx]
+            )  # Shape: ( )
 
             tensor = tf.concat(
                 [best_position, tf.expand_dims(best_classifier_preds, axis=-1)], axis=-1
             )
-
-            sample[object_name] = coords_tensor_to_dict_list(tf.expand_dims(tensor, 0))
+            if tf.size(tensor) == 0:
+                sample[object_name] = []
+            else:
+                sample[object_name] = coords_tensor_to_dict_list(tf.expand_dims(tensor[0], 0))
         else:
             raise ValueError("Invalid object_name.")
 
