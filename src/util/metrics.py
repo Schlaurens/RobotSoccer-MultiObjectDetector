@@ -488,8 +488,10 @@ def match_keypoints_image(y_pred, y_true, threshold: float, batch_dims: int = 1)
     """
     Matches predicted and labeled points optimally. Points are only matched as
     long as their distance is below or equal to threshold. It does not match two
-    points from kps to the same point in pts or vice versa. Correspondingly it can
-    happen that some points remain unmatched.
+    points from y_pred to the same point in y_true or vice versa. Correspondingly it can
+    happen that some points remain unmatched. This is way it is recommended to filter out
+    any coordinates that can be considered the same. Otherwise this might ruin the fn/fp
+    metric.
 
     A matrix is constructed that contains a score for each pair of detected and
     labeled point. The score is 0 for pairs that are at least threshold pixels apart
@@ -509,31 +511,55 @@ def match_keypoints_image(y_pred, y_true, threshold: float, batch_dims: int = 1)
     """
 
     if batch_dims == 0:
-        pts = tf.expand_dims(y_true, axis=0)
-        kps = tf.expand_dims(y_pred, axis=0)
+        y_true = tf.expand_dims(y_true, axis=0)
+        y_pred = tf.expand_dims(y_pred, axis=0)
     else:
-        pts = y_true
-        kps = y_pred
+        y_true = y_true
+        y_pred = y_pred
 
-    number_of_pts = tf.shape(pts)[-2] if len(tf.shape(pts)) > 1 else 0
-    number_of_kps = tf.shape(kps)[-2] if len(tf.shape(kps)) > 1 else 0
+    number_of_pts = tf.shape(y_true)[-2] if len(tf.shape(y_true)) > 1 else 0
+    number_of_kps = tf.shape(y_pred)[-2] if len(tf.shape(y_pred)) > 1 else 0
 
     if number_of_pts == 0 or number_of_kps == 0:
         return {
-            "matches": tf.constant([], shape=(0, 2, 2), dtype=kps.dtype),
+            "matches": tf.constant([], shape=(0, 2, 2), dtype=y_pred.dtype),
             "true_positives": 0,
             "false_negatives": number_of_pts,
             "false_positives": number_of_kps,
+            "fn_tensor": y_true,
+            "fp_tensor": y_pred,
         }
 
-    diffs = kps[:, tf.newaxis] - pts[tf.newaxis]
+    diffs = y_pred[:, tf.newaxis] - y_true[tf.newaxis]
     score_matrix = tf.linalg.norm(diffs, axis=-1) <= threshold
 
     row_ind, col_ind = scipy.optimize.linear_sum_assignment(score_matrix.numpy(), maximize=True)
     assigned = score_matrix.numpy()[row_ind, col_ind] > 0
     matches = tf.stack(
-        [tf.gather(kps, row_ind[assigned]), tf.gather(pts, col_ind[assigned])], axis=1
+        [tf.gather(y_pred, row_ind[assigned]), tf.gather(y_true, col_ind[assigned])], axis=1
     )
+
+    # Get the coords from y_true/y_pred that have been matched.
+    y_true_in_matches = matches[:, 1]
+    y_pred_in_matches = matches[:, 0]
+
+    # Compare each element of y_true with each element of matched y_true coords.
+    fn_equal_elements = tf.equal(y_true[:, tf.newaxis, :], y_true_in_matches)
+
+    # Check if all elements in each row of y_true match any row in matched_y_true
+    fn_equal_rows = tf.reduce_all(fn_equal_elements, axis=2)
+
+    # Check if any row in y_true matches any row in matched_y_true
+    fn_tensor_mask = tf.reduce_any(fn_equal_rows, axis=1)
+
+    # Select the correct elements from y_true
+    fn_tensor = tf.boolean_mask(y_true, tf.logical_not(fn_tensor_mask))
+
+    # Same procedure for y_pred...
+    fp_equal_elements = tf.equal(y_pred[:, tf.newaxis, :], y_pred_in_matches)
+    fp_equal_rows = tf.reduce_all(fp_equal_elements, axis=2)
+    fp_tensor_mask = tf.reduce_any(fp_equal_rows, axis=1)
+    fp_tensor = tf.boolean_mask(y_pred, tf.logical_not(fp_tensor_mask))
 
     num_assigned = tf.reduce_sum(tf.cast(assigned, tf.int32))
     true_positives = num_assigned
@@ -545,6 +571,8 @@ def match_keypoints_image(y_pred, y_true, threshold: float, batch_dims: int = 1)
         "true_positives": true_positives,
         "false_negatives": false_negatives,
         "false_positives": false_positives,
+        "fn_tensor": fn_tensor,
+        "fp_tensor": fp_tensor,
     }
 
 
