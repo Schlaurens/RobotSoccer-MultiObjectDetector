@@ -413,10 +413,11 @@ def calculate_metrics(
     classifier_threshold: float,
     encoder_threshold: float,
     padding: float = None,
+    iou_threshold: float = None,
 ):
     if num_classes > 1:
         return calculate_multiclass_metrics(
-            predictions, groundtruth, classifier_threshold, encoder_threshold
+            predictions, groundtruth, classifier_threshold, encoder_threshold, iou_threshold
         )
 
     else:
