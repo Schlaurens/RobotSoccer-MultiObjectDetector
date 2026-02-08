@@ -791,7 +791,7 @@ def handle_predictions_multiclass(
     encoder_threshold: float,
     classifier_threshold: float,
     iou_threshold: float = None,
-):
+) -> dict:
     """Processes multiclass predictions by applying thresholding and non-maximum suppression to filter and classify candidates.
 
     This function takes raw predictions from a model and applies thresholding based on classifier and encoder
