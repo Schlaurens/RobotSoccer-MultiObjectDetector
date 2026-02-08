@@ -320,36 +320,37 @@ def calculate_multiclass_metrics(
         tf.int32,
     )  # (B, N)
 
-    y_true_labels_filtered = tf.reshape(
-        tf.boolean_mask(y_true_labels, use_sample), [-1]
-    )  # (#use_samples, N)
-    y_pred_labels_filtered = tf.reshape(
-        tf.boolean_mask(processed_predictions["classes_of_candidates"], use_sample), [-1]
+    y_true_labels_filtered = tf.boolean_mask(y_true_labels, use_sample)  # (#use_samples, N)
+    y_pred_labels_filtered = tf.boolean_mask(
+        processed_predictions["classes_of_candidates"], use_sample
     )  # (#use_samples, N)
 
     # ==== Handle Non-Maximum-Suppression ====
     if iou_threshold is not None:
-        suppressed_indices_filtered = tf.reshape(
-            tf.boolean_mask(processed_predictions["nms_selected_indices"], use_sample), [-1]
+        suppressed_indices_filtered = tf.boolean_mask(
+            processed_predictions["nms_selected_indices"], use_sample
         )  # (#use_samples * N)
         nms_num_valid_filtered = tf.boolean_mask(
             processed_predictions["nms_num_valid"], use_sample
-        )  # (#use_samples, N)
+        )  # (#use_samples)
 
         # Binary mask that is True where the selected indices by the nms are NOT padded.
         nms_sequence_mask = tf.reshape(
             tf.sequence_mask(nms_num_valid_filtered, maxlen=num_candidates), [-1]
         )  # (#numsamples * N)
 
-        y_true_suppressed = tf.gather(
-            y_true_labels_filtered, suppressed_indices_filtered, batch_dims=1
+        y_true_suppressed = tf.reshape(
+            tf.gather(y_true_labels_filtered, suppressed_indices_filtered, batch_dims=1), [-1]
         )  # (B * N)
-        y_pred_suppressed = tf.gather(
-            y_pred_labels_filtered, suppressed_indices_filtered, batch_dims=1
+        y_pred_suppressed = tf.reshape(
+            tf.gather(y_pred_labels_filtered, suppressed_indices_filtered, batch_dims=1), [-1]
         )  # (B * N)
 
-        y_true_labels_filtered = tf.boolean_mask(y_true_suppressed, nms_sequence_mask)
-        y_pred_labels_filtered = tf.boolean_mask(y_pred_suppressed, nms_sequence_mask)
+        y_true_labels_filtered = tf.boolean_mask(y_true_suppressed, nms_sequence_mask)  # (B, )
+        y_pred_labels_filtered = tf.boolean_mask(y_pred_suppressed, nms_sequence_mask)  # (B, )
+    else:
+        y_true_labels_filtered = tf.reshape(y_true_labels_filtered, [-1])
+        y_pred_labels_filtered = tf.reshape(y_pred_labels_filtered, [-1])
 
     tf.assert_equal(tf.shape(y_true_labels_filtered), tf.shape(y_pred_labels_filtered))
 
