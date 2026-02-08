@@ -721,7 +721,9 @@ def save_predictions(
         json.dump(preds, f, indent=4)
 
 
-def handle_predictions_binary(predictions, encoder_threshold, classifier_threshold):
+def handle_predictions_binary(
+    predictions: dict, encoder_threshold: float, classifier_threshold: float
+) -> dict:
     """Processes binary predictions by applying thresholding to filter and classify candidates.
 
     This function takes raw predictions from a model and applies thresholding based on classifier and encoder
