@@ -222,48 +222,32 @@ def calculate_binary_metrics(
         dict() containing confusion matrix, precision, recall, indices of false_positives and false_negatives, false_positive rate and false_negative rate
     """
 
-    # Get the encoder logits where a patch was drawn (those are the one with the highest predicted probability)
-    best_logits = tf.gather(
-        predictions["logits"], predictions["patch_indices"], batch_dims=1
-    )  # (B, N)
-
-    classification_scores = tf.squeeze(predictions["classification"], axis=-1)  # (B, N)
-
-    combined_threshold_mask = get_thresholding_mask(
-        classification_scores,
-        classifier_threshold,
-        best_logits,
-        encoder_threshold,
-    )  # (B, N)
-
     # The groundtruth coordinates of the object. Assumes there is only ONE instance of the object in the image.
     coords_true = dataset_utils.get_coordinate_mask(groundtruth["offset_mask"])[:, 0, 0, :]
+    coords_true_normalized = coords_true / dataset_utils.config.input_dims[::-1]  # (B, 2)
 
     object_in_image = tf.math.reduce_any(
         tf.cast(groundtruth["object_mask"], tf.bool), axis=[1, 2]
     )  # (B, )
 
-    # The index of the candidate with the best classification score
-    best_score_index = tf.argmax(combined_threshold_mask, axis=-1)  # (B, )
-
-    thresholding_mask_of_best_candidate = tf.gather(
-        combined_threshold_mask, best_score_index, batch_dims=1
-    )  # (B, )
+    best_predictions = handle_predictions_binary(
+        predictions, encoder_threshold, classifier_threshold
+    )
 
     # The best box of each sample
-    best_box = tf.gather(predictions["boxes"], best_score_index, batch_dims=1)  # (B, 4)
-
-    coords_true_normalized = coords_true / [640, 480]  # (B, 2)
+    best_box = tf.gather(
+        predictions["boxes"], best_predictions["best_candidate_indices"], batch_dims=1
+    )  # (B, 4)
 
     # Is True if the best predicted box is actually on the object.
-    is_box_valid = u_keypoint.are_coords_in_patch(
+    is_best_box_valid = u_keypoint.are_coords_in_patch(
         coords_true_normalized, best_box, padding
     )  # (B, )
 
-    fp = thresholding_mask_of_best_candidate & tf.math.logical_not(is_box_valid)  # (B, )
-    tp = thresholding_mask_of_best_candidate & is_box_valid  # (B, )
-    fn = tf.math.logical_not(thresholding_mask_of_best_candidate) & object_in_image  # (B, )
-    tn = tf.math.logical_not(thresholding_mask_of_best_candidate) & tf.logical_not(
+    fp = best_predictions["valid_samples"] & tf.math.logical_not(is_best_box_valid)  # (B, )
+    tp = best_predictions["valid_samples"] & is_best_box_valid  # (B, )
+    fn = tf.math.logical_not(best_predictions["valid_samples"]) & object_in_image  # (B, )
+    tn = tf.math.logical_not(best_predictions["valid_samples"]) & tf.logical_not(
         object_in_image
     )  # (B, )
 
