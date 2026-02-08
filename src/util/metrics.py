@@ -278,7 +278,7 @@ def calculate_multiclass_metrics(
     groundtruth: dict,
     classifier_threshold: float,
     encoder_threshold: float = 0.1,
-    # pooled: bool = False,
+    iou_threshold: float = None,
 ):
     """
     Calculate metrics for multi-class predictions.
@@ -305,61 +305,59 @@ def calculate_multiclass_metrics(
     )  # (B, )
 
     predicted_probabilities = predictions["classification"]  # (B, N, num_classes)
+
     num_classes = tf.shape(predicted_probabilities)[-1]
+    num_candidates = tf.shape(predicted_probabilities)[1]
 
-    best_logits = tf.gather(
-        predictions["logits"], predictions["patch_indices"], batch_dims=1
-    )  # (B, N)
+    processed_predictions = handle_predictions_multiclass(
+        predictions, encoder_threshold, classifier_threshold, iou_threshold
+    )
 
-    combined_threshold_mask = get_thresholding_mask(
-        tf.reduce_max(predicted_probabilities, axis=-1),
-        classifier_threshold,
-        best_logits,
-        encoder_threshold,
-    )  # (B, N)
-
-    groundtruth_probabilities = tf.one_hot(
-        tf.cast(
-            dataset_utils.get_groundtruth_class_of_patches(
-                predictions, groundtruth, padding=0.2, batch_dims=1
-            ),
-            tf.int32,
+    y_true_labels = tf.cast(
+        dataset_utils.get_groundtruth_class_of_patches(
+            predictions, groundtruth, padding=0.2, batch_dims=1
         ),
-        num_classes,
-        axis=-1,
-    )  # (B, N, num_classes)
+        tf.int32,
+    )  # (B, N)
 
-    tf.assert_equal(tf.shape(predicted_probabilities), tf.shape(groundtruth_probabilities))
+    y_true_labels_filtered = tf.reshape(
+        tf.boolean_mask(y_true_labels, use_sample), [-1]
+    )  # (#use_samples, N)
+    y_pred_labels_filtered = tf.reshape(
+        tf.boolean_mask(processed_predictions["classes_of_candidates"], use_sample), [-1]
+    )  # (#use_samples, N)
 
-    # Filter out the ignored samples.
-    combined_threshold_mask_filtered = tf.boolean_mask(
-        combined_threshold_mask, use_sample
-    )  # (#use_sample, N)
-    y_pred_filtered = tf.boolean_mask(
-        predicted_probabilities, use_sample
-    )  # (#use_samples, N, num_classes)
-    y_true_filtered = tf.boolean_mask(
-        groundtruth_probabilities, use_sample
-    )  # (#use_samples, N, num_classes)
+    # ==== Handle Non-Maximum-Suppression ====
+    if iou_threshold is not None:
+        suppressed_indices_filtered = tf.reshape(
+            tf.boolean_mask(processed_predictions["nms_selected_indices"], use_sample), [-1]
+        )  # (#use_samples * N)
+        nms_num_valid_filtered = tf.boolean_mask(
+            processed_predictions["nms_num_valid"], use_sample
+        )  # (#use_samples, N)
 
-    tf.assert_equal(tf.shape(y_pred_filtered), tf.shape(y_true_filtered))
-    tf.assert_equal(tf.shape(combined_threshold_mask_filtered), tf.shape(y_true_filtered)[:-1])
+        # Binary mask that is True where the selected indices by the nms are NOT padded.
+        nms_sequence_mask = tf.reshape(
+            tf.sequence_mask(nms_num_valid_filtered, maxlen=num_candidates), [-1]
+        )  # (#numsamples * N)
 
-    combined_threshold_mask_flat = tf.reshape(combined_threshold_mask_filtered, [-1])
-    y_pred_flat = tf.reshape(y_pred_filtered, (-1, num_classes))  # (B * N, num_classes)
-    y_true_flat = tf.reshape(y_true_filtered, (-1, num_classes))  # (B * N, num_classes)
+        y_true_suppressed = tf.gather(
+            y_true_labels_filtered, suppressed_indices_filtered, batch_dims=1
+        )  # (B * N)
+        y_pred_suppressed = tf.gather(
+            y_pred_labels_filtered, suppressed_indices_filtered, batch_dims=1
+        )  # (B * N)
 
-    y_pred_labels = tf.argmax(y_pred_flat, axis=-1)  # (B * N, )
-    y_true_labels = tf.argmax(y_true_flat, axis=-1)  # (B * N, )
+        y_true_labels_filtered = tf.boolean_mask(y_true_suppressed, nms_sequence_mask)
+        y_pred_labels_filtered = tf.boolean_mask(y_pred_suppressed, nms_sequence_mask)
 
-    # Classify all samples that are under the threshold as 0 (negative class).
-    y_pred_thresholded = tf.where(combined_threshold_mask_flat, y_pred_labels, 0)
-
-    tf.assert_equal(tf.shape(y_pred_thresholded), tf.shape(y_true_labels))
+    tf.assert_equal(tf.shape(y_true_labels_filtered), tf.shape(y_pred_labels_filtered))
 
     # ===== Evaluation Metrics ======
     # The (num_classes, num_classes) confusion matrix
-    confusion_matrix = tf.math.confusion_matrix(y_true_labels, y_pred_thresholded, num_classes)
+    confusion_matrix = tf.math.confusion_matrix(
+        y_true_labels_filtered, y_pred_labels_filtered, num_classes
+    )
 
     # Calculate precision and recall for every class.
     precisions = tf.linalg.diag_part(confusion_matrix) / tf.reduce_sum(
