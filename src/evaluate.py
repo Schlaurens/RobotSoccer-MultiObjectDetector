@@ -240,8 +240,8 @@ class EvaluateApplication:
                 color="lime",
             )
             axes.add_patch(rect)
-            axes.plot(coords_pred[0], coords_pred[1], "rx")
-            axes.plot(position_pred[0], position_pred[1], "bx")
+            axes.plot(*coords_pred, "rx")
+            axes.plot(*position_pred, "bx")
 
             coords_true = dataset_utils.get_coords_from_offsets(
                 self.data[self.index][object_name]["offset_mask"]
@@ -249,7 +249,7 @@ class EvaluateApplication:
             for c_true in coords_true:
                 if tf.reduce_all(c_true == -1.0):
                     continue
-                axes.plot(c_true[0], c_true[1], "gx")
+                axes.plot(*c_true, "gx")
 
     def image_slider_changed(self, val):
         self.index = int(val)
