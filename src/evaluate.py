@@ -154,6 +154,12 @@ class EvaluateApplication:
             return axes.imshow(np.zeros((32, 32)))
 
         best_score_index = best_prediction["best_candidate_indices"][0]
+
+        coords_true = dataset_utils.get_coords_from_offsets(
+            self.data[self.index][object_name]["offset_mask"]
+        )[0]
+        position_pred = output["results"][object_name]["positions"][0][best_score_index]
+        abs_error = np.linalg.norm(coords_true - position_pred)
         best_box = output["results"][object_name]["boxes"][0][best_score_index]
 
         # Get the offset predicted by the classifier. This works because (position = coords + classifier_offset).
@@ -180,6 +186,7 @@ class EvaluateApplication:
         axes.text(
             0, 6, f"cla.: {best_prediction['classifier_confidences'][0].numpy():.3f}", color="lime"
         )
+        axes.text(0, 8, f"err.: {abs_error:.3f}", color="lime")
         return axes.imshow(
             output["results"][object_name]["patches"][0][best_score_index][..., 0], cmap="gray"
         )
