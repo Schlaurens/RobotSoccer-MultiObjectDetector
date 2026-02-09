@@ -478,7 +478,14 @@ def calculate_metrics(
 ):
     if num_classes > 1:
         return calculate_multiclass_metrics(
-            predictions, groundtruth, classifier_threshold, encoder_threshold, iou_threshold
+            predictions,
+            groundtruth,
+            classifier_threshold,
+            encoder_threshold,
+            camera,
+            intrinsics,
+            max_distance,
+            iou_threshold,
         )
 
     else:
