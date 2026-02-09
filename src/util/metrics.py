@@ -386,7 +386,7 @@ def calculate_multiclass_metrics(
     camera_tiled = tf.tile(camera[:, None, :], [1, num_candidates, 1])
     intrinsics_tiled = tf.tile(intrinsics[:, None, :], [1, num_candidates, 1])
 
-    valid_coords_true = ~tf.reduce_all(coords_true_suppressed == -1.0, axis=-1)  # (B, )
+    # valid_coords_true = ~tf.reduce_all(coords_true_suppressed == -1.0, axis=-1)  # (B, )
     coords_true_distances = tf.linalg.norm(
         u_camera.image_to_world(
             tf.reshape(camera_tiled, (-1, 3)),
@@ -396,12 +396,12 @@ def calculate_multiclass_metrics(
         axis=-1,
         keepdims=True,
     )  # (B, N)
-    coords_true_distances_valid = tf.where(
-        valid_coords_true, tf.squeeze(coords_true_distances, axis=-1), np.inf
-    )  # (B, N)
+    # coords_true_distances_valid = tf.where(
+    #     valid_coords_true, tf.squeeze(coords_true_distances, axis=-1), np.inf
+    # )  # (B, N)
 
     coords_true_distance_mask = tf.reshape(
-        coords_true_distances_valid <= max_distance, [-1]
+        tf.squeeze(coords_true_distances, axis=-1) <= max_distance, [-1]
     )  # (B * N)
 
     y_true_labels_filtered = tf.boolean_mask(
