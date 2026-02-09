@@ -231,6 +231,8 @@ def calculate_binary_metrics(
     ]  # (B, 2)
     coords_true_normalized = coords_true / dataset_utils.config.input_dims[::-1]  # (B, 2)
 
+    object_in_image = tf.reduce_any(tf.cast(groundtruth["object_mask"], tf.bool), [1, 2])  # (B, )
+
     # coords_true that are not (-1.0, -1.0)
     valid_coords = ~tf.reduce_all(coords_true == -1.0, axis=-1)
 
@@ -258,15 +260,18 @@ def calculate_binary_metrics(
         coords_true_normalized, best_box, padding
     )  # (B, )
 
-    fp = (
-        best_predictions["valid_samples"]
-        & tf.math.logical_not(is_best_box_valid)
-        & coords_true_distance_mask
+    fp = best_predictions["valid_samples"] & (
+        (~is_best_box_valid & coords_true_distance_mask) | ~object_in_image
     )  # (B, )
-    tp = best_predictions["valid_samples"] & is_best_box_valid & coords_true_distance_mask  # (B, )
-    fn = tf.math.logical_not(best_predictions["valid_samples"]) & coords_true_distance_mask  # (B, )
-    tn = tf.math.logical_not(best_predictions["valid_samples"]) & tf.logical_not(
-        coords_true_distance_mask
+    tp = (
+        best_predictions["valid_samples"]
+        & is_best_box_valid
+        & coords_true_distance_mask
+        & object_in_image
+    )  # (B, )
+    fn = ~best_predictions["valid_samples"] & coords_true_distance_mask & object_in_image  # (B, )
+    tn = ~best_predictions["valid_samples"] & (
+        ~object_in_image | ~coords_true_distance_mask
     )  # (B, )
 
     fp_count = tf.math.count_nonzero(fp).numpy()
