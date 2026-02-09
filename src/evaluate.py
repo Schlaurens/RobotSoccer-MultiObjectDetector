@@ -49,6 +49,7 @@ class EvaluateApplication:
         self.data = list(u_dataset_io.get_dataset(data_path).as_numpy_iterator())
         self.model = self.load_model(config, path_to_model, model_name)
         self.categories = config["categories"]
+
         assert len(self.model.encoder.input_shape) == 4
         self.image_format = (
             u_image.ImageFormat.GRAYSCALE
@@ -149,7 +150,6 @@ class EvaluateApplication:
             self.thresholds["classifier"][object_name],
             0.35,
         )
-
         if not best_prediction["valid_samples"]:
             return axes.imshow(np.zeros((32, 32)))
 
