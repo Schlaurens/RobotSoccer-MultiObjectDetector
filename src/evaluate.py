@@ -155,10 +155,15 @@ class EvaluateApplication:
 
         best_score_index = best_prediction["best_candidate_indices"][0]
 
+        # Groundtruth coords
         coords_true = dataset_utils.get_coords_from_offsets(
             self.data[self.index][object_name]["offset_mask"]
         )[0]
+        # Coords predicted by the encoder
+        encoder_coords_pred = output["results"][object_name]["coords"][0][best_score_index]
+        # Coords corrected by the classifier
         position_pred = output["results"][object_name]["positions"][0][best_score_index]
+
         abs_error = np.linalg.norm(coords_true - position_pred)
         best_box = output["results"][object_name]["boxes"][0][best_score_index]
 
@@ -174,11 +179,16 @@ class EvaluateApplication:
         # Used to scale the box with variable size to the fixed patch size
         patch_to_box_ratio = 32 / best_width
 
-        # The classifier_offset need to be added the center coordinates of the patch.
-        best_position = (best_width / 2 + best_classifier_offset) * patch_to_box_ratio
+        box_coords = (
+            best_box[1] * (self.data[self.index]["image"].shape[1] * 2 - 1),
+            best_box[0] * (self.data[self.index]["image"].shape[0] - 1),
+        )
 
-        axes.plot(*best_position, "bx")
-        axes.plot()
+        if ~tf.reduce_all(coords_true == -1.0):
+            axes.plot(*(tf.squeeze(coords_true) - box_coords) * patch_to_box_ratio, "gx")
+        axes.plot(*(encoder_coords_pred - box_coords) * patch_to_box_ratio, "rx")
+        axes.plot(*(position_pred - box_coords) * patch_to_box_ratio, "bx")
+
         axes.text(0, 2, f"cand.: {best_score_index + 1}", color="lime")
         axes.text(
             0, 4, f"enc.: {best_prediction['encoder_confidences'][0].numpy():.3f}", color="lime"
