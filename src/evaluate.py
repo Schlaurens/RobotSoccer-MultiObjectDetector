@@ -193,6 +193,23 @@ class EvaluateApplication:
                     artist.remove()
 
     def draw_patch_candidates(self, image, axes, output, object_name):
+        processed_predictions = u_metrics.handle_predictions(
+            output["results"][object_name],
+            self.thresholds["encoder"][object_name],
+            self.thresholds["classifier"][object_name],
+            0.35,
+        )
+
+        suppressed_indices = []
+        if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+            tf.print("sel_ind: ", processed_predictions["nms_selected_indices"])
+            tf.print("num_v: ", processed_predictions["nms_num_valid"])
+
+            suppressed_indices = tf.slice(
+                processed_predictions["nms_selected_indices"][0],
+                tf.constant([0]),
+                processed_predictions["nms_num_valid"],
+            )
         for i, box in enumerate(
             output["results"][object_name]["boxes"][0]
         ):  # take index 0 to remove batch dimension
