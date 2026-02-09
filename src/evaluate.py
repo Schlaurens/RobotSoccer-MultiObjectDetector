@@ -217,13 +217,21 @@ class EvaluateApplication:
             logit = output["results"][object_name]["logits"][0][patch_index]
             coords_pred = output["results"][object_name]["coords"][0][i]
             position_pred = output["results"][object_name]["positions"][0][i]
-            sample_ignored = tf.reduce_any(self.data[self.index][object_name]["loss_mask"])
-
-            if not sample_ignored:
-                continue
+            # sample_ignored = tf.reduce_any(self.data[self.index][object_name]["loss_mask"])
 
             # dont draw patch if its prediction is under the threshold
-            if logit < self.thresholds["encoder"][object_name]:
+            if (
+                logit < self.thresholds["encoder"][object_name]
+                or tf.reduce_max(output["results"][object_name]["classification"][0][i], -1)
+                < self.thresholds["classifier"][object_name]
+            ):
+                continue
+
+            # Apply nms for intersections
+            if (
+                object_name == u_dataset.CategoryNames.INTERSECTIONS.value
+                and i not in suppressed_indices
+            ):
                 continue
 
             # Coordinates for each box are y1, x1, y2, x2
