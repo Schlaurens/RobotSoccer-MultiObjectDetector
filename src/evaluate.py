@@ -233,12 +233,16 @@ class EvaluateApplication:
 
             # Each patch has a number to identify the ordering
             # axes.text(x=(box_coords[0] + 4.0), y=box_coords[1] + 17.0, s=i + 1, color="lime")
-            axes.text(
-                x=(box_coords[0] + 4.0),
-                y=box_coords[1] + 17.0,
-                s=int(gt_patch_class[0][i].numpy()),
-                color="lime",
-            )
+            if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+                pred_patch_class = processed_predictions["classes_of_candidates"][0][i]
+
+                axes.text(
+                    x=(box_coords[0] + 4.0),
+                    y=box_coords[1] + 17.0,
+                    s=list(u_dataset.IntersectionType)[pred_patch_class.numpy()].value,
+                    color="red",
+                )
+
             axes.add_patch(rect)
             axes.plot(*coords_pred, "rx")
             axes.plot(*position_pred, "bx")
