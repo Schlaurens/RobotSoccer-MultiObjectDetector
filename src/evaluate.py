@@ -116,6 +116,14 @@ class EvaluateApplication:
         for category in self.categories:
             output_logits = output["results"][category]["logits"][0].numpy()
             self.images[f"im_ax_{category}"].set_data(np.reshape(output_logits, (15, 20)))
+
+            processed_predictions = u_metrics.handle_predictions(
+                output["results"][category],
+                self.thresholds["encoder"][category],
+                self.thresholds["classifier"][category],
+                0.35,
+            )
+
             if category in [
                 u_dataset.CategoryNames.BALL.value,
                 u_dataset.CategoryNames.PENALTYMARK.value,
@@ -123,6 +131,7 @@ class EvaluateApplication:
                 self.images[f"im_ax_{category}_result"] = self.get_best_patch(
                     self.axes[f"ax_{category}_result"],
                     output["results"][category],
+                    processed_predictions,
                     category,
                 )
             self.images[f"im_ax_{category}_gt"].set_data(
@@ -134,10 +143,11 @@ class EvaluateApplication:
                 image_rgb,
                 self.axes[f"ax_{category}_patches"],
                 output["results"][category],
+                processed_predictions,
                 category,
             )
 
-    def get_best_patch(self, axes, output, object_name):
+    def get_best_patch(self, axes, output, processed_predictions, object_name):
         """Find the best candidate and draw the patch with the predicted object position in the gives pyplot axes.
 
         Args:
@@ -148,17 +158,10 @@ class EvaluateApplication:
         Returns:
             The axes with the prediction. Or a zeros array if no object has been found that exceeds the combined threshold of encoder and classifier confidence.
         """
-
-        best_prediction = u_metrics.handle_predictions(
-            output["results"][object_name],
-            self.thresholds["encoder"][object_name],
-            self.thresholds["classifier"][object_name],
-            0.35,
-        )
-        if not best_prediction["valid_samples"]:
+        if not processed_predictions["valid_samples"]:
             return axes.imshow(np.zeros((32, 32)))
 
-        best_score_index = best_prediction["best_candidate_indices"][0]
+        best_score_index = processed_predictions["best_candidate_indices"][0]
 
         # Groundtruth coords
         coords_true = dataset_utils.get_coords_from_offsets(
@@ -190,10 +193,16 @@ class EvaluateApplication:
 
         axes.text(0, 2, f"cand.: {best_score_index + 1}", color="lime")
         axes.text(
-            0, 4, f"enc.: {best_prediction['encoder_confidences'][0].numpy():.3f}", color="lime"
+            0,
+            4,
+            f"enc.: {processed_predictions['encoder_confidences'][0].numpy():.3f}",
+            color="lime",
         )
         axes.text(
-            0, 6, f"cla.: {best_prediction['classifier_confidences'][0].numpy():.3f}", color="lime"
+            0,
+            6,
+            f"cla.: {processed_predictions['classifier_confidences'][0].numpy():.3f}",
+            color="lime",
         )
         axes.text(0, 8, f"err.: {abs_error:.3f}", color="lime")
         return axes.imshow(output["patches"][0][best_score_index][..., 0], cmap="gray")
@@ -206,14 +215,7 @@ class EvaluateApplication:
                 for artist in artists:
                     artist.remove()
 
-    def draw_patch_candidates(self, image, axes, output, object_name):
-        processed_predictions = u_metrics.handle_predictions(
-            output["results"][object_name],
-            self.thresholds["encoder"][object_name],
-            self.thresholds["classifier"][object_name],
-            0.35,
-        )
-
+    def draw_patch_candidates(self, image, axes, output, processed_predictions, object_name):
         suppressed_indices = []
         if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
             suppressed_indices = tf.slice(
