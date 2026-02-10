@@ -115,7 +115,7 @@ class EvaluateApplication:
         # Set prediction figures
         for category in self.categories:
             output_logits = output["results"][category]["logits"][0].numpy()
-            self.images[f"im_ax_{category}"].set_data(np.reshape(output_logits, (15, 20)))
+            self.images[f"im_ax_{category}"].set_data(np.reshape(output_logits, dataset_utils.config.output_dims))
 
             processed_predictions = u_metrics.handle_predictions(
                 output["results"][category],
