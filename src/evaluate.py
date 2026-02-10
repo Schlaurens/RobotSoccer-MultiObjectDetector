@@ -121,7 +121,9 @@ class EvaluateApplication:
                 u_dataset.CategoryNames.PENALTYMARK.value,
             ]:
                 self.images[f"im_ax_{category}_result"] = self.get_best_patch(
-                    self.axes[f"ax_{category}_result"], output, category
+                    self.axes[f"ax_{category}_result"],
+                    output["results"][category],
+                    category,
                 )
             self.images[f"im_ax_{category}_gt"].set_data(
                 self.data[self.index][category]["object_mask"]
@@ -129,7 +131,10 @@ class EvaluateApplication:
             self.images[f"im_ax_{category}_patches"].set_data(image_rgb)
 
             self.draw_patch_candidates(
-                image_rgb, self.axes[f"ax_{category}_patches"], output, category
+                image_rgb,
+                self.axes[f"ax_{category}_patches"],
+                output["results"][category],
+                category,
             )
 
     def get_best_patch(self, axes, output, object_name):
@@ -160,12 +165,12 @@ class EvaluateApplication:
             self.data[self.index][object_name]["offset_mask"]
         )[0]
         # Coords predicted by the encoder
-        encoder_coords_pred = output["results"][object_name]["coords"][0][best_score_index]
+        encoder_coords_pred = output["coords"][0][best_score_index]
         # Coords corrected by the classifier
-        position_pred = output["results"][object_name]["positions"][0][best_score_index]
+        position_pred = output["positions"][0][best_score_index]
 
         abs_error = np.linalg.norm(coords_true - position_pred)
-        best_box = output["results"][object_name]["boxes"][0][best_score_index]
+        best_box = output["boxes"][0][best_score_index]
 
         # We only need the width because the patch is a square.
         best_width = (best_box[3] - best_box[1]) * (640 - 1)
@@ -191,9 +196,7 @@ class EvaluateApplication:
             0, 6, f"cla.: {best_prediction['classifier_confidences'][0].numpy():.3f}", color="lime"
         )
         axes.text(0, 8, f"err.: {abs_error:.3f}", color="lime")
-        return axes.imshow(
-            output["results"][object_name]["patches"][0][best_score_index][..., 0], cmap="gray"
-        )
+        return axes.imshow(output["patches"][0][best_score_index][..., 0], cmap="gray")
 
     def remove_artists(self):
         """Remove all the Artists (texts, patches and lines) for all the axes."""
@@ -218,19 +221,17 @@ class EvaluateApplication:
                 tf.constant([0]),
                 processed_predictions["nms_num_valid"],
             )
-        for i, box in enumerate(
-            output["results"][object_name]["boxes"][0]
-        ):  # take index 0 to remove batch dimension
-            patch_index = output["results"][object_name]["patch_indices"][0][i]
-            logit = output["results"][object_name]["logits"][0][patch_index]
-            coords_pred = output["results"][object_name]["coords"][0][i]
-            position_pred = output["results"][object_name]["positions"][0][i]
+        for i, box in enumerate(output["boxes"][0]):  # take index 0 to remove batch dimension
+            patch_index = output["patch_indices"][0][i]
+            logit = output["logits"][0][patch_index]
+            coords_pred = output["coords"][0][i]
+            position_pred = output["positions"][0][i]
             # sample_ignored = tf.reduce_any(self.data[self.index][object_name]["loss_mask"])
 
             # dont draw patch if its prediction is under the threshold
             if (
                 logit < self.thresholds["encoder"][object_name]
-                or tf.reduce_max(output["results"][object_name]["classification"][0][i], -1)
+                or tf.reduce_max(output["classification"][0][i], -1)
                 < self.thresholds["classifier"][object_name]
             ):
                 continue
