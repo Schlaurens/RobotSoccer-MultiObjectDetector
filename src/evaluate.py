@@ -329,7 +329,7 @@ class EvaluateApplication:
             {
                 "name": "intersections",
                 "rows": [10, 14],
-                "cols": [[0, 5], [5, 10], [10, 15], [15, 18]],
+                "cols": [[0, 5], [5, 10], [10, 15]],
             },
         ]
         self.axes = {}
@@ -428,7 +428,12 @@ class EvaluateApplication:
             )
             self.images[f"im_ax_{name}"] = self.axes[f"ax_{name}"].imshow(stuff)
             self.images[f"im_ax_{name}_gt"] = self.axes[f"ax_{name}_gt"].imshow(stuff)
-            self.images[f"im_ax_{name}_result"] = self.axes[f"ax_{name}_result"].imshow(stuff_patch)
+            if (
+                name != u_dataset.CategoryNames.INTERSECTIONS.value
+            ):  # Intersectios don't have a results patch axis.
+                self.images[f"im_ax_{name}_result"] = self.axes[f"ax_{name}_result"].imshow(
+                    stuff_patch
+                )
 
         # Connect slider events
         for category in self.categories:
