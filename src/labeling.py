@@ -22,7 +22,7 @@ class LabelMode(Enum):
     INTERSECTION_L = 6
 
 
-class BrowseApplication:
+class LabelApplication:
     def __init__(self, directory):
         self.img_dims = (480, 640)  # y, x
         self.directory = directory
@@ -302,5 +302,5 @@ if __name__ == "__main__":
     parser.add_argument("directory")
     args = parser.parse_args()
 
-    app = BrowseApplication(args.directory)
+    app = LabelApplication(args.directory)
     app.run()
