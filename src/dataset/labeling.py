@@ -1,8 +1,14 @@
+import os
+import sys
 from enum import Enum
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import gridspec, widgets
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from util import augmentation as u_augmentation
 from util import camera as u_camera
@@ -205,7 +211,7 @@ class LabelApplication:
             return
 
         # TODO: change augmentations and enable labelling accordingly.
-        if event.inaxes != self.ax_img: #or self.augmentation:
+        if event.inaxes != self.ax_img:  # or self.augmentation:
             return
         current = int(self.slider_image.val)
         if self.label_mode == LabelMode.BALL:
