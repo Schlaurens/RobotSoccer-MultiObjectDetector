@@ -15,10 +15,15 @@ Features:
 """
 
 import os
+import sys
 
 import yaml
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 
 import matplotlib.pyplot as plt
 import numpy as np
