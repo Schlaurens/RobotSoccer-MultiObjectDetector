@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from .layers import IresBlock, Normalization
+from util.layers import IresBlock, Normalization
 
 
 def get_encoder(

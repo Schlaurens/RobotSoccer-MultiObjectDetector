@@ -7,8 +7,7 @@ from training import encoder_architectures as u_encoders
 from util import dataset as u_dataset
 from util import image as u_image
 from util import keypoint as u_keypoint
-
-from .layers import IresBlock, Normalization, PatchExtractor, PatchSampler
+from util.layers import IresBlock, Normalization, PatchExtractor, PatchSampler
 
 dataset_config = u_dataset.DatasetConfig()
 dataset_utils = u_dataset.DatasetUtils(dataset_config)
