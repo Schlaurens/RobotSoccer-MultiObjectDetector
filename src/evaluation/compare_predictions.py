@@ -300,7 +300,7 @@ def main(args) -> None:
     data = load_data(Path(args.directory), args.model_timestamp)
 
     print("Calculating Comparisons for Balls...")
-    metrics_ball = compare_predictions(
+    metrics_ball_seen = compare_predictions(
         data["test_groundtruth"],
         data["test_ball_model"],
         data["test_bhuman"],
@@ -310,10 +310,10 @@ def main(args) -> None:
         save_path_for_matches=save_path_for_matches,
         ball_status_only_seen=True,
     )
-    print_results(metrics_ball, u_dataset.CategoryNames.BALL.value, "seen")
+    print_results(metrics_ball_seen, u_dataset.CategoryNames.BALL.value, "seen")
 
     print("Calculating Comparisons for Balls...")
-    metrics_ball = compare_predictions(
+    metrics_ball_seen_guessed = compare_predictions(
         data["test_groundtruth"],
         data["test_ball_model"],
         data["test_bhuman"],
@@ -323,10 +323,10 @@ def main(args) -> None:
         save_path_for_matches=save_path_for_matches,
         ball_status_only_seen=False,
     )
-    print_results(metrics_ball, u_dataset.CategoryNames.BALL.value, "seen+guessed")
+    print_results(metrics_ball_seen_guessed, u_dataset.CategoryNames.BALL.value, "seen+guessed")
 
     print("Calculating Comparisons for PenaltyMarks...")
-    metrics_ball = compare_predictions(
+    metrics_penaltymark = compare_predictions(
         data["test_groundtruth"],
         data["test_penaltymark_model"],
         data["test_bhuman"],
@@ -337,10 +337,10 @@ def main(args) -> None:
         threshold=args.distance_threshold,
         save_path_for_matches=save_path_for_matches,
     )
-    print_results(metrics_ball, u_dataset.CategoryNames.PENALTYMARK.value)
+    print_results(metrics_penaltymark, u_dataset.CategoryNames.PENALTYMARK.value)
 
     print("Calculating Comparisons for Intersections...")
-    metrics_ball = compare_predictions(
+    metrics_intersections = compare_predictions(
         data["test_groundtruth"],
         data["test_intersections_model"],
         data["test_bhuman"],
@@ -351,7 +351,22 @@ def main(args) -> None:
         threshold=args.distance_threshold,
         save_path_for_matches=save_path_for_matches,
     )
-    print_results(metrics_ball, u_dataset.CategoryNames.INTERSECTIONS.value)
+    print_results(metrics_intersections, u_dataset.CategoryNames.INTERSECTIONS.value)
+
+    # Save all the comparison into a single yaml file.
+    with open(Path(args.directory, args.model_timestamp, "comparisons.yaml"), "w") as file:
+        yaml.dump(
+            {
+                "balls_seen": metrics_ball_seen,
+                "balls_seen_guessed": metrics_ball_seen_guessed,
+                "penaltyMark": metrics_penaltymark,
+                "intersections": metrics_intersections,
+            },
+            file,
+            indent=4,
+            default_flow_style=False,
+            sort_keys=False,
+        )
 
 
 if __name__ == "__main__":
