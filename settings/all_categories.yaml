@@ -13,7 +13,7 @@ model:
     use_batch_norm: False
 
 training:
-  epochs: 300
+  epochs: 200
   initial_epoch: 0
   batch_size: 32
   verbose: 1
@@ -33,14 +33,14 @@ training:
 categories:
   ball:
     object_size: 0.175
-    padding: 0.2
+    padding: 0
     object_height: 0.05
     n_classes: 1
     n_candidates: 5
     max_distance: 6
   penaltyMark:
     object_size: 0.175
-    padding: 0.2
+    padding: 0
     object_height: 0.0
     n_classes: 1
     n_candidates: 5
@@ -57,9 +57,9 @@ callbacks:
   reduce_lr:
     monitor: "val_total_loss"
     mode: "min"
-    factor: 0.5
+    factor: 0.9999999
     patience: 25
-    min_lr: 0.000001
+    min_lr: 0.00001
   early_stopping:
     monitor: "val_total_loss"
     mode: "min"
