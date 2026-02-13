@@ -44,7 +44,7 @@
 #### `./b-human_predictions`
 - Contains a `.json` file for each game log that contains the labels of intersections, balls and penaltyMarks that were predicted by the current B-Human object detectors.
 
-#### `./selected`
+#### `./evaluation`
 - Contains the predictions for the test samples in a single `.json` file for the B-Human predictions, the model predictions and the groundtruth.
 - The selected samples for which predictions were made are the same samples inside test dataset from the `./tfrecords` directory.
 - These files are used to compare the model performance with the current B-Human predictors (as of 27.1.2026)
