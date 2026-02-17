@@ -91,6 +91,10 @@ def main(args):
             "model_image_mae": float(model_image_mae),
             "bhuman_image_var": float(bhuman_image_var),
             "model_image_var": float(model_image_var),
+            "bhuman_world_mae": float(bhuman_world_mae),
+            "model_world_mae": float(model_world_mae),
+            "bhuman_world_var": float(bhuman_world_var),
+            "model_world_var": float(model_world_var),
         }
 
     with open(Path(args.data_directory).parent / "regression_error.yaml", "w") as file:
