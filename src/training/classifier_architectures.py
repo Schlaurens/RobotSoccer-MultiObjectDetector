@@ -633,8 +633,8 @@ def _get_classifier_ires_single_category_v5(
 
     x = image
     x = IresBlock(8, use_batch_norm, stride=2, expansion=6)(x)
-    x = IresBlock(8, use_batch_norm, stride=1, expansion=6)(x)
-    x = IresBlock(8, use_batch_norm, stride=2, expansion=6)(x)
+    x = IresBlock(16, use_batch_norm, stride=2, expansion=4)(x)
+    x = IresBlock(16, use_batch_norm, stride=2, expansion=4)(x)
 
     x = tf.keras.layers.Flatten()(x)
 
@@ -644,7 +644,7 @@ def _get_classifier_ires_single_category_v5(
     if n_context > 0:
         x = tf.keras.layers.Concatenate()([x, context])
 
-    x = tf.keras.layers.Dense(8)(x)
+    x = tf.keras.layers.Dense(18)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     return _get_common_classifier_output(x, n_classes, with_offset, inputs)
