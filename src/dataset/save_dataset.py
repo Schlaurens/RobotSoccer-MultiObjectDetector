@@ -14,7 +14,7 @@ from util import dataset as u_dataset
 from util import dataset_io as u_dataset_io
 
 
-def write_file(source, destination, image_res):
+def write_file(source: Path, destination: Path, image_res: list[int, int]):
     dataset_utils = u_dataset.DatasetUtils(u_dataset.DatasetConfig(input_dims=image_res))
     destination = destination / f"{image_res[1]}x{image_res[0]}"
     # Load the dataset

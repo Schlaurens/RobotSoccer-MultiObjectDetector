@@ -10,7 +10,7 @@ from . import keypoint as u_keypoint
 
 @dataclass
 class DatasetConfig:
-    input_dims: tuple = (480, 640)
+    input_dims: tuple[int, int] | list[int, int] = (480, 640)
     output_dims: np.ndarray = None
     cell_dims: np.ndarray = np.array((32, 32))
     cell_center: float = None
