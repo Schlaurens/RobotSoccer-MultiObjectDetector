@@ -12,7 +12,7 @@ from . import keypoint as u_keypoint
 class DatasetConfig:
     input_dims: tuple[int, int] | list[int, int] = (480, 640)
     output_dims: np.ndarray = None
-    cell_dims: np.ndarray = np.array((32, 32))
+    cell_dims: np.ndarray = np.array((32, 32), np.int32)
     cell_center: float = None
     scale: float = None
     image_res_scale: float = None
@@ -20,7 +20,7 @@ class DatasetConfig:
 
     def __post_init__(self):
         if self.output_dims is None:
-            self.output_dims = np.array(self.input_dims // self.cell_dims)
+            self.output_dims = np.array(self.input_dims, np.int32) // self.cell_dims
         self.scale = np.array(self.output_dims) / np.array(self.input_dims)
         self.image_res_scale = np.array(self.input_dims) / np.array((480, 640))
         self.cell_dims = np.array(self.input_dims) // np.array(self.output_dims)
