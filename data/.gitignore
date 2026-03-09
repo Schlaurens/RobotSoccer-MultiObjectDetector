@@ -4,7 +4,7 @@
 *.npy
 *.yaml
 /evaluation
-/grundtruth_raw
-/grundtruth_raw
-/grundtruth_raw
 /groundtruth_tfrecords
+/groundtruth_raw
+/groundtruth_raw
+/groundtruth_raw
