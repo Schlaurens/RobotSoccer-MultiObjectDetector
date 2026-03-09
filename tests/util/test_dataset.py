@@ -5,12 +5,12 @@ import tensorflow as tf
 from src.util import dataset as u_dataset
 
 CONFIGS = [
-    (np.array((8, 10)), (256, 320)),
-    (np.array((9, 12)), (288, 384)),
-    (np.array((8, 10)), (256, 320)),
-    (np.array((12, 16)), (384, 512)),
-    (np.array((13, 18)), (416, 576)),
-    (np.array((15, 20)), (480, 640)),
+    (None, (256, 320)),
+    (None, (288, 384)),
+    (None, (256, 320)),
+    (None, (384, 512)),
+    (None, (416, 576)),
+    (None, (480, 640)),
 ]
 
 
