@@ -1,7 +1,10 @@
-/groundtruth
 /prelabeled
 /tfrecords
 /b-human_predictions
 *.npy
 *.yaml
 /evaluation
+/grundtruth_raw
+/grundtruth_raw
+/grundtruth_raw
+/groundtruth_tfrecords

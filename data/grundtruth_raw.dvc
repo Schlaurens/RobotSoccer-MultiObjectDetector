@@ -1,0 +1,6 @@
+outs:
+- md5: fcb0507b8df09e106aab16ec4716cb38.dir
+  size: 1032523359
+  nfiles: 12276
+  hash: md5
+  path: grundtruth_raw
