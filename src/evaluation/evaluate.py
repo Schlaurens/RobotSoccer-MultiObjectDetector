@@ -135,12 +135,12 @@ class EvaluateApplication:
             self.images[f"im_ax_{category}"].set_data(
                 np.reshape(output_logits, self.dataset_utils.config.output_dims)
             )
-
+            iou_threshold = 0.35
             processed_predictions = u_metrics.handle_predictions(
                 output["results"][category],
                 self.thresholds["encoder"][category],
                 self.thresholds["classifier"][category],
-                0.35,
+                iou_threshold,
             )
 
             if category in [
