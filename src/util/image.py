@@ -87,6 +87,33 @@ def convert_yuyv_to_yuv(image):
     return image_yuv
 
 
+def convert_yuv_to_yuyv(image):
+    """Convert an image from YUV to YUYV. Inverse of convert_yuyv_to_yuv. Assumes that the YUV image already was 4:2:2 chroma-subsampled
+    Args:
+        image: image in YUV format. [..., H, W, 3]
+    Returns:
+        image in YUYV format. [..., H, W/2, 4]
+    """
+    # Extract even and odd columns (pairs of horizontally adjacent pixels)
+    # Even pixels contain Y1, U, V — odd pixels contain Y2, U, V
+    even = image[..., 0::2, :]  # [..., H, W/2, 3]
+    odd = image[..., 1::2, :]  # [..., H, W/2, 3]
+
+    # Reconstruct YUYV: [Y1, U, Y2, V]
+    # U and V are taken from the even pixel (chroma from first of the pair)
+    image_yuyv = tf.stack(
+        [
+            even[..., 0],  # Y1
+            even[..., 1],  # U  (shared between the two pixels)
+            odd[..., 0],  # Y2
+            even[..., 2],  # V  (shared between the two pixels)
+        ],
+        axis=-1,
+    )  # [..., H, W/2, 4]
+
+    return image_yuyv
+
+
 def convert_yuyv_to_rgb(image):
     """converts an image in YUYV format to RGB format. The image in the YUYV format has the has the dimensions [H, W/2, 4] due to horizontal chroma subsampling (YUV 422). The converted image with the dimensions [H, W, 3] has more elements but can be illustrated better.
 
