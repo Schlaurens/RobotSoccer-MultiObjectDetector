@@ -107,28 +107,20 @@ class EvaluateApplication:
         self.remove_artists()
 
         image = self.data[self.index]["image"]  # (H_in, W_in / 2, 4)
-        scaled_image_yuv = cv2.resize(
-            u_image.convert_yuyv_to_yuv(image).numpy(),
-            self.dataset_utils.config.input_dims[::-1],
-            cv2.INTER_AREA,
-        )  # (H_in_scaled, W_int_scaled, 3)
-
-        scaled_image_yuyv = u_image.convert_yuv_to_yuyv(
-            scaled_image_yuv
-        )  # (H_in_scaled, W_int_scaled / 2, 4)
-
+    
+        
         output = self.model(
             (
-                scaled_image_yuyv[np.newaxis, ...],
+                image[np.newaxis, ...],
                 self.data[self.index]["camera"][np.newaxis, ...],
                 self.data[self.index]["intrinsics"][np.newaxis, ...],
             ),
             training=False,
         )
-
+        image_rgb = u_image.convert_yuyv_to_rgb(image)
+        
         # Set prediction figures
         for category in self.categories:
-            image_rgb = u_image.convert_yuyv_to_rgb(scaled_image_yuyv)
             self.images[f"im_ax_{category}_patches"] = self.axes[f"ax_{category}_patches"].imshow(
                 image_rgb
             )
