@@ -107,8 +107,7 @@ class EvaluateApplication:
         self.remove_artists()
 
         image = self.data[self.index]["image"]  # (H_in, W_in / 2, 4)
-    
-        
+
         output = self.model(
             (
                 image[np.newaxis, ...],
@@ -118,7 +117,7 @@ class EvaluateApplication:
             training=False,
         )
         image_rgb = u_image.convert_yuyv_to_rgb(image)
-        
+
         # Set prediction figures
         for category in self.categories:
             self.images[f"im_ax_{category}_patches"] = self.axes[f"ax_{category}_patches"].imshow(
@@ -172,7 +171,7 @@ class EvaluateApplication:
             The axes with the prediction. Or a zeros array if no object has been found that exceeds the combined threshold of encoder and classifier confidence.
         """
         if not processed_predictions["valid_samples"]:
-            return axes.imshow(np.zeros((32, 32)))
+            return axes.imshow(np.zeros(self.dataset_utils.config.cell_dims))
 
         best_score_index = processed_predictions["best_candidate_indices"][0]
 
@@ -189,10 +188,10 @@ class EvaluateApplication:
         best_box = output["boxes"][0][best_score_index]
 
         # We only need the width because the patch is a square.
-        best_width = (best_box[3] - best_box[1]) * (640 - 1)
+        best_width = (best_box[3] - best_box[1]) * (self.dataset_utils.config.input_dims[1] - 1)
 
         # Used to scale the box with variable size to the fixed patch size
-        patch_to_box_ratio = 32 / best_width
+        patch_to_box_ratio = self.dataset_utils.config.cell_dims[0] / best_width
 
         box_coords = (
             best_box[1] * (self.data[self.index]["image"].shape[1] * 2 - 1),
@@ -432,9 +431,9 @@ class EvaluateApplication:
         )
 
         # Initialize images
-        stuff = np.zeros((15, 20))
+        stuff = np.zeros(self.dataset_utils.config.output_dims)
         stuff[0][0] = 1
-        stuff_patch = np.zeros((32, 32))
+        stuff_patch = np.zeros(self.dataset_utils.config.cell_dims)
         stuff_patch[0][0] = 1
 
         self.images = {}
