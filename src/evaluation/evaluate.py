@@ -113,7 +113,9 @@ class EvaluateApplication:
             cv2.INTER_AREA,
         )  # (H_in_scaled, W_int_scaled, 3)
 
-        scaled_image_yuyv = u_image.convert_yuv_to_yuyv(scaled_image_yuv) # (H_in_scaled, W_int_scaled / 2, 4)
+        scaled_image_yuyv = u_image.convert_yuv_to_yuyv(
+            scaled_image_yuv
+        )  # (H_in_scaled, W_int_scaled / 2, 4)
 
         output = self.model(
             (
