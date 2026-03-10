@@ -38,8 +38,6 @@ from util import dataset_io as u_dataset_io
 from util import image as u_image
 from util import metrics as u_metrics
 
-dataset_utils = u_dataset.DatasetUtils(u_dataset.DatasetConfig())
-
 
 class EvaluateApplication:
     def __init__(self, model_path, data_path):
@@ -52,6 +50,13 @@ class EvaluateApplication:
 
         config = self.load_config(f"logs/fit/{model_timestamp}/config.yaml")
         input_dims = config["model"]["encoder"]["input_dims"]
+
+        self.dataset_utils = u_dataset.DatasetUtils(
+            u_dataset.DatasetConfig((input_dims[0], input_dims[1] * 2))
+        )
+        self.data = list(
+            u_dataset_io.get_dataset(data_path, self.dataset_utils).as_numpy_iterator()
+        )
         self.model = self.load_model(config, path_to_model, model_name)
         self.categories = config["categories"]
 
@@ -128,7 +133,7 @@ class EvaluateApplication:
 
             output_logits = output["results"][category]["logits"][0].numpy()
             self.images[f"im_ax_{category}"].set_data(
-                np.reshape(output_logits, dataset_utils.config.output_dims)
+                np.reshape(output_logits, self.dataset_utils.config.output_dims)
             )
 
             processed_predictions = u_metrics.handle_predictions(
@@ -178,7 +183,7 @@ class EvaluateApplication:
         best_score_index = processed_predictions["best_candidate_indices"][0]
 
         # Groundtruth coords
-        coords_true = dataset_utils.get_coords_from_offsets(
+        coords_true = self.dataset_utils.get_coords_from_offsets(
             self.data[self.index][object_name]["offset_mask"]
         )[0]
         # Coords predicted by the encoder
@@ -289,7 +294,7 @@ class EvaluateApplication:
             axes.plot(*coords_pred, "rx")
             axes.plot(*position_pred, "bx")
 
-            coords_true = dataset_utils.get_coords_from_offsets(
+            coords_true = self.dataset_utils.get_coords_from_offsets(
                 self.data[self.index][object_name]["offset_mask"]
             )[0]
             for c_true in coords_true:
