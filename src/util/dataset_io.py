@@ -450,11 +450,15 @@ def make_example(
             else [
                 tf.io.serialize_tensor(
                     tf.reshape(
-                        tf.constant(
-                            cv2.resize(
-                                load_image(directory, label, image_format=u_image.ImageFormat.YUYV),
-                                dataset_utils.config.input_dims[::-1],
-                                cv2.INTER_AREA,
+                        u_image.convert_yuv_to_yuyv(
+                            tf.constant(
+                                cv2.resize(
+                                    load_image(
+                                        directory, label, image_format=u_image.ImageFormat.YUV
+                                    ),
+                                    dataset_utils.config.input_dims[::-1],
+                                    cv2.INTER_AREA,
+                                )
                             )
                         ),
                         (
