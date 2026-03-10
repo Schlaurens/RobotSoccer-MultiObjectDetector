@@ -17,6 +17,7 @@ Features:
 import os
 import sys
 
+import cv2
 import yaml
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -50,7 +51,7 @@ class EvaluateApplication:
             model_timestamp = model_name.split(".")[0]
 
         config = self.load_config(f"logs/fit/{model_timestamp}/config.yaml")
-        self.data = list(u_dataset_io.get_dataset(data_path).as_numpy_iterator())
+        input_dims = config["model"]["encoder"]["input_dims"]
         self.model = self.load_model(config, path_to_model, model_name)
         self.categories = config["categories"]
 
@@ -94,22 +95,24 @@ class EvaluateApplication:
         plt.show()
 
     def select_image(self):
-        for category in self.categories:
-            self.images[f"im_ax_{category}_patches"] = self.axes[f"ax_{category}_patches"].imshow(
-                u_image.convert_yuyv_to_rgb(self.data[self.index]["image"])
-            )
-
         self.update_predictions()
         self.fig.canvas.draw()
 
     def update_predictions(self):
         self.remove_artists()
 
-        image = self.data[self.index]["image"]
-        image_rgb = u_image.convert_yuyv_to_rgb(image)
+        image = self.data[self.index]["image"]  # (H_in, W_in / 2, 4)
+        scaled_image_yuv = cv2.resize(
+            u_image.convert_yuyv_to_yuv(image).numpy(),
+            self.dataset_utils.config.input_dims[::-1],
+            cv2.INTER_AREA,
+        )  # (H_in_scaled, W_int_scaled, 3)
+
+        scaled_image_yuyv = u_image.convert_yuv_to_yuyv(scaled_image_yuv) # (H_in_scaled, W_int_scaled / 2, 4)
+
         output = self.model(
             (
-                image[np.newaxis, ...],
+                scaled_image_yuyv[np.newaxis, ...],
                 self.data[self.index]["camera"][np.newaxis, ...],
                 self.data[self.index]["intrinsics"][np.newaxis, ...],
             ),
@@ -118,6 +121,11 @@ class EvaluateApplication:
 
         # Set prediction figures
         for category in self.categories:
+            image_rgb = u_image.convert_yuyv_to_rgb(scaled_image_yuyv)
+            self.images[f"im_ax_{category}_patches"] = self.axes[f"ax_{category}_patches"].imshow(
+                image_rgb
+            )
+
             output_logits = output["results"][category]["logits"][0].numpy()
             self.images[f"im_ax_{category}"].set_data(
                 np.reshape(output_logits, dataset_utils.config.output_dims)
