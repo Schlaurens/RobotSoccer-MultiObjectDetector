@@ -9,9 +9,6 @@ from util import image as u_image
 from util import keypoint as u_keypoint
 from util.layers import IresBlock, Normalization, PatchExtractor, PatchSampler
 
-dataset_config = u_dataset.DatasetConfig()
-dataset_utils = u_dataset.DatasetUtils(dataset_config)
-
 
 class FullModel(tf.keras.Model):
     def __init__(
@@ -59,6 +56,10 @@ class FullModel(tf.keras.Model):
         self.full_image_size = tf.constant(
             [self.image_height, self.image_width * 2], dtype=tf.float32
         )  # constructor input image_width is halved due to YUYV
+
+        self.dataset_config = u_dataset.DatasetConfig((self.image_height, self.image_width * 2))
+        self.dataset_utils = u_dataset.DatasetUtils(self.dataset_config)
+
         self.categories = (
             categories_config
             if categories_config is not None
@@ -163,8 +164,8 @@ class FullModel(tf.keras.Model):
 
         # Reshape is needed for tf.gather to work.
         coord_mask = tf.reshape(
-            dataset_utils.get_coordinate_mask(batch_data["offset_mask"]),
-            (-1, dataset_config.output_dims[0] * dataset_config.output_dims[1], 2),
+            self.dataset_utils.get_coordinate_mask(batch_data["offset_mask"]),
+            (-1, self.dataset_config.output_dims[0] * self.dataset_config.output_dims[1], 2),
         )  # (B, 15 * 20, 2)
 
         # Get the coords of the cells of which patches were extracted.
@@ -202,7 +203,7 @@ class FullModel(tf.keras.Model):
         if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
             y_true = tf.one_hot(
                 tf.cast(
-                    dataset_utils.get_groundtruth_class_of_patches(
+                    self.dataset_utils.get_groundtruth_class_of_patches(
                         results,
                         batch_data,
                         padding=self.categories[object_name]["padding"],
@@ -569,7 +570,7 @@ class FullModel(tf.keras.Model):
         logits = tf.reshape(logits, (-1, tf.reduce_prod(res_out)))
 
         distance_mask = tf.reshape(
-            dataset_utils.get_distance_mask_from_offsets(
+            self.dataset_utils.get_distance_mask_from_offsets(
                 offsets, camera, intrinsics, object_height=object_height
             ),
             (-1, tf.reduce_prod(res_out)),
