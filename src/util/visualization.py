@@ -7,11 +7,9 @@ from util import dataset as u_dataset
 from util import dataset_io as u_dataset_io
 from util import image as u_image
 
-dataset_config = u_dataset.DatasetConfig()
-dataset_utils = u_dataset.DatasetUtils(dataset_config)
-
 
 def show_masks_on_image(
+    dataset_utils: u_dataset.DatasetUtils,
     directory=None,
     label=None,
     image=None,
@@ -36,6 +34,8 @@ def show_masks_on_image(
 
     """
 
+    dataset_config = dataset_utils.config
+
     if coordinates is not None and image is not None:
         masks = dataset_utils.get_masks(coordinates=coordinates)
     elif directory is not None and label is not None:
@@ -51,7 +51,9 @@ def show_masks_on_image(
     cell_dims = dataset_config.cell_dims
     _, ax = plt.subplots()
     ax.imshow(image)
-    ax.set_title(f"grid_dims={dataset_config.output_dims}, cell_size={cell_dims}, mask={mask_name}")
+    ax.set_title(
+        f"image_res={dataset_config.input_dims}, grid_dims={dataset_config.output_dims}, cell_size={cell_dims}, mask={mask_name}"
+    )
 
     # Draw cell grid with the given grid dimensions
     for i in range(image.shape[1])[:: cell_dims[1]]:
@@ -64,11 +66,11 @@ def show_masks_on_image(
         return
 
     if mask_name == "object":
-        ax = _add_object_mask_axes(masks, ax)
+        ax = _add_object_mask_axes(dataset_utils, masks, ax)
     elif mask_name == "loss":
-        ax = _add_loss_mask_axes(masks, ax)
+        ax = _add_loss_mask_axes(dataset_config, masks, ax)
     elif mask_name == "classification":
-        ax = _add_classification_mask_axes(masks, ax)
+        ax = _add_classification_mask_axes(dataset_config, masks, ax)
     else:
         print("Error: Unknown Mask requested.")
         return
@@ -76,7 +78,9 @@ def show_masks_on_image(
     plt.show()
 
 
-def _add_object_mask_axes(masks, ax):
+def _add_object_mask_axes(dataset_utils, masks, ax):
+    dataset_config = dataset_utils.config
+
     coords = dataset_utils.get_coords_from_offsets(masks["offsets"]).numpy()
     for c in coords[0]:
         if -1.0 not in c:
@@ -129,7 +133,7 @@ def _add_object_mask_axes(masks, ax):
     return ax
 
 
-def _add_loss_mask_axes(masks, ax):
+def _add_loss_mask_axes(dataset_config, masks, ax):
     loss_mask = np.array(masks["loss_mask"])
 
     scaled_loss_mask_indices_pos = np.dstack(np.where(loss_mask == True))[0] * np.array(
@@ -170,7 +174,7 @@ def _add_loss_mask_axes(masks, ax):
     return ax
 
 
-def _add_classification_mask_axes(masks, ax):
+def _add_classification_mask_axes(dataset_config, masks, ax):
     class_mask = masks["classification_mask"]
 
     scaled_indices_no_intersections = np.dstack(
