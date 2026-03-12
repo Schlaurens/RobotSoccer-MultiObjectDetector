@@ -128,15 +128,28 @@ class TestFilterCoordinates:
         result = self.dataset_utils.filter_coordinates(coordinates)
         assert tf.reduce_all(result == expected)
 
-    def test_close_floating_valuesdd(self):
-        # floats that are very close to each other
-        coordinates = tf.constant(
-            [[10, 10], [33, 33], [32, 34], [300, 324], [310, 321]], tf.float32
+    def test_close_floating_values_v2(self):
+        cell_h, cell_w = self.cell_dims
+
+        # Lone coordinate in cell (0, 0)
+        lone = tf.constant([cell_h // 3, cell_w // 3], tf.float32)
+
+        # Two coordinates in cell (1, 1) — coord_b has smaller y, so it's retained
+        cell1_coord_a = tf.constant([float(cell_h + 1), float(cell_w + 1)], tf.float32)
+        cell1_coord_b = tf.constant([float(cell_h), float(cell_w + 2)], tf.float32)
+
+        # Two coordinates in cell (9, 10) — coord_a has smaller y, so it's retained
+        cell9_coord_a = tf.constant(
+            [float(9 * cell_h + cell_h // 3), float(10 * cell_w + cell_w // 8)], tf.float32
         )
-        expected = tf.constant([[10, 10], [32, 34], [300, 324]], tf.float32)
+        cell9_coord_b = tf.constant(
+            [float(9 * cell_h + 2 * (cell_h // 3)), float(10 * cell_w + cell_w // 32)], tf.float32
+        )
+
+        coordinates = tf.stack([lone, cell1_coord_a, cell1_coord_b, cell9_coord_a, cell9_coord_b])
+        expected = tf.stack([lone, cell1_coord_b, cell9_coord_a])
 
         result = self.dataset_utils.filter_coordinates(coordinates)
-        tf.print(result)
         assert tf.reduce_all(result == expected)
 
 
@@ -157,22 +170,33 @@ class TestCoordsInSameCell:
         assert self.dataset_utils.are_coords_in_same_cell(coords_zero, coords_zero) == True
 
     def test_same_cell(self):
-        coords_a = tf.constant([32, 32], tf.float32)
-        coords_b = tf.constant([35, 35], tf.float32)
+        cell_h, cell_w = self.cell_dims
+        # Both coords placed inside cell (1, 1) by anchoring to its origin
+        cell_origin = tf.constant([cell_h * 1, cell_w * 1], tf.float32)
+        coords_a = cell_origin
+        coords_b = cell_origin + tf.constant([3, 3], tf.float32)
         assert self.dataset_utils.are_coords_in_same_cell(coords_a, coords_b) == True
 
     def test_same_cell_close_to_edge(self):
-        coords_a = tf.constant([300, 324], tf.float32)
-        coords_b = tf.constant([310, 321], tf.float32)
+        cell_h, cell_w = self.cell_dims
+
+        # Both coords near the far edge of cell (9, 10)
+        cell_origin = np.array([cell_h * 9, cell_w * 10], dtype=np.float32)
+        coords_a = tf.constant(cell_origin + [cell_h - 4, cell_w - 2], tf.float32)
+        coords_b = tf.constant(cell_origin + [cell_h - 1, cell_w - 3], tf.float32)
         assert self.dataset_utils.are_coords_in_same_cell(coords_a, coords_b) == True
 
-        coords_c = tf.constant([33, 33], tf.float32)
-        coords_d = tf.constant([32, 34], tf.float32)
+        # Both coords near the start edge of cell (1, 1)
+        cell_origin = np.array([cell_h * 1, cell_w * 1], dtype=np.float32)
+        coords_c = tf.constant(cell_origin + [1, 1], tf.float32)
+        coords_d = tf.constant(cell_origin + [0, 2], tf.float32)
         assert self.dataset_utils.are_coords_in_same_cell(coords_c, coords_d) == True
 
     def test_different_cell(self):
-        coords_a = tf.constant([100, 35], tf.float32)
-        coords_b = tf.constant([32, 35], tf.float32)
+        cell_h, cell_w = self.cell_dims
+        # coords_a is in cell (3, 1), coords_b is in cell (1, 1) — different rows
+        coords_a = tf.constant([cell_h * 3 + 4, cell_w * 1 + 3], tf.float32)
+        coords_b = tf.constant([cell_h * 1 + 0, cell_w * 1 + 3], tf.float32)
         assert self.dataset_utils.are_coords_in_same_cell(coords_a, coords_b) == False
 
 
@@ -205,12 +229,16 @@ class TestGetCoordsFromOffset:
         coordinates = tf.constant(
             [[34.0534, 67.432], [24.7644, 67.954], [340.0534, 500.652]], tf.float32
         )
+        # Filter coord to account for differing cell_dims. Because they could be in the same cell.
+        coordinates_filtered = self.dataset_utils.filter_coordinates(coordinates)
+
         offset_mask = self.dataset_utils._generate_offset_mask(coordinates)
 
         result = self.dataset_utils.get_coords_from_offsets(offset_mask)
         assert tf.reduce_all(
             tf.keras.ops.isclose(
-                tf.sort(result, axis=1), tf.sort(tf.expand_dims(coordinates, axis=0), axis=1)
+                tf.sort(result, axis=1),
+                tf.sort(tf.expand_dims(coordinates_filtered, axis=0), axis=1),
             )
         )
 
@@ -218,12 +246,16 @@ class TestGetCoordsFromOffset:
         coordinates = tf.constant(
             [[-1, -1], [34.0534, 67.432], [24.7644, 67.954], [340.0534, 500.652]], tf.float32
         )
+        # Filter coord to account for differing cell_dims. Because they could be in the same cell.
+        coordinates_filtered = self.dataset_utils.filter_coordinates(coordinates)
+
         offset_mask = self.dataset_utils._generate_offset_mask(coordinates)
 
         result = self.dataset_utils.get_coords_from_offsets(offset_mask)
         assert tf.reduce_all(
             tf.keras.ops.isclose(
-                tf.sort(result, axis=1), tf.sort(tf.expand_dims(coordinates, axis=0), axis=1)
+                tf.sort(result, axis=1),
+                tf.sort(tf.expand_dims(coordinates_filtered, axis=0), axis=1),
             )
         )
 
@@ -276,6 +308,9 @@ class TestGetCoordsFromOffset:
         coordinates = tf.constant(
             [[34.0534, 67.432], [24.7644, 67.954], [340.0534, 500.652]], tf.float32
         )
+        # Filter coord to account for differing cell_dims. Because they could be in the same cell.
+        coordinates_filtered = self.dataset_utils.filter_coordinates(coordinates)
+
         offset_mask = tf.expand_dims(
             self.dataset_utils._generate_offset_mask(coordinates), axis=0
         )  # (H, W, 2)
@@ -289,9 +324,14 @@ class TestGetCoordsFromOffset:
         )  # (2, H, W, 2)
 
         result = self.dataset_utils.get_coords_from_offsets(input_mask)  # (B, N, 2)
-
+        tf.print(coordinates_filtered)
         expected = tf.stack(
-            [coordinates, [[-1.0, -1.0], [-1.0, -1.0], [-1.0, -1.0]], coordinates], axis=0
+            [
+                coordinates_filtered,
+                tf.fill(tf.shape(coordinates_filtered), [-1.0]),
+                coordinates_filtered,
+            ],
+            axis=0,
         )  # (B, N, 2)
 
         assert tf.reduce_all(
@@ -330,11 +370,18 @@ class TestObjectMask:
         assert tf.reduce_all(mask_values == 1)
 
     def test_same_cell(self):
-        coordinates = tf.constant([[0.5, 0.5], [24, 27.005]], tf.float32)
+        cell_h = float(self.dataset_config.cell_dims[0])
+        cell_w = float(self.dataset_config.cell_dims[1])
+
+        # Two coordinates in the same cell (0, 0) — near opposite corners
+        coord_a = tf.constant([0.5, 0.5], tf.float32)
+        coord_b = tf.constant([cell_h - cell_h / 4, cell_w - cell_w / 4], tf.float32)
+
+        coordinates = tf.stack([coord_a, coord_b])
+
         object_mask = tf.cast(
             self.dataset_utils.get_masks(coordinates=coordinates)["object_mask"], tf.int32
         )
-
         mask_indices = tf.cast(coordinates // self.dataset_config.cell_dims, tf.int32)[
             ..., ::-1
         ]  # (N, 2)
@@ -390,73 +437,112 @@ class TestGetCellOfCoordinates:
         self.dataset_utils = u_dataset.DatasetUtils(self.dataset_config)
 
     def test_basic_case(self):
-        coords_a = tf.constant([15, 15], tf.float32)
-        coords_b = tf.constant([50, 70], tf.float32)
+        ch, cw = self.cell_dims  # cell height, cell width
 
+        # coords_a: middle of cell (0, 0)
+        coords_a = tf.constant([ch / 2, cw / 2], tf.float32)
         expected_a = tf.constant([0, 0], tf.int32)
+
+        # coords_b: middle of cell (1, 2): one cell down, two cells right
+        coords_b = tf.constant([ch + ch / 2, 2 * cw + cw / 2], tf.float32)
         expected_b = tf.constant([1, 2], tf.int32)
 
         result_a = self.dataset_utils.get_cell_of_coordinate(coords_a)
         result_b = self.dataset_utils.get_cell_of_coordinate(coords_b)
-
         assert tf.reduce_all(expected_a == result_a)
         assert tf.reduce_all(expected_b == result_b)
 
     def test_small_coords(self):
         coords = tf.constant([[1, 1], [0.5, 0.5], [-1, -1]], tf.float32)
-
         expected = tf.constant([[0, 0], [0, 0], [-1, -1]], tf.int32)
-
         results = self.dataset_utils.get_cell_of_coordinate(coords, clip=False)
         assert tf.reduce_all(expected == results)
 
     def test_batched_coords(self):
-        coords = tf.constant([[[15, 15], [50, 70]], [[80, 15], [50, 300]]], tf.float32)  # (B, N, 2)
-        expected = tf.constant([[[0, 0], [1, 2]], [[2, 0], [1, 9]]], tf.int32)
+        ch, cw = float(self.cell_dims[0]), float(self.cell_dims[1])
 
+        # (B, N, 2) batch: cells (0,0), (1,2), (2,0), (1,9)
+        coords = tf.constant(
+            [
+                [[ch / 2, cw / 2], [ch + ch / 2, 2 * cw + cw / 2]],
+                [[2 * ch + 1, cw / 2], [ch + ch / 2, 9 * cw + cw / 2]],
+            ],
+            tf.float32,
+        )
+        expected = tf.constant(
+            [
+                [[0, 0], [1, 2]],
+                [[2, 0], [1, 9]],
+            ],
+            tf.int32,
+        )
         results = self.dataset_utils.get_cell_of_coordinate(coords)
         assert tf.reduce_all(expected == results)
 
     def test_negative_coords(self):
-        coords = tf.constant([[-10, -50]], tf.float32)
+        ch, cw = float(self.cell_dims[0]), float(self.cell_dims[1])
 
+        # -1 cell in y  -> floordiv(-ch/2, ch) = -1
+        # -2 cells in x -> floordiv(-ch/2 - cw, cw) = -2  (one full cell + a bit over)
+        coords = tf.constant([[-ch / 2, -cw - cw / 2]], tf.float32)
         expected = tf.constant([[-1, -2]], tf.int32)
-
         results = self.dataset_utils.get_cell_of_coordinate(coords)
         assert tf.reduce_all(expected == results)
 
     def test_coords_at_cell_edge(self):
-        coords = tf.constant([[31, 31], [31, 32]], tf.float32)
+        ch, cw = float(self.cell_dims[0]), float(self.cell_dims[1])
 
+        # Just inside cell (0,0) vs. exactly on the boundary -> steps into cell (0,1)
+        coords = tf.constant(
+            [
+                [ch - 1, cw - 1],  # still in (0, 0)
+                [ch - 1, cw],  # crosses into (0, 1)
+            ],
+            tf.float32,
+        )
         expected = tf.constant([[0, 0], [0, 1]], tf.int32)
-
         results = self.dataset_utils.get_cell_of_coordinate(coords)
         assert tf.reduce_all(expected == results)
 
     def test_coords_at_grid_edge(self):
-        coords = tf.constant([[31, self.dataset_config.input_dims[1] - 1]], tf.float32)
+        ch = float(self.cell_dims[0])
 
+        coords = tf.constant([[ch - 1, self.dataset_config.input_dims[1] - 1]], tf.float32)
         expected = tf.constant([[0, self.dataset_config.output_dims[1] - 1]], tf.int32)
-
         results = self.dataset_utils.get_cell_of_coordinate(coords)
         assert tf.reduce_all(expected == results)
 
     def test_coords_at_grid_edge_with_clip(self):
-        coords = tf.constant([[31, self.dataset_config.input_dims[1] - 1]], tf.float32)
-        expected = tf.constant([[0, self.dataset_config.output_dims[0] - 1]], tf.int32)
+        ch = float(self.cell_dims[1])
 
+        coords = tf.constant([[ch - 1, self.dataset_config.input_dims[0] - 1]], tf.float32)
+        expected = tf.constant([[0, self.dataset_config.output_dims[0] - 1]], tf.int32)
         results = self.dataset_utils.get_cell_of_coordinate(coords, clip=True)
+
         assert tf.reduce_all(expected == results)
 
     def test_negative_coords_with_clip(self):
-        coords = tf.constant([[-1, 40], [3, -50], [-1, -1]], tf.float32)
+        cw = float(self.cell_dims[1])
 
+        # [-1, 40] -> raw (-1, 40//cw), clipped to (0, 40//cw)
+        # [3, -50] -> raw (0, -2), clipped to (0, 0)
+        # [-1, -1] -> raw (-1, -1), clipped to (0, 0)
+        coords = tf.constant(
+            [
+                [-1, cw + cw / 2],  # lands in column 1 after clip
+                [3, -50],
+                [-1, -1],
+            ],
+            tf.float32,
+        )
         expected = tf.constant([[0, 1], [0, 0], [0, 0]], tf.int32)
-
         results = self.dataset_utils.get_cell_of_coordinate(coords, clip=True)
+
         assert tf.reduce_all(expected == results)
 
     def test_too_large_coords_with_clip(self):
+        cw = float(self.cell_dims[1])
+
         coords = tf.constant(
             [
                 [self.dataset_config.input_dims[1], 40],
@@ -465,15 +551,16 @@ class TestGetCellOfCoordinates:
             ],
             tf.float32,
         )
-        tf.print(coords)
+        # the function returns the indices in x,y not y,x
         expected = tf.constant(
             [
-                [self.dataset_config.output_dims[1] - 1, 1],
+                [self.dataset_config.output_dims[1] - 1, int(40 // cw)],
                 [0, self.dataset_config.output_dims[0] - 1],
                 self.dataset_config.output_dims[::-1] - 1,
             ],
             tf.int32,
         )
+
         results = self.dataset_utils.get_cell_of_coordinate(coords, clip=True)
         assert tf.reduce_all(expected == results)
 
@@ -589,24 +676,44 @@ class TestGetDistanceMaskFromOffsets:
         coords = tf.constant([[225, 400], [400, 300], [1, 4]], tf.float32)
         offset_mask_batched = tf.expand_dims(
             self.dataset_utils._generate_offset_mask(coords), axis=0
-        )
+        )  # (B, W_out, H_out, 2)
 
         number_of_valid_coords = 2
 
-        distance_mask = self.dataset_utils.get_distance_mask_from_offsets(
-            offset_mask_batched, self.camera[0:1, :], self.camera_intr[0:1, :], object_height=0.0
-        )
+        # Round the tensor to a tolerance to reduce values that are very close to each other.
+        # These values a rounding errors and should be the same
+        tolerance = 1e-4
 
-        y, _ = tf.unique(tf.reshape(distance_mask, [-1]))
+        distance_mask = (
+            tf.round(
+                self.dataset_utils.get_distance_mask_from_offsets(
+                    offset_mask_batched,
+                    self.camera[0:1, :],
+                    self.camera_intr[0:1, :],
+                    object_height=0.0,
+                )
+                / tolerance
+            )
+            * tolerance
+        )  # (B, W_out, H_out)
 
         _, _, unique_count_distances = tf.unique_with_counts(tf.reshape(distance_mask, [-1]))
-        _, _, unique_count_coordinates = tf.unique_with_counts(
-            tf.reshape(self.dataset_utils.get_coordinate_mask(offset_mask_batched)[..., 0], [-1])
+
+        coords, _, unique_count_coordinates = tf.unique_with_counts(
+            tf.round(
+                tf.reshape(
+                    self.dataset_utils.get_coordinate_mask(offset_mask_batched)[..., 0], [-1]
+                )
+                / tolerance
+            )
+            * tolerance
         )
-
+        y, _ = tf.unique(tf.reshape(distance_mask, [-1]))
         tf.print(y)
-        tf.print(number_of_valid_coords)
-
+        # tf.print(number_of_valid_coords)
+        tf.print(unique_count_distances)
+        tf.print(unique_count_coordinates)
+        tf.print(coords)
         # Are distribution of distances and coordinates the same?
         assert tf.reduce_all(unique_count_distances == unique_count_coordinates)
         assert len(y) == number_of_valid_coords + 1
@@ -632,8 +739,11 @@ class TestGetDistanceMaskFromOffsets:
             offset_mask_batch, self.camera, self.camera_intr, object_height=0.0
         )
 
+        # Round the tensor to a tolerance to reduce values that are very close to each other.
+        # These values a rounding errors and should be the same
+        tolerance = 1e-4
         y0, _ = tf.unique(tf.reshape(distance_mask[0], [-1]))
-        y1, _ = tf.unique(tf.reshape(distance_mask[1], [-1]))
+        y1, _ = tf.unique(tf.round(tf.reshape(distance_mask[1], [-1]) / tolerance) * tolerance)
 
         # First distance mask should be -1.0
         assert tf.reduce_all(distance_mask[0] == -1.0)
@@ -665,16 +775,13 @@ class TestGetCoordinateMask:
 
     def test_single_coordinate_pair(self):
         coord_pair = tf.constant([[400, 300]], tf.float32)  # (1, 2)
+
         offset_mask = tf.expand_dims(self.dataset_utils._generate_offset_mask(coord_pair), axis=0)
 
         expected = tf.tile(
             coord_pair[:, tf.newaxis, tf.newaxis, :],  # (1, 1, 1, 2)
             [1, *self.dataset_config.output_dims, 1],
         )  # (1, 15, 20, 2)
-
-        tf.print("offset_mask: ", tf.shape(offset_mask))
-        tf.print("expected: ", tf.shape(expected))
-
         result = self.dataset_utils.get_coordinate_mask(offset_mask)
 
-        assert tf.reduce_all(result == expected)
+        assert tf.reduce_all(tf.keras.ops.isclose(result, expected))
