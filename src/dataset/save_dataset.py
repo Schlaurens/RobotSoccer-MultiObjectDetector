@@ -42,7 +42,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--image_res", type=int, nargs=2, help="Image resolution as height and width. e. g. 480 640"
     )
+    parser.add_argument(
+        "--cell_dims",
+        type=int,
+        nargs=2,
+        required=False,
+        help="The dimensions of a cell in the cellgrid as height and width. e. g. 32 32",
+    )
     args = parser.parse_args()
 
-    write_file(Path(args.src_dir), Path(args.dest_dir), args.image_res)
+    write_file(Path(args.src_dir), Path(args.dest_dir), args.image_res, args.cell_dims)
     print("Done!")
