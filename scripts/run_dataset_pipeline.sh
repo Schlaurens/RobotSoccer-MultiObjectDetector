@@ -46,14 +46,19 @@ SAVE_DIR_EVALUATION="${DATASET_PATH}evaluation/"
 # Prediction source
 BHUMAN_PREDICTION_SOURCE="${DATASET_PATH}b-human_predictions/"
 
-# IMAGE_RESOLUTION="256 320" 
+IMAGE_RESOLUTION="240 320"
+CELL_DIMENSIONS="16 16" 
 # IMAGE_RESOLUTION="288 384"
-# IMAGE_RESOLUTION="320 448"
-# IMAGE_RESOLUTION="384 512" 
-IMAGE_RESOLUTION="416 576"
-# IMAGE_RESOLUTION="480 640" 
+# CELL_DIMENSIONS="16 16" 
+# IMAGE_RESOLUTION="360 480"
+# CELL_DIMENSIONS="24 24" 
+# IMAGE_RESOLUTION="432 576" 
+# CELL_DIMENSIONS="24 24" 
+# IMAGE_RESOLUTION="480 640"
+# CELL_DIMENSIONS="32 32" 
 
-read HEIGHT WIDTH <<< "$IMAGE_RESOLUTION"
+read IM_HEIGHT IM_WIDTH <<< "$IMAGE_RESOLUTION"
+read CELL_HEIGHT CELL_WIDTH <<< "$CELL_DIMENSIONS"
 
 # Split ration
 VAL_SPLIT=0.2
@@ -73,7 +78,7 @@ PRINT_OUTPUT=true
 # Step 1: Save all datasets into .tfrecords files
 echo "Saving all datasets..."
 if [ -f "$SAVE_DATASETS_SH" ]; then
-    "$SAVE_DATASETS_SH" "$GROUNDTRUTH_SOURCE" "$SPLIT_GROUNDTRUTH_DESTINATION" "$HEIGHT" "$WIDTH"
+    "$SAVE_DATASETS_SH" "$GROUNDTRUTH_SOURCE" "$SPLIT_GROUNDTRUTH_DESTINATION" "$IM_HEIGHT" "$IM_WIDTH" "$CELL_HEIGHT" "$CELL_WIDTH"
 else
     echo "Error: $SAVE_DATASETS_SH not found. Please check the path."
     exit 1
@@ -82,31 +87,32 @@ fi
 # Step 2: Split the dataset
 echo "Splitting dataset..."
 uv run src/dataset/split_dataset.py \
-    --src_dir "${SPLIT_GROUNDTRUTH_DESTINATION}/${WIDTH}x${HEIGHT}/" \
+    --src_dir "${SPLIT_GROUNDTRUTH_DESTINATION}/${IM_WIDTH}x${IM_HEIGHT}/" \
     --save_dir "$SAVE_DIR_TFRECORDS" \
     --val_split "$VAL_SPLIT" \
     --test_split "$TEST_SPLIT" \
-    --image_res "$HEIGHT" "$WIDTH" \
+    --image_res "$IM_HEIGHT" "$IM_WIDTH" \
+    --cell_dims "$CELL_HEIGHT" "$CELL_WIDTH" \
 
 # Step 3: Generate JSON files from selection
-echo "Generating JSON files from selection..."
-uv run src/dataset/from_selection.py \
-    --test_dataset "${SAVE_DIR_TFRECORDS}${WIDTH}x${HEIGHT}/${TEST_DATASET}" \
-    --groundtruth_source "$GROUNDTRUTH_SOURCE" \
-    --prediction_source "$BHUMAN_PREDICTION_SOURCE" \
-    --destination "$SAVE_DIR_EVALUATION" \
-    --image_res "$HEIGHT" "$WIDTH" \
+# echo "Generating JSON files from selection..."
+# uv run src/dataset/from_selection.py \
+#     --test_dataset "${SAVE_DIR_TFRECORDS}${IM_WIDTH}x${IM_HEIGHT}/${TEST_DATASET}" \
+#     --groundtruth_source "$GROUNDTRUTH_SOURCE" \
+#     --prediction_source "$BHUMAN_PREDICTION_SOURCE" \
+#     --destination "$SAVE_DIR_EVALUATION" \
+#     --image_res "$IM_HEIGHT" "$IM_WIDTH" \
 
-# Step 4: Compute statistics
-echo "Computing statistics..."
-if [ "$CALCULATE_DISTANCES" = true ]; then
-    CALCULATE_DISTANCES_FLAG="--calculate_distances"
-fi
-if [ "$PRINT_OUTPUT" = true ]; then
-    PRINT_OUTPUT_FLAG="--print_output"
-fi
+# # Step 4: Compute statistics
+# echo "Computing statistics..."
+# if [ "$CALCULATE_DISTANCES" = true ]; then
+#     CALCULATE_DISTANCES_FLAG="--calculate_distances"
+# fi
+# if [ "$PRINT_OUTPUT" = true ]; then
+#     PRINT_OUTPUT_FLAG="--print_output"
+# fi
 
-uv run src/dataset/statistics.py \
-    "$GROUNDTRUTH_SOURCE" \
-    $CALCULATE_DISTANCES_FLAG \
-    $PRINT_OUTPUT_FLAG
+# uv run src/dataset/statistics.py \
+#     "$GROUNDTRUTH_SOURCE" \
+#     $CALCULATE_DISTANCES_FLAG \
+#     $PRINT_OUTPUT_FLAG

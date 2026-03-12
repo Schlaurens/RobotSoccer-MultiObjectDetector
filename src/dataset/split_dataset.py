@@ -62,11 +62,14 @@ def write_file(
     src_dir: Path,
     save_dir: Path,
     image_res: list[int, int],
+    cell_dims: list[int, int] = None,
     val_split: float = 0.2,
     test_split: float = 0.15,
 ):
     resolution = f"{image_res[1]}x{image_res[0]}"
-    dataset_utils = u_dataset.DatasetUtils(u_dataset.DatasetConfig(input_dims=image_res))
+    dataset_utils = u_dataset.DatasetUtils(
+        u_dataset.DatasetConfig(input_dims=image_res, cell_dims=cell_dims)
+    )
 
     # Load the dataset
     data = load_data(src_dir, dataset_utils, val_split, test_split)
@@ -118,10 +121,22 @@ if __name__ == "__main__":
         required=True,
         help="Image resolution as height and width. e. g. 480 640",
     )
+    parser.add_argument(
+        "--cell_dims",
+        type=int,
+        nargs=2,
+        required=False,
+        help="The dimensions of a cell in the cellgrid as height and width. e. g. 32 32",
+    )
 
     args = parser.parse_args()
 
     write_file(
-        Path(args.src_dir), Path(args.save_dir), args.image_res, args.val_split, args.test_split
+        Path(args.src_dir),
+        Path(args.save_dir),
+        args.image_res,
+        args.cell_dims,
+        args.val_split,
+        args.test_split,
     )
     print("Done!")
