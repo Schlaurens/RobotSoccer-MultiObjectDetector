@@ -2,6 +2,7 @@ model:
   encoder:
     architecture: "inverted_residual_single_category_16x16"
     input_dims: [240, 320]
+    cell_dims: [16, 16]
     n_context: 64
     only_train_encoder: False
     use_batch_norm: False
