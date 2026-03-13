@@ -36,7 +36,7 @@ class LabelApplication:
         self.label_mode = LabelMode.BALL
         self.augmentation = False
 
-        self.fig = plt.figure(figsize=(12, 8))
+        self.fig = plt.figure(figsize=(12, 8), num="Label Tool")
         self.gs = gridspec.GridSpec(10, 4, figure=self.fig)
 
         self.ax_img = self.fig.add_subplot(self.gs[0:8, :])
