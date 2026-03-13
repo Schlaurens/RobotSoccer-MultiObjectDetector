@@ -178,13 +178,19 @@ class DatasetUtils:
             filtered_coords = self.filter_coordinates(coordinate_list)
             classification_mask = tf.Variable(tf.zeros(self.config.output_dims))
             for c in filtered_coords:
-                if tf.reduce_any(c == l_coords * self.config.image_res_scale[::-1]):
+                if tf.reduce_any(
+                    tf.reduce_all(c == l_coords * self.config.image_res_scale[::-1], axis=-1)
+                ):
                     indices = self.get_cell_of_coordinate(c)
                     classification_mask[indices[1], indices[0]].assign(IntersectionType.L.value)
-                elif tf.reduce_any(c == t_coords * self.config.image_res_scale[::-1]):
+                elif tf.reduce_any(
+                    tf.reduce_all(c == t_coords * self.config.image_res_scale[::-1], axis=-1)
+                ):
                     indices = self.get_cell_of_coordinate(c)
                     classification_mask[indices[1], indices[0]].assign(IntersectionType.T.value)
-                elif tf.reduce_any(c == x_coords * self.config.image_res_scale[::-1]):
+                elif tf.reduce_any(
+                    tf.reduce_all(c == x_coords * self.config.image_res_scale[::-1], axis=-1)
+                ):
                     indices = self.get_cell_of_coordinate(c)
                     classification_mask[indices[1], indices[0]].assign(IntersectionType.X.value)
         else:
