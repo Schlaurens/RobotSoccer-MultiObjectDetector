@@ -422,8 +422,13 @@ def calculate_multiclass_metrics(
     )
 
     # Calculate precision and recall for every class.
-    precisions = tf.math.divide_no_nan(
-        tf.linalg.diag_part(confusion_matrix), tf.reduce_sum(confusion_matrix, axis=0)
+    precisions = tf.where(
+        tf.reduce_sum(confusion_matrix, axis=0) == 0,
+        tf.ones_like(
+            tf.linalg.diag_part(confusion_matrix), dtype=tf.float32
+        ),  # 1.0 when no predictions made
+        tf.cast(tf.linalg.diag_part(confusion_matrix), tf.float32)
+        / tf.cast(tf.reduce_sum(confusion_matrix, axis=0), tf.float32),
     )  # (num_classes, )
     recalls = tf.math.divide_no_nan(
         tf.linalg.diag_part(confusion_matrix), tf.reduce_sum(confusion_matrix, axis=1)
@@ -447,13 +452,19 @@ def calculate_multiclass_metrics(
     )
 
     # Precision = TP / TP + FP
-    pooled_precision = pooled_confusion_matrix[0][0] / (
-        pooled_confusion_matrix[0][0] + pooled_confusion_matrix[1][0]
-    ) if pooled_confusion_matrix[0][0] + pooled_confusion_matrix[1][0] > 0 else 0.0
+    pooled_precision = (
+        pooled_confusion_matrix[0][0]
+        / (pooled_confusion_matrix[0][0] + pooled_confusion_matrix[1][0])
+        if pooled_confusion_matrix[0][0] + pooled_confusion_matrix[1][0] > 0
+        else 1.0
+    )
     # Recall = TP / TP + FN
-    pooled_recall = pooled_confusion_matrix[0][0] / (
-        pooled_confusion_matrix[0][0] + pooled_confusion_matrix[0][1]
-    ) if pooled_confusion_matrix[0][0] + pooled_confusion_matrix[0][1] > 0 else 0.0
+    pooled_recall = (
+        pooled_confusion_matrix[0][0]
+        / (pooled_confusion_matrix[0][0] + pooled_confusion_matrix[0][1])
+        if pooled_confusion_matrix[0][0] + pooled_confusion_matrix[0][1] > 0
+        else 0.0
+    )
 
     return {
         "confusion_matrix": confusion_matrix.numpy(),
