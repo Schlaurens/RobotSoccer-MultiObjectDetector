@@ -324,10 +324,23 @@ def calculate_multiclass_metrics(
     Returns:
         dict containing per-class confusion matrices, precision, recall, and error indices or the pooled metrics.
     """
-    predicted_probabilities = predictions["classification"]  # (B, N, num_classes)
 
+    predicted_probabilities = predictions["classification"]  # (B, N, num_classes)
     num_classes = tf.shape(predicted_probabilities)[-1]
     num_candidates = tf.shape(predicted_probabilities)[1]
+
+    processed_predictions = handle_predictions_multiclass(
+        predictions, encoder_threshold, classifier_threshold, iou_threshold
+    )
+    # y_true labels of extracted patches
+    y_true_labels = tf.cast(
+        dataset_utils.get_groundtruth_class_of_patches(
+            predictions, groundtruth, padding=0.2, batch_dims=1
+        ),
+        tf.int32,
+    )  # (B, N)
+    y_pred_labels = processed_predictions["classes_of_candidates"]  # (B, N)
+    tf.assert_equal(tf.shape(y_true_labels), tf.shape(y_pred_labels))
 
     # True for every sample that should be used. False else.
     use_sample = tf.reduce_any(tf.cast(groundtruth["loss_mask"], tf.bool), axis=[1, 2])  # (B, )
@@ -338,20 +351,10 @@ def calculate_multiclass_metrics(
     coord_mask = tf.reshape(
         dataset_utils.get_coordinate_mask(groundtruth["offset_mask"]),
         (-1, tf.reduce_prod(dataset_utils.config.output_dims), 2),
-    )  # (B, 15 * 20, 2)
+    )  # (B, H_out * W_out, 2)
+
+    # Groundtruth coords of objects in predicted patches
     coords_true = tf.gather(coord_mask, predictions["patch_indices"], batch_dims=1)  # (B, N, 2)
-
-    processed_predictions = handle_predictions_multiclass(
-        predictions, encoder_threshold, classifier_threshold, iou_threshold
-    )
-
-    y_true_labels = tf.cast(
-        dataset_utils.get_groundtruth_class_of_patches(
-            predictions, groundtruth, padding=0.2, batch_dims=1
-        ),
-        tf.int32,
-    )  # (B, N)
-    y_pred_labels = processed_predictions["classes_of_candidates"]  # (B, N)
 
     # ==== Handle Non-Maximum-Suppression ====
     if iou_threshold is not None:
@@ -372,51 +375,74 @@ def calculate_multiclass_metrics(
             ),
             [-1],
         )  # (B * N)
-        coords_true_out = tf.reshape(
-            tf.gather(coords_true, processed_predictions["nms_selected_indices"], batch_dims=1),
-            (-1, 2),
-        )  # (B * N, 2)
 
     else:
         # No NMS — use all candidates, sequence mask is all True
         nms_sequence_mask = tf.ones(tf.shape(use_sample_tiled), dtype=tf.bool)  # (B * N)
         y_true_out = tf.reshape(y_true_labels, [-1])  # (B * N)
         y_pred_out = tf.reshape(y_pred_labels, [-1])  # (B * N)
-        coords_true_out = tf.reshape(coords_true, (-1, 2))  # (B * N, 2)
 
-    tf.assert_equal(tf.shape(y_true_labels), tf.shape(y_pred_labels))
-
-    # ==== Handle Distance Filtering ====
-    camera_tiled = tf.tile(camera[:, None, :], [1, num_candidates, 1])
-    intrinsics_tiled = tf.tile(intrinsics[:, None, :], [1, num_candidates, 1])
-
-    # valid_coords_true = ~tf.reduce_all(coords_true_suppressed == -1.0, axis=-1)  # (B, )
-    coords_true_distances = tf.linalg.norm(
-        u_camera.image_to_world(
-            tf.reshape(camera_tiled, (-1, 3)),
-            tf.reshape(intrinsics_tiled, (-1, 4)),
-            coords_true_out,
+    # =============================
+    # = Handle Distance Filtering =
+    # =============================
+    # TODO: This assumes that the object_height is 0.0, which is currently true for all multiclass categories.
+    distance_mask = tf.reshape(
+        dataset_utils.get_distance_mask_from_offsets(
+            groundtruth["offset_mask"], camera, intrinsics, 0.0
         ),
-        axis=-1,
-        keepdims=True,
+        (-1, tf.reduce_prod(dataset_utils.config.output_dims)),
+    )  # (B, H_out, W_out)
+    distances_of_coords_true = tf.gather(
+        distance_mask, predictions["patch_indices"], batch_dims=1
     )  # (B, N)
-    # coords_true_distances_valid = tf.where(
-    #     valid_coords_true, tf.squeeze(coords_true_distances, axis=-1), np.inf
-    # )  # (B, N)
-
-    coords_true_distance_mask = tf.reshape(
-        tf.squeeze(coords_true_distances, axis=-1) <= max_distance, [-1]
-    )  # (B * N)
+    coords_true_distance_mask = tf.reshape(distances_of_coords_true <= max_distance, [-1])  # (B, N)
 
     y_true_labels_filtered = tf.boolean_mask(
         y_true_out,
         use_sample_tiled & nms_sequence_mask & coords_true_distance_mask,
     )
     y_pred_labels_filtered = tf.boolean_mask(
-        y_pred_out, use_sample_tiled & nms_sequence_mask & coords_true_distance_mask
+        y_pred_out,
+        use_sample_tiled & nms_sequence_mask & coords_true_distance_mask,
     )
 
-    # ===== Evaluation Metrics ======
+    # ================================================================
+    # = Calculate the Objects that are not covered by any candidates =
+    # ================================================================
+
+    # Encode the 2D coordinate into a 1D key that is unique for every possible coordinate up 100000.
+    scale = 1e5
+    invalid_key = -1.0 * scale + (-1.0)  # (-1.0, -1.0) is marked as invalid and later filtered out.
+
+    mask_gt_coords = use_sample[:, tf.newaxis] & (distance_mask <= max_distance)
+    # use_sample and distance filtering
+    coord_mask_filtered = tf.where(
+        mask_gt_coords[..., None], coord_mask, tf.fill([2], -1.0, tf.float32)
+    )
+
+    # round the coordinates to the 4th decimal to account for rounding error that occured when calculate the coordinate mask.
+    coord_mask_rounded = tf.round(coord_mask_filtered * 1e4) / 1e4  # (B, H_out * W_out, 2)
+    keys_gt = tf.sort(
+        coord_mask_rounded[:, :, 0] * scale + coord_mask_rounded[:, :, 1], axis=-1
+    )  # (B, H_out * W_out)
+
+    mask_coords_true = use_sample[:, tf.newaxis] & (distances_of_coords_true <= max_distance)
+    coords_true_filtered = tf.where(
+        mask_coords_true[..., None], coords_true, tf.fill([2], -1.0, tf.float32)
+    )
+    coords_true_rounded = tf.round(coords_true_filtered * 1e4) / 1e4  # (B, N, 2)
+    keys_covered = tf.sort(
+        coords_true_rounded[:, :, 0] * scale + coords_true_rounded[:, :, 1], axis=-1
+    )  # (B, N)
+
+    num_of_covered_coords = tf.reduce_sum(count_unique(keys_covered, invalid_key))  # ( )
+    num_of_gt_coords = tf.reduce_sum(count_unique(keys_gt, invalid_key))  # ( )
+
+    num_of_uncovered_gt_coords = num_of_gt_coords - num_of_covered_coords  # ( )
+
+    # ======================
+    # = Evaluation Metrics =
+    # ======================
     # The (num_classes, num_classes) confusion matrix
     confusion_matrix = tf.math.confusion_matrix(
         y_true_labels_filtered, y_pred_labels_filtered, num_classes
@@ -435,14 +461,22 @@ def calculate_multiclass_metrics(
         tf.linalg.diag_part(confusion_matrix), tf.reduce_sum(confusion_matrix, axis=1)
     )  # (num_classes, )
 
-    total_samples = tf.reduce_sum(confusion_matrix)
+    # =========================================
+    # = Pooled metrics (class 0 = background) =
+    # =========================================
     tp_count_pooled = tf.reduce_sum(tf.linalg.diag_part(confusion_matrix)[1:])
     tn_count_pooled = confusion_matrix[0, 0]
-    fn_count_pooled = tf.reduce_sum(tf.experimental.numpy.tril(confusion_matrix, k=-1))
-    fp_count_pooled = tf.reduce_sum(tf.experimental.numpy.triu(confusion_matrix, k=1))
+    fp_count_pooled = tf.reduce_sum(confusion_matrix[0, 1:])
+    # Add the number of gt_coords that were not covered by any candidates to fn and total_samples
+    fn_count_pooled = tf.reduce_sum(confusion_matrix[1:, 0]).numpy() + num_of_uncovered_gt_coords
+    total_samples = tf.reduce_sum(confusion_matrix).numpy() + num_of_uncovered_gt_coords
 
     fp_rate_pooled = fp_count_pooled / total_samples
     fn_rate_pooled = fn_count_pooled / total_samples
+
+    # print(
+    #     f"Expected ceiling: {1 - num_of_uncovered_gt_coords / tf.reduce_sum(num_of_gt_coords).numpy():.3f}"
+    # )
 
     # Pooled metrics
     pooled_confusion_matrix = np.array(
