@@ -493,6 +493,7 @@ def make_example(
             else [
                 tf.io.serialize_tensor(
                     tf.constant(intrinsics_from_label(label), dtype=tf.float32)
+                    * ([*dataset_utils.config.image_res_scale[::-1]] * 2)
                 ).numpy(),
             ]
         )
