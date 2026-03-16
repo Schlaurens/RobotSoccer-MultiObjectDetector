@@ -89,7 +89,9 @@ def get_callbacks(timestamp: str, config):
 
 def load_datasets(config):
     input_dims = config["model"]["encoder"]["input_dims"]
-    dataset_utils = u_dataset.DatasetUtils(u_dataset.DatasetConfig(input_dims))
+    dataset_utils = u_dataset.DatasetUtils(
+        u_dataset.DatasetConfig(input_dims, cell_dims=config["model"]["encoder"]["cell_dims"])
+    )
 
     path_to_train = glob.glob(
         (
