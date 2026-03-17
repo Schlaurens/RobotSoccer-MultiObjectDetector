@@ -405,7 +405,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--model_timestamp")
     parser.add_argument("--directory", default="data/evaluation")
-    parser.add_argument("--distance_threshold", default=30.0)
+    parser.add_argument("--distance_threshold", type=float, default=30.0)
     args = parser.parse_args()
 
     main(args)
