@@ -4,6 +4,7 @@ import tensorflow as tf
 
 from training import classifier_architectures as u_classifiers
 from training import encoder_architectures as u_encoders
+from util import camera as u_camera
 from util import dataset as u_dataset
 from util import image as u_image
 from util import keypoint as u_keypoint
@@ -160,7 +161,7 @@ class FullModel(tf.keras.Model):
 
         return {"loss": loss, "mse": mse, "rmse": rmse, "bce": bce}
 
-    def classifier_loss(self, batch_data, results, object_name):
+    def classifier_loss(self, batch_data, camera, intrinsics, results, object_name):
         # Compute MSE
         boxes = results["boxes"]  # (B, N, 4)
         coords_pred = results["positions"]  # (B, N, 2)
@@ -187,10 +188,54 @@ class FullModel(tf.keras.Model):
             coords_true_normalized, boxes
         )  # (B, N)
 
+        camera_tiled = tf.tile(
+            camera[:, tf.newaxis, :], (1, self.categories[object_name]["n_candidates"], 1)
+        )  # Shape: (B, N, 3)
+        intrinsics_tiled = tf.tile(
+            intrinsics[:, tf.newaxis, :], (1, self.categories[object_name]["n_candidates"], 1)
+        )  # Shape: (B, N, 4)
+
+        coords_pred_to_wrld = tf.reshape(
+            tf.stop_gradient(
+                u_camera.image_to_world(
+                    tf.reshape(camera_tiled, (-1, 3)),
+                    tf.reshape(intrinsics_tiled, (-1, 4)),
+                    tf.reshape(coords_pred, (-1, 2)),
+                    self.categories[object_name]["object_height"],
+                )
+            ),
+            (-1, self.categories[object_name]["n_candidates"], 3),
+        )  # (B, N, 3)
+
+        coords_true_of_patches_to_wlrd = tf.reshape(
+            tf.stop_gradient(
+                u_camera.image_to_world(
+                    tf.reshape(camera_tiled, (-1, 3)),
+                    tf.reshape(intrinsics_tiled, (-1, 4)),
+                    tf.reshape(coords_true_of_patches, (-1, 2)),
+                    self.categories[object_name]["object_height"],
+                )
+            ),
+            (-1, self.categories[object_name]["n_candidates"], 3),
+        )  # (B, N, 3)
+
+        invalid_coords_preds = tf.reduce_all(coords_pred_to_wrld == -1.0, axis=-1)  # (B, N)
+        invalid_coords_true = tf.reduce_all(
+            coords_true_of_patches_to_wlrd == -1.0, axis=-1
+        )  # (B, N)
+        either_invalid = invalid_coords_preds | invalid_coords_true
+
+        world_distance = tf.where(
+            either_invalid,
+            tf.constant([1.0], tf.float32),  # fall back to weight of 1.0 — equivalent to unweighted 2D loss
+            tf.norm(coords_pred_to_wrld - coords_true_of_patches_to_wlrd, axis=-1),
+        )  # (B, N)
+
         # If coords_true are inside the patch always calculate the MSE. Else the classifier's offset predictions are useless and should be ignored. Assign a constant max error that has gradient of zero. Also if there are no coords_true because the sample was ignored, the results have no impact on the loss.
         squared_error = tf.where(
             are_coords_true_inside_patch,
-            tf.square(tf.norm(coords_pred - coords_true_of_patches, axis=-1)),
+            tf.square(tf.norm(coords_pred - coords_true_of_patches, axis=-1))
+            * tf.stop_gradient(world_distance),
             0.0,
         )  # (B, N)
 
@@ -263,6 +308,12 @@ class FullModel(tf.keras.Model):
         else:
             raise ValueError("Invalid object_name.")
 
+        error_factor = tf.where(
+            tf.math.is_finite(error_factor),
+            error_factor,
+            tf.zeros_like(error_factor),
+        )
+
         # If the classifier thinks that there is no object in the image, this error has a smaller contribution to the loss
         squared_error_multiplied = squared_error * tf.stop_gradient(error_factor)  # (B, N)
 
@@ -286,7 +337,13 @@ class FullModel(tf.keras.Model):
             key: self.encoder_loss(batch_data[key], maps[key]) for key in self.categories
         }
         classifier_losses = {
-            key: self.classifier_loss(batch_data[key], results=value, object_name=key)
+            key: self.classifier_loss(
+                batch_data[key],
+                camera=batch_data["camera"],
+                intrinsics=batch_data["intrinsics"],
+                results=value,
+                object_name=key,
+            )
             for key, value in results.items()
         }  # (loss, mse, rmse, ce) for each category
         result = {}
