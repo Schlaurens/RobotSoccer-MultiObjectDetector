@@ -230,7 +230,7 @@ def get_dataset(directory: str, dataset_utils: u_dataset.DatasetUtils) -> tf.dat
                 tf.io.parse_tensor(serialized_tensor["frame_time"], out_type=tf.int32), []
             ),
             "image": tf.ensure_shape(
-                tf.io.parse_tensor(serialized_tensor["image"], out_type=tf.uint8),
+                tf.io.parse_tensor(serialized_tensor["image"], out_type=tf.float32),
                 (dataset_utils.config.input_dims[0], dataset_utils.config.input_dims[1] // 2, 4),
             ),
             "camera": tf.ensure_shape(
@@ -449,24 +449,28 @@ def make_example(
             if from_sample
             else [
                 tf.io.serialize_tensor(
-                    tf.reshape(
-                        u_image.convert_yuv_to_yuyv(
-                            tf.constant(
-                                cv2.resize(
-                                    load_image(
-                                        directory, label, image_format=u_image.ImageFormat.YUV
-                                    ),
-                                    dataset_utils.config.input_dims[::-1],
-                                    cv2.INTER_AREA,
+                    tf.cast(
+                        tf.reshape(
+                            u_image.convert_yuv_to_yuyv(
+                                tf.constant(
+                                    cv2.resize(
+                                        load_image(
+                                            directory, label, image_format=u_image.ImageFormat.YUV
+                                        ),
+                                        dataset_utils.config.input_dims[::-1],
+                                        cv2.INTER_AREA,
+                                    )
                                 )
-                            )
+                            ),
+                            (
+                                dataset_utils.config.input_dims[0],
+                                dataset_utils.config.input_dims[1] // 2,
+                                4,
+                            ),
                         ),
-                        (
-                            dataset_utils.config.input_dims[0],
-                            dataset_utils.config.input_dims[1] // 2,
-                            4,
-                        ),
+                        tf.float32,
                     )
+                    / 255.0
                 ).numpy(),
             ]
         )

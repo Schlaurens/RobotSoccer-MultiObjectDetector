@@ -38,6 +38,10 @@ def convert_yuv_to_rgb(image):
     assert len(image.shape) == 3  # has dimensions [H, W, C]
     assert image.shape[2] == 3  # has 3 channels
 
+    # Convert float32 (0-1) back to uint8 (0-255) if needed
+    if image.dtype != np.uint8:
+        image = (np.asarray(image) * 255.0).astype(np.uint8)
+
     return np.asarray(Image.fromarray(image, "YCbCr").convert("RGB"))
 
 
