@@ -29,8 +29,9 @@ class Normalization(tf.keras.layers.Layer):
         if self.batch_norm:
             self.norm_layer = tf.keras.layers.BatchNormalization(scale=self.scale)
         else:
+            groups = input_shape[-1] if self.groups == -1 else self.groups
             self.norm_layer = tf.keras.layers.GroupNormalization(
-                scale=self.scale, groups=self.groups
+                scale=self.scale, groups=groups, epsilon=1e-3
             )
         # Call build on the sub-layer to ensure weights are created
         self.norm_layer.build(input_shape)
