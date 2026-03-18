@@ -99,12 +99,6 @@ def image_to_world(
     camera_height = camera[..., 2]  # [B, ]
     object_height = 0.5 * object_height
 
-    tf.debugging.assert_equal(
-        tf.shape(camera_intr[..., :2]),
-        tf.shape(point_in_image),
-        message="camera_intr and point_in_image batch shapes must match",
-    )
-
     dir_in_camera = tf.concat(
         [
             tf.ones_like(point_in_image[..., :1]),
@@ -123,14 +117,24 @@ def image_to_world(
         keras.ops.divide(object_height - camera_height, dir_in_world[..., 2])
     )  # [B, ]
 
-    factor = factor[..., tf.newaxis]
+    factor = keras.ops.divide(
+        object_height - camera_height, dir_in_world[..., 2]
+    )  # (B, ) -- may contain Inf/NaN
+
+    valid_factor = tf.math.is_finite(factor) & (factor > 0)  # [B,]
 
     # If the point cannot be projected on the plane the position is [-1.0, -1.0, -1.0]
-    position_in_world = keras.ops.where(factor > 0, factor * dir_in_world, tf.fill([3], -1.0))
+    position_in_world = keras.ops.where(
+        valid_factor[..., tf.newaxis],
+        factor[..., tf.newaxis] * dir_in_world,
+        tf.fill(tf.shape(dir_in_world), -1.0),
+    )
 
     # Set batch elements to [-1, -1, -1] where coordinates are invalid (are [-1, -1]).
     position_in_world_filtered = tf.where(
-        tf.expand_dims(invalid_mask, axis=-1), tf.fill([3], -1.0), position_in_world
+        tf.expand_dims(invalid_mask, axis=-1),
+        tf.fill(tf.shape(dir_in_world), -1.0),
+        position_in_world,
     )
 
     return position_in_world_filtered
