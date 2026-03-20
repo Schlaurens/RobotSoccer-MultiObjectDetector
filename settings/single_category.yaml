@@ -2,18 +2,18 @@ model:
   encoder:
     architecture: "inverted_residual_single_category_v2"
     input_dims: [480, 320]
-    n_context: 8
+    n_context: 64
     only_train_encoder: False
     use_batch_norm: False
   classifier:
     architecture: "classifier_ires_single_category_v2"
     patch_size: [32, 32]
-    n_meta: 0 # if 1 it's just the distance to the patch center
+    n_meta: 1 # if 1 it's just the distance to the patch center
     with_offsets: True
     use_batch_norm: False
 
 training:
-  epochs: 150
+  epochs: 400
   initial_epoch: 0
   batch_size: 32
   verbose: 1
@@ -31,29 +31,22 @@ training:
     verbose: True
 
 categories:
-  ball:
-    object_size: 0.175
-    object_height: 0.05
-    n_classes: 1
-    n_candidates: 5
+  # ball:
+  #   object_size: 0.175
+  #   object_height: 0.05
+  #   n_classes: 1
+  #   n_candidates: 5
   # penaltyMark:
   #   object_size: 0.175
   #   object_height: 0.0
   #   n_classes: 1
   #   n_candidates: 5
-  # field:
-  #   object_size: 0.2
-  #   n_classes: 1 # penalty mark, center mark, X intersection, L intersection, T intersection, goal post
-  #   n_candidates: 7
-  # player:
-  #   object_size: 0.5
-  #   n_classes: 1
   intersections:
-    object_size: 0.27
+    object_size: 0.2
     padding: 0.2 # padding to avoid intersections being cut off by the patch edge
     object_height: 0.0
     n_classes: 4 # types + background class
-    n_candidates: 6
+    n_candidates: 7
     max_distance: 6.0 # the maximal distance between the object and the camera.
 
 callbacks:
@@ -61,7 +54,7 @@ callbacks:
     monitor: "val_total_loss"
     mode: "min"
     factor: 0.5
-    patience: 16
+    patience: 25
     min_lr: 0.000001
   early_stopping:
     monitor: "val_total_loss"

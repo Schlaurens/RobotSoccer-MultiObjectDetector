@@ -1,6 +1,6 @@
 model:
   encoder:
-    architecture: "inverted_residual_single_category_16x16"
+    architecture: "inverted_residual_single_category_v4_16x16"
     input_dims: [240, 320]
     cell_dims: [16, 16]
     n_context: 64
@@ -14,7 +14,7 @@ model:
     use_batch_norm: False
 
 training:
-  epochs: 400
+  epochs: 300
   initial_epoch: 0
   batch_size: 32
   verbose: 1
