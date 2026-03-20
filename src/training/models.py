@@ -435,7 +435,8 @@ class FullModel(tf.keras.Model):
         model = cls(
             encoder_architecture,
             classifier_architecture,
-            *input_dims,
+            input_dims[0],
+            input_dims[1] // 2,
             cell_dims,
             n_context,
             only_train_encoder,
