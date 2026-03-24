@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from util.layers import IresBlock, Normalization
+from util.layers import IresBlock
 
 
 def get_encoder(
@@ -167,27 +167,22 @@ def _get_encoder_conv_16x16_v1(
     # 120x160x8
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 60x80x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 30x40x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(40, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 30x40x40
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(56, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 15x20x56
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(64, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 15x20x64
     return _get_common_encoder_output(x, category_names, n_context, image)
@@ -256,29 +251,24 @@ def _get_encoder_conv_24x24_v1(
     # 180x240x8
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 90x120x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 45x60x24
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 45x60x32
     x = tf.keras.layers.AveragePooling2D(pool_size=3, strides=3, padding="same")(x)
     # 15x20x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(40, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 15x20x40
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 15x20x48
     return _get_common_encoder_output(x, category_names, n_context, image)
@@ -353,27 +343,22 @@ def _get_encoder_conv_32x32_v1(
     # 240x320x8
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(12, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 120x160x12
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 60x80x24
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 30x40x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 15x20x48
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=False)(x)
-    x = Normalization(use_batch_norm, scale=False, groups=-1)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 15x20x48
     return _get_common_encoder_output(x, category_names, n_context, image)
