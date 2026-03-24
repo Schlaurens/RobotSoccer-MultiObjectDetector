@@ -1,6 +1,6 @@
 outs:
-- md5: 6f911b7e2b25adc07e0e5673cb4dc954.dir
-  size: 23641209642
-  nfiles: 70
+- md5: c9434eb70dcb5c7c080dd9d94c02367f.dir
+  size: 7734452706
+  nfiles: 14
   hash: md5
   path: groundtruth_tfrecords
