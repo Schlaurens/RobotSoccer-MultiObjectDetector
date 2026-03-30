@@ -1,7 +1,7 @@
 model:
   encoder:
     architecture: "conv_16x16_v1"
-    input_dims: [240, 320]
+    input_dims: [288, 384]
     cell_dims: [16, 16]
     n_context: 0
     only_train_encoder: False
@@ -14,7 +14,7 @@ model:
     use_batch_norm: False
 
 training:
-  epochs: 300
+  epochs: 400
   initial_epoch: 0
   batch_size: 32
   verbose: 1
@@ -38,25 +38,25 @@ categories:
     object_height: 0.05
     n_classes: 1
     n_candidates: 5
-    max_distance: 6.0
+    max_distance: 7.0
   penaltyMark:
     object_size: 0.175
     padding: 0
     object_height: 0.0
     n_classes: 1
     n_candidates: 5
-    max_distance: 6.0
+    max_distance: 7.0
   intersections:
     object_size: 0.2
     padding: 0.2 # padding to avoid intersections being cut off by the patch edge
     object_height: 0.0
     n_classes: 4 # types + background class
     n_candidates: 7
-    max_distance: 6.0 # the maximal distance between the object and the camera.
+    max_distance: 9.0 # the maximal distance between the object and the camera.
 
 callbacks:
   reduce_lr:
-    monitor: "val_encoder_loss"
+    monitor: "val_total_loss"
     mode: "min"
     factor: 0.9999999
     patience: 25

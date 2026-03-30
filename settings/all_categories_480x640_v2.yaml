@@ -1,8 +1,8 @@
 model:
   encoder:
-    architecture: "conv_16x16_v1"
-    input_dims: [240, 320]
-    cell_dims: [16, 16]
+    architecture: "ires_32x32_v2"
+    input_dims: [480, 640]
+    cell_dims: [32, 32]
     n_context: 0
     only_train_encoder: False
     use_batch_norm: False
@@ -14,7 +14,7 @@ model:
     use_batch_norm: False
 
 training:
-  epochs: 300
+  epochs: 400
   initial_epoch: 0
   batch_size: 32
   verbose: 1
@@ -56,7 +56,7 @@ categories:
 
 callbacks:
   reduce_lr:
-    monitor: "val_encoder_loss"
+    monitor: "val_total_loss"
     mode: "min"
     factor: 0.9999999
     patience: 25
