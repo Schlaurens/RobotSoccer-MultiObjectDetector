@@ -144,22 +144,26 @@ class FullModel(tf.keras.Model):
         squared_error_multiplied = tf.multiply(
             squared_error, batch_data["object_mask"]
         )  # (B, 15, 20)
+        mse_batched = tf.reduce_mean(squared_error_multiplied, axis=[1, 2]) * 10000  # (B, )
 
-        bce_batched = tf.reduce_sum(element_wise_bce_multiplied, axis=[1, 2])  # (B, )
-        mse_batched = tf.reduce_mean(squared_error_multiplied, axis=[1, 2]) * 10000  # (B)
+        # The RMSE Metric (not used int the loss)
+        sum_of_se_multiplied = tf.reduce_sum(squared_error_multiplied)  # Shape: ( )
+        num_ones = tf.maximum(tf.reduce_sum(batch_data["object_mask"]), 1e-8)  # Shape: ( )
+        mse_metric = sum_of_se_multiplied / num_ones  # Shape: ( )
+        rmse = tf.math.sqrt(mse_metric)  # Shape: ()
 
-        tf.debugging.assert_all_finite(bce_batched, "encoder BCE")
-        tf.debugging.assert_all_finite(mse_batched, "encoder MSE")
+        tf.debugging.assert_all_finite(bce_batched, "Encoder BCE")
+        tf.debugging.assert_all_finite(mse_metric, "Encoder MSE Metric")
 
         # Total loss
         loss_batched = bce_batched + mse_batched  # (B, )
+        loss = tf.reduce_mean(loss_batched)  # Shape: ()
 
+        global_mean_bce = tf.reduce_mean(element_wise_bce_multiplied)  # Shape: ()
         bce = tf.reduce_mean(bce_batched)  # Shape: ()
         mse = tf.reduce_mean(mse_batched)  # Shape: ()
-        loss = tf.reduce_mean(loss_batched)  # Shape: ()
-        rmse = tf.math.sqrt(mse)  # Shape: ()
 
-        return {"loss": loss, "mse": mse, "rmse": rmse, "bce": bce}
+        return {"loss": loss, "mse": mse, "rmse": rmse, "bce": bce, "gm_bce": global_mean_bce}
 
     def classifier_loss(self, batch_data, results, object_name):
         # Compute MSE
