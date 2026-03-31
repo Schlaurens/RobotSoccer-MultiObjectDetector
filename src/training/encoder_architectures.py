@@ -287,7 +287,7 @@ def _get_encoder_ires_32x32_v1(
     image = tf.keras.layers.Input((height, width, 4))
     x = image
     # 480x320x4 — aggressive early downsampling to reduce cost at large spatial dims
-    x = tf.keras.layers.Conv2D(8, 3, strides=(2, 2), padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(8, 3, strides=(2, 1), padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 240x160x8
     x = IresBlock(8, use_batch_norm, stride=2, expansion=1)(x)
