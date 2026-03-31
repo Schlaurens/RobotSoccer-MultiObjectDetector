@@ -645,7 +645,7 @@ class FullModel(tf.keras.Model):
             )  # (B, N, n_context)
 
             context_reshaped = tf.reshape(
-                tf.stop_gradient(context_of_chosen_cells),
+                context_of_chosen_cells,
                 (tf.shape(intrinsics)[0] * sampler.n_sample, self.n_context),
             )  # (B * N, n_context)
             classifier_inputs += [context_reshaped]
