@@ -43,15 +43,16 @@ class EvaluateApplication:
     def __init__(self, model_path, data_path):
         path_to_model = "/".join(model_path.split("/")[:-2])
         model_name = model_path.split("/")[-1]
+        resolution_string = model_path.split("/")[-3]
         if "checkpoints" in path_to_model:
             model_timestamp = path_to_model.split("/")[-1]
         else:
             model_timestamp = model_name.split(".")[0]
 
-        config = self.load_config(f"logs/fit/{model_timestamp}/config.yaml")
+        config = self.load_config(f"logs/fit/{resolution_string}/{model_timestamp}/config.yaml")
+
         input_dims = config["model"]["encoder"]["input_dims"]
         cell_dims = config["model"]["encoder"]["cell_dims"]
-
         self.dataset_utils = u_dataset.DatasetUtils(
             u_dataset.DatasetConfig(input_dims, cell_dims=cell_dims)
         )
