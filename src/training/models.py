@@ -314,6 +314,7 @@ class FullModel(tf.keras.Model):
 
         for key in self.categories:
             result[f"encoder_bce_{key}"] = encoder_losses[key]["bce"]
+            result[f"encoder_gm_bce_{key}"] = encoder_losses[key]["gm_bce"]
             result[f"encoder_mse_{key}"] = encoder_losses[key]["mse"]
             result[f"encoder_rmse_{key}"] = encoder_losses[key]["rmse"]
             result[f"classifier_ce_{key}"] = classifier_losses[key]["ce"]
