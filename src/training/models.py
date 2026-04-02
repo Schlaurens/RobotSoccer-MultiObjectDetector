@@ -395,6 +395,7 @@ class FullModel(tf.keras.Model):
         encoder_path = os.path.join(filepath, "encoder", f"{filename}")
 
         self.encoder.save(encoder_path + ".keras", overwrite)
+        self.encoder.save(encoder_path + ".h5", overwrite)
         self.encoder.export(encoder_path + ".onnx", format="onnx")
 
         if verbose:
@@ -408,6 +409,7 @@ class FullModel(tf.keras.Model):
 
                 classifier_path = os.path.join(filepath, "classifier", name, f"{filename}")
                 value["classifier"].save(classifier_path + ".keras", overwrite)
+                value["classifier"].save(classifier_path + ".h5", overwrite)
                 value["classifier"].export(classifier_path + ".onnx", format="onnx")
 
                 if verbose:
