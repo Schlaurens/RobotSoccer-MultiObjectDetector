@@ -104,7 +104,8 @@ class FullModel(tf.keras.Model):
             self.encoder_use_batch_norm,
         )
 
-    def encoder_loss(self, batch_data, interest, offsets):
+    def encoder_loss(self, batch_data, interest, offsets, n_candidates):
+        B = tf.shape(interest)[0]  # Batch Size
         # Compute Binary Cross Entropy
 
         # Numeric stabilizer
@@ -137,13 +138,45 @@ class FullModel(tf.keras.Model):
         tf.debugging.assert_all_finite(batch_data["loss_mask"], "batch_data[loss_mask]")
         tf.debugging.assert_all_finite(element_wise_bce_multiplied, "element_wise_bce_multiplied")
 
+        # ==============
+        # == Recall@k ==
+        # ==============
+
+        k = n_candidates
+
+        # Flatten spatial dims for each sample
+        flat_interest = tf.reshape(interest, [B, -1])  # (B, 300)
+        flat_object_mask = tf.reshape(batch_data["object_mask"], [B, -1])  # (B, 300)
+
+        top_k_indices = tf.math.top_k(flat_interest, k=k).indices  # (B, k)
+
+        # Build top-k mask by scattering 1s at top-k indices
+        batch_indices = tf.repeat(tf.range(B)[:, tf.newaxis], k, axis=1)  # (B, k)
+
+        # Which samples, which cell index
+        scatter_indices = tf.stack([batch_indices, top_k_indices], axis=-1)  # (B, k, 2)
+
+        # Places a 1 at each index that is in the top k indices.
+        top_k_mask = tf.tensor_scatter_nd_update(
+            tf.zeros([B, tf.reduce_prod(self.dataset_config.output_dims)]),  # (B, 300)
+            tf.reshape(scatter_indices, [-1, 2]),  # (B * k, 2)
+            tf.ones([B * k]),
+        )  # (B, 300)
+
+        # Check overlap with object_mask
+        tp = tf.reduce_sum(top_k_mask * flat_object_mask)  # (B, )
+        num_objects = tf.reduce_sum(flat_object_mask)  # (B, )
+        recall_at_k = tp / tf.maximum(num_objects, 1e-8)  # ()
+
         # Compute MSE
         squared_error = tf.square(
             tf.norm(batch_data["offset_mask"] - offsets, axis=-1)
         )  # (B, 15, 20)
+
         squared_error_multiplied = tf.multiply(
             squared_error, batch_data["object_mask"]
         )  # (B, 15, 20)
+
         mse_batched = tf.reduce_mean(squared_error_multiplied, axis=[1, 2]) * 10000  # (B, )
 
         # The RMSE Metric (not used int the loss)
@@ -163,7 +196,13 @@ class FullModel(tf.keras.Model):
         bce = tf.reduce_mean(bce_batched)  # Shape: ()
         mse = tf.reduce_mean(mse_batched)  # Shape: ()
 
-        return {"loss": loss, "mse": mse, "rmse": rmse, "bce": bce, "gm_bce": global_mean_bce}
+        return {
+            "loss": loss,
+            "mse": mse,
+            "bce": bce,
+            "gm_bce": global_mean_bce,
+            "recall@k": recall_at_k,
+        }
 
     def classifier_loss(self, batch_data, results, object_name):
         # Compute MSE
