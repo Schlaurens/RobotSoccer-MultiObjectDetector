@@ -104,6 +104,8 @@ class FullModel(tf.keras.Model):
             self.encoder_use_batch_norm,
         )
 
+        object.__setattr__(self, "_test_metrics", {})  # not tracked by Keras
+
     def encoder_loss(self, batch_data, interest, offsets, n_candidates):
         B = tf.shape(interest)[0]  # Batch Size
 
@@ -424,7 +426,24 @@ class FullModel(tf.keras.Model):
         )
 
         losses["total_loss"] = total_loss
-        return losses
+
+        # Initialize metrics lazily on first call
+        if not self._test_metrics:
+            object.__setattr__(
+                self, "_test_metrics", {name: tf.keras.metrics.Mean(name=name) for name in losses}
+            )
+
+        # Update metric objects
+        for key, value in losses.items():
+            self._test_metrics[key].update_state(value)
+
+        return {k: m.result() for k, m in self._test_metrics.items()}
+
+    @property
+    def metrics(self):
+        if not self._test_metrics:
+            return []
+        return list(self._test_metrics.values())
 
     def save(
         self, filepath, filename, only_save_encoder=False, overwrite=True, verbose=False, **kwargs
