@@ -188,11 +188,11 @@ class FullModel(tf.keras.Model):
         gt_coord_mask = self.dataset_utils.get_coordinate_mask(batch_data["offset_mask"])
         pred_coord_mask = self.dataset_utils.get_coordinate_mask(offsets)
 
-        error_in_pixels = tf.norm(gt_coord_mask - pred_coord_mask, axis=-1)  # (B, 15, 20)
-
-        error_in_pixels_multiplied = (
-            error_in_pixels * batch_data["object_mask"]
+        error_in_pixels = tf.norm(
+            (gt_coord_mask - pred_coord_mask) / self.dataset_config.image_res_scale[::-1], axis=-1
         )  # (B, 15, 20)
+
+        error_in_pixels_multiplied = error_in_pixels * batch_data["object_mask"]  # (B, 15, 20)
 
         # The RMSE Metric (not used int the loss)
         sum_of_error_multiplied = tf.reduce_sum(error_in_pixels_multiplied)  # Shape: ( )
