@@ -205,8 +205,6 @@ class FullModel(tf.keras.Model):
         # Total loss
         loss_batched = bce_batched + mse_batched  # (B, )
         loss = tf.reduce_mean(loss_batched)  # Shape: ()
-
-        global_mean_bce = tf.reduce_mean(element_wise_bce_multiplied)  # Shape: ()
         bce = tf.reduce_mean(bce_batched)  # Shape: ()
         mse = tf.reduce_mean(mse_batched)  # Shape: ()
 
@@ -215,7 +213,6 @@ class FullModel(tf.keras.Model):
             "mse": mse,
             "mae": mae_metric,
             "bce": bce,
-            "gm_bce": global_mean_bce,
             "recall_at_k": recall_at_k,
         }
 
@@ -382,7 +379,6 @@ class FullModel(tf.keras.Model):
 
         for key in self.categories:
             result[f"encoder_bce_{key}"] = encoder_losses[key]["bce"]
-            result[f"encoder_gm_bce_{key}"] = encoder_losses[key]["gm_bce"]
             result[f"encoder_recall_at_k_{key}"] = encoder_losses[key]["recall_at_k"]
             result[f"encoder_mse_{key}"] = encoder_losses[key]["mse"]
             result[f"encoder_mae_{key}"] = encoder_losses[key]["mae"]
