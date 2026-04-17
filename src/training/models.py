@@ -457,10 +457,10 @@ class FullModel(tf.keras.Model):
             verbose: Print status messages that describe the status of the saving process. Defaults to False.
         """
         # Create a directory for the encoder
-        os.makedirs(os.path.join(filepath, "encoder"), exist_ok=True)
+        os.makedirs(os.path.join(filepath, f"{filename}",  "encoder"), exist_ok=True)
 
         # Save the encoder
-        encoder_path = os.path.join(filepath, "encoder", f"{filename}")
+        encoder_path = os.path.join(filepath, f"{filename}", "encoder", f"{filename}")
 
         self.encoder.save(encoder_path + ".keras", overwrite)
         self.encoder.save(encoder_path + ".h5", overwrite)
@@ -473,9 +473,9 @@ class FullModel(tf.keras.Model):
             # Save the classifier of each category
             for name, value in self.categories.items():
                 # Create directory if it does not exist.
-                os.makedirs(os.path.join(filepath, "classifier", name), exist_ok=True)
-
-                classifier_path = os.path.join(filepath, "classifier", name, f"{filename}")
+                os.makedirs(os.path.join(filepath, f"{filename}", "classifier", name), exist_ok=True)
+                classifier_path = os.path.join(filepath, f"{filename}", "classifier", name, f"{filename}")
+                
                 value["classifier"].save(classifier_path + ".keras", overwrite)
                 value["classifier"].save(classifier_path + ".h5", overwrite)
                 value["classifier"].export(classifier_path + ".onnx", format="onnx")
