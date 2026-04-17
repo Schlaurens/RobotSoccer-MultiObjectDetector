@@ -1,3 +1,4 @@
+import argparse
 import csv
 import os
 import sys
@@ -141,6 +142,21 @@ def create_metrics_csv(file_path, resolution, architecture, config, model_timest
 
     append_to_csv(file_path, data)
 
+
+def main(args):
+    model_name = f"{args.model_timestamp}.keras"
+
+    resolution = glob.glob(os.path.join(args.log_dir, "*", args.model_timestamp))[0].split(os.sep)[
+        -2
+    ]
+    architecture = glob.glob(
+        os.path.join(args.model_dir, resolution, "*", f"{args.model_timestamp}.keras")
+    )[0].split(os.sep)[-2]
+    mode = args.log_dir.split("-")[-1]
+
+    path_to_models = Path(args.model_dir, resolution, architecture)
+    config_dir = Path(args.log_dir, resolution, args.model_timestamp)
+
     print("Loading Config...")
     config = load_config(Path(config_dir, "config.yaml"))
 
@@ -172,4 +188,12 @@ def create_metrics_csv(file_path, resolution, architecture, config, model_timest
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="This script compares the prediction of the model with the given the given timestamp and the current B-Human detectors."
+    )
+    parser.add_argument("model_timestamp", type=str)
+    parser.add_argument("log_dir", type=str)
+    parser.add_argument("model_dir", type=str)
+    args = parser.parse_args()
+
+    main(args)
