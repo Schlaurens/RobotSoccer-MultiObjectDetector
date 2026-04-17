@@ -203,6 +203,7 @@ def main(config):
             filepath=filepath,
             filename=filename,
             input_dims=model_input_dims,
+            encoder_channels=encoder_channels,
             cell_dims=model_cell_dims,
             n_context=config["model"]["encoder"]["n_context"],
             only_train_encoder=config["model"]["encoder"]["only_train_encoder"],
