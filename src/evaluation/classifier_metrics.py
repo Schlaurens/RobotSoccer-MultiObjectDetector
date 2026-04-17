@@ -183,7 +183,7 @@ def main():
     )
 
     print("Loading Model...")
-    model = load_model(config, path_to_models, model_name)
+    model = load_model(config, path_to_models, model_timestamp)
 
     print("Loading Dataset...")
     test_ds = load_dataset(config, dataset_utils)
@@ -222,7 +222,10 @@ def main():
         encoder_threshold,
         nms_iou_threshold,
     )
-
-
+    
+    final_metrics = calculate_ap_metrics(metrics_threshold_range_additive)
+    
+    print(final_metrics)
+    
 if __name__ == "__main__":
     main()
