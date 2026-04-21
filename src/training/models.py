@@ -326,6 +326,27 @@ class FullModel(tf.keras.Model):
             tf.zeros_like(error_factor),
         )
 
+        # ==============================
+        # == Euclidean Error (Metric) ==
+        # ==============================
+        # Scale the norm with the full image resolution to make comparison with other resolutions possible.
+        euclidean_error = tf.stop_gradient(
+            tf.where(
+                are_coords_true_inside_patch,
+                tf.norm(
+                    (coords_pred - coords_true_of_patches)
+                    / self.dataset_config.image_res_scale[::-1],
+                    axis=-1,
+                ),
+                0.0,
+            )
+        )  # (B, N)
+        num_true_patches = tf.maximum(
+            tf.reduce_sum(tf.cast(are_coords_true_inside_patch, tf.float32)), 1e-8
+        )  # Shape: ( )
+        # Ignore the patches in the mean that do not contain gt coords
+        sum_euc_error = tf.reduce_sum(euclidean_error)  # Shape: ( )
+        mean_euclidean_error = sum_euc_error / num_true_patches  # Shape: ( )
         # If the classifier thinks that there is no object in the image, this error has a smaller contribution to the loss
         squared_error_multiplied = squared_error * tf.stop_gradient(error_factor)  # (B, N)
 
@@ -333,14 +354,14 @@ class FullModel(tf.keras.Model):
 
         tf.debugging.assert_all_finite(mse, "Classifier MSE")
         tf.debugging.assert_all_finite(cross_entropy, "Classifier CE")
+        tf.debugging.assert_all_finite(mean_euclidean_error, "Classifier euclidean error")
 
         loss = cross_entropy + mse  # Shape: ()
-        rmse = tf.math.sqrt(mse)  # Shape: ()
 
         return {
             "loss": loss,
             "mse": mse,
-            "rmse": rmse,
+            "euc_error": mean_euclidean_error,
             "ce": cross_entropy,
         }
 
@@ -370,7 +391,7 @@ class FullModel(tf.keras.Model):
                 object_name=key,
             )
             for key, value in results.items()
-        }  # (loss, mse, rmse, ce) for each category
+        }
         result = {}
         result["encoder_loss"] = tf.reduce_sum([value["loss"] for value in encoder_losses.values()])
         result["classifier_loss"] = tf.reduce_sum(
@@ -384,7 +405,7 @@ class FullModel(tf.keras.Model):
             result[f"encoder_mae_{key}"] = encoder_losses[key]["mae"]
             result[f"classifier_ce_{key}"] = classifier_losses[key]["ce"]
             result[f"classifier_mse_{key}"] = classifier_losses[key]["mse"]
-            result[f"classifier_rmse_{key}"] = classifier_losses[key]["rmse"]
+            result[f"classifier_euc_error_{key}"] = classifier_losses[key]["euc_error"]
 
         return result
 
