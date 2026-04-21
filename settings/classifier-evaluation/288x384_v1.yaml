@@ -1,28 +1,29 @@
 model:
   encoder:
-    architecture: "ires_16x16_v2"
+    architecture: "conv_16x16_v1"
     input_dims: [288, 384]
     cell_dims: [16, 16]
     n_context: 0
+    channels_in: 1
     only_train_encoder: False
     use_batch_norm: False
   classifier:
-    architecture: "ires_v1"
+    architecture: "conv_v1"
     patch_size: [32, 32]
     n_meta: 0 # if 1 it's just the distance to the patch center
     with_offsets: True
     use_batch_norm: False
 
 training:
-  epochs: 800
+  epochs: 400
   initial_epoch: 0
   batch_size: 32
   verbose: 1
   from_checkpoint: False # < when starting training from checkpoint
   from_model: False # < when loading an existing model
   load_checkpoint:
-    initial_epoch: 393
-    timestamp: "20260413-094323" 
+    initial_epoch: 299
+    timestamp: "20260417-134634" 
     encoder_only: False # < when only loading the encoder
     verbose: True
   load_model:
