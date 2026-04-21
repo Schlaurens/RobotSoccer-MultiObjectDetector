@@ -154,15 +154,6 @@ def create_metrics_csv(file_path, resolution, architecture, config, model_timest
 def evaluate_cpn(model, dataset):
     metrics_list = model.evaluate(x=dataset, return_dict=True)
 
-    # Save Metrics to YAML file
-    # metrics_to_save = {}
-    # for key, value in metrics_list.items():
-    #     if "encoder_recall_at_k" in key or "encoder_mae" in key:
-    #         metrics_to_save[key] = float(value)
-
-    # with open(Path(config_dir, "cpn_metrics.yaml"), "w") as f:
-    #     yaml.dump(metrics_to_save, f)
-
     return metrics_list
 
 
