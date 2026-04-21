@@ -344,14 +344,16 @@ def main(args):
         print("Loading Model...")
         model = load_model(config, path_to_models, args.model_timestamp)
 
-        classifier_metrics = evaluate_classifier(model, test_ds, config)
-
+        predicted_metrics = evaluate_classifier(model, test_ds, config)
+        inference_metrics = model.evaluate(x=test_ds, return_dict=True)
         metrics_to_save = {}
         for category in u_dataset.CategoryNames:
-            if category.value in classifier_metrics:
+            if category.value in predicted_metrics:
                 # metrics_to_save[f"{category.value}_precision"] = classifier_metrics[category.value]["precision"]
                 # metrics_to_save[f"{category.value}_recall"] = classifier_metrics[category.value]["recall"]
-                metrics_to_save[f"{category.value}_ap"] = classifier_metrics[category.value]["ap"]
+                metrics_to_save[f"{category.value}_ap"] = predicted_metrics[category.value]["ap"]
+
+        metrics_to_save.update(inference_metrics)
 
         create_metrics_csv(
             f"data/evaluation/classifier-{mode}.csv",
