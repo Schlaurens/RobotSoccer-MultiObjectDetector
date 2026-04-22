@@ -234,25 +234,31 @@ def _get_classifier_conv_v1(
     x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     
+    residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(40, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 8x8x32
+    residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(40, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 8x8x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(68, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     
-    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    residual = x
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(68, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 4x4x48
     x = tf.keras.layers.GlobalAveragePooling2D()(x)
     # 48
@@ -289,25 +295,31 @@ def _get_classifier_conv_v2(
     x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     
+    residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 8x8x32
+    residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 8x8x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(56, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     
-    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    residual = x
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(56, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 4x4x48
     x = tf.keras.layers.GlobalAveragePooling2D()(x)
     # 48
@@ -320,6 +332,8 @@ def _get_classifier_conv_v2(
     x = tf.keras.layers.Dense(40)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Dense(24)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Dense(12)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     return _get_common_classifier_output(x, n_classes, with_offset, inputs)
 
@@ -342,25 +356,31 @@ def _get_classifier_conv_v3(
     x = tf.keras.layers.Conv2D(12, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     
+    residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(12, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 8x8x32
+    residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 8x8x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(44, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     
-    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    residual = x
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(44, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 4x4x48
     x = tf.keras.layers.GlobalAveragePooling2D()(x)
     # 48
@@ -373,6 +393,8 @@ def _get_classifier_conv_v3(
     x = tf.keras.layers.Dense(32)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Dense(16)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Dense(8)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     return _get_common_classifier_output(x, n_classes, with_offset, inputs)
 
@@ -394,25 +416,31 @@ def _get_classifier_conv_v4(
     x = tf.keras.layers.Conv2D(8, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     
+    residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(8, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 8x8x32
+    residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 8x8x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     
-    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    residual = x
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
     # 4x4x48
     x = tf.keras.layers.GlobalAveragePooling2D()(x)
     # 48
