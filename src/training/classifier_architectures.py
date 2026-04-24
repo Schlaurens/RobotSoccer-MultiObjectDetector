@@ -1,7 +1,5 @@
 import tensorflow as tf
 
-from util.layers import IresBlockCompiledNN
-
 
 def get_classifier(
     classifier_architecture: str,
@@ -32,19 +30,8 @@ def get_classifier(
     Returns:
         A tf.keras.Model with the provided architecture
     """
-
-    if classifier_architecture == "ires_v1":
-        return _get_classifier_ires_v1(
-            patch_size,
-            channels_in,
-            n_meta,
-            n_context,
-            n_classes,
-            with_offset,
-            use_batch_norm,
-        )
-    if classifier_architecture == "ires_v2":
-        return _get_classifier_ires_v2(
+    if classifier_architecture == "conv_v0":
+        return _get_classifier_conv_v0(
             patch_size,
             channels_in,
             n_meta,
@@ -146,83 +133,64 @@ def _get_common_classifier_output(x, n_classes, with_offset, inputs):
 
 
 # ========= Classifier Architectures =========
-
-
-def _get_classifier_ires_v1(
-    patch_size: list[int],
-    channels_in: int,
-    n_meta: int,
-    n_context: int,
-    n_classes: int,
-    with_offset: bool,
-    use_batch_norm: bool,
+def _get_classifier_conv_v0(
+    patch_size, channels_in, n_meta, n_context, n_classes, with_offset, use_batch_norm
 ):
     image = tf.keras.layers.Input((*patch_size, channels_in))
     inputs = [image]
-
     if n_meta > 0:
         meta = tf.keras.layers.Input((n_meta,))
         inputs += [meta]
-
     if n_context > 0:
         context = tf.keras.layers.Input((n_context,))
         inputs += [context]
 
     x = image
-    x = IresBlockCompiledNN(8, use_batch_norm, stride=2, expansion=6)(x)
-    x = IresBlockCompiledNN(16, use_batch_norm, stride=2, expansion=4)(x)
-    x = IresBlockCompiledNN(16, use_batch_norm, stride=2, expansion=4)(x)
+    # 32x32x3
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
 
-    x = tf.keras.layers.Flatten()(x)
+    residual = x
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
+    # 16x16x16
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    # 8x8x32
+    residual = x
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
+    # 8x8x32
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(80, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    residual = x
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(80, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Add()([x, residual])
+    # 4x4x48
+    x = tf.keras.layers.GlobalAveragePooling2D()(x)
+    # 48
 
     if n_meta > 0:
         x = tf.keras.layers.Concatenate()([x, meta])
-
     if n_context > 0:
         x = tf.keras.layers.Concatenate()([x, context])
 
-    x = tf.keras.layers.Dense(18)(x)
+    x = tf.keras.layers.Dense(56)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
-
-    return _get_common_classifier_output(x, n_classes, with_offset, inputs)
-
-
-def _get_classifier_ires_v2(
-    patch_size: list[int],
-    channels_in: int,
-    n_meta: int,
-    n_context: int,
-    n_classes: int,
-    with_offset: bool,
-    use_batch_norm: bool,
-):
-    image = tf.keras.layers.Input((*patch_size, channels_in))
-    inputs = [image]
-
-    if n_meta > 0:
-        meta = tf.keras.layers.Input((n_meta,))
-        inputs += [meta]
-
-    if n_context > 0:
-        context = tf.keras.layers.Input((n_context,))
-        inputs += [context]
-
-    x = image
-    x = IresBlockCompiledNN(8, use_batch_norm, stride=2, expansion=4)(x)
-    x = IresBlockCompiledNN(10, use_batch_norm, stride=2, expansion=4)(x)
-    x = IresBlockCompiledNN(16, use_batch_norm, stride=2, expansion=4)(x)
-
-    x = tf.keras.layers.Flatten()(x)
-
-    if n_meta > 0:
-        x = tf.keras.layers.Concatenate()([x, meta])
-
-    if n_context > 0:
-        x = tf.keras.layers.Concatenate()([x, context])
-
-    x = tf.keras.layers.Dense(16)(x)
+    x = tf.keras.layers.Dense(40)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
-
+    x = tf.keras.layers.Dense(24)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
     return _get_common_classifier_output(x, n_classes, with_offset, inputs)
 
 
