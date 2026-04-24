@@ -61,12 +61,14 @@ GRAYSCALE=true
 # == Classifier Evaluation ==
 # ===========================
 
-# SETTINGSFILES=(
-    # "classifier-evaluation/all_categories_288x384_v1.yaml"
-    # "classifier-evaluation/all_categories_288x384_v2.yaml"
-    # "classifier-evaluation/all_categories_288x384_v3.yaml"
-    # "classifier-evaluation/all_categories_288x384_v4.yaml"
-# )
+# ==============================
+# == Contextvector Saturation ==
+# ==============================
+SETTINGSFILES=(
+    "ctx_vector_saturation/288x384_v6_32.yaml"
+    "ctx_vector_saturation/288x384_v6_64.yaml"
+    "ctx_vector_saturation/288x384_v6_256.yaml"
+)
 
 for F in "${SETTINGSFILES[@]}"; do
     if [ "$GRAYSCALE" = true ]; then
