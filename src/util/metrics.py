@@ -992,15 +992,36 @@ def handle_predictions_multiclass(
 
     nms_selected_indices = None
     nms_num_valid = None
-
+    
+    # Run the NMS on batched predictions for performance reasons.
     if iou_threshold is not None:
-        nms_selected_indices, nms_num_valid = tf.image.non_max_suppression_padded(
-            predictions["boxes"],  # (B, N, 4)
-            tf.reduce_max(classification_scores, axis=-1),  # (B, N)
-            num_candidates,
-            iou_threshold,
-            pad_to_max_output_size=True,
-        )  # (B, N), (B, )
+        batch_size = tf.shape(predictions["boxes"])[0]
+        batch_size_per_chunk = 1000 # change this if OOM Error are raised
+        num_chunks = tf.cast(tf.math.ceil(batch_size / batch_size_per_chunk), tf.int32)
+
+        nms_selected_indices_list = []
+        nms_num_valid_list = []
+
+        for i in tf.range(num_chunks):
+            start_idx = i * batch_size_per_chunk
+            end_idx = tf.minimum((i + 1) * batch_size_per_chunk, batch_size)
+
+            boxes_chunk = predictions["boxes"][start_idx:end_idx]
+            scores_chunk = tf.reduce_max(classification_scores[start_idx:end_idx, :, 1:], axis=-1)
+
+            selected_indices_chunk, num_valid_chunk = tf.image.non_max_suppression_padded(
+                boxes_chunk,
+                scores_chunk,
+                num_candidates,
+                iou_threshold,
+                pad_to_max_output_size=True,
+            )
+
+            nms_selected_indices_list.append(selected_indices_chunk)
+            nms_num_valid_list.append(num_valid_chunk)
+
+        nms_selected_indices = tf.concat(nms_selected_indices_list, axis=0)
+        nms_num_valid = tf.concat(nms_num_valid_list, axis=0)
 
     best_logits = tf.gather(
         predictions["logits"], predictions["patch_indices"], batch_dims=1
