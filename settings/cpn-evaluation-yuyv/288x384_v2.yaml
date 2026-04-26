@@ -4,21 +4,23 @@ model:
     input_dims: [288, 384]
     cell_dims: [16, 16]
     n_context: 0
-    only_train_encoder: False
+    channels_in: 4
+    train_encoder: True
     use_batch_norm: False
   classifier:
     architecture: "ires_v1"
     patch_size: [32, 32]
     n_meta: 0 # if 1 it's just the distance to the patch center
     with_offsets: True
+    train_classifier: False
     use_batch_norm: False
 
 training:
   epochs: 800
-  initial_epoch: 269
+  initial_epoch: 0
   batch_size: 32
   verbose: 1
-  from_checkpoint: True # < when starting training from checkpoint
+  from_checkpoint: False # < when starting training from checkpoint
   from_model: False # < when loading an existing model
   load_checkpoint:
     initial_epoch: 269

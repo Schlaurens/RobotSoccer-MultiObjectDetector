@@ -15,7 +15,7 @@ model:
     use_batch_norm: False
 
 training:
-  epochs: 400
+  epochs: 500
   initial_epoch: 0
   batch_size: 32
   verbose: 1
