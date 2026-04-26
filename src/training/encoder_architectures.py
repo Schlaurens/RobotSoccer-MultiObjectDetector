@@ -90,7 +90,8 @@ def _get_common_encoder_output(x, category_names, n_context, image):
         output += [offset, interest]
 
     if n_context > 0:
-        context = tf.keras.layers.Conv2D(n_context, 1, name="context")(x)
+        context_input = tf.keras.layers.Lambda(tf.stop_gradient)(x)
+        context = tf.keras.layers.Conv2D(n_context, 1, name="context")(context_input)
         output += [context]
 
     return tf.keras.Model(
