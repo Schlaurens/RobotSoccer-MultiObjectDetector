@@ -440,9 +440,9 @@ def calculate_multiclass_metrics(
         ),
         tf.int32,
     )
-    
+
     mask_gt_coords = use_sample[:, tf.newaxis] & (distance_mask <= max_distance)
-    
+
     # use_sample and distance filtering
     coord_mask_filtered = tf.where(
         mask_gt_coords[..., None], coord_mask, tf.fill([2], -1.0, tf.float32)
@@ -452,7 +452,7 @@ def calculate_multiclass_metrics(
     coords_true_filtered = tf.where(
         mask_coords_true[..., None], coords_true, tf.fill([2], -1.0, tf.float32)
     )
-    
+
     # round the coordinates to the 4th decimal to account for rounding error that occured when calculate the coordinate mask.
     coord_mask_rounded = tf.round(coord_mask_filtered * 1e1) / 1e1  # (B, H_out * W_out, 2)
     coords_true_rounded = tf.round(coords_true_filtered * 1e1) / 1e1  # (B, N, 2)
@@ -482,7 +482,7 @@ def calculate_multiclass_metrics(
     uncovered_foreground_counts = tf.reduce_sum(uncovered_one_hot, axis=[0, 1])[
         1:
     ]  # (num_classes - 1, )
-    
+
     indices = tf.stack(
         [tf.range(1, num_classes), tf.zeros(num_classes - 1, dtype=tf.int32)], axis=1
     )  # (num_classes-1, 2) — [(1,0), (2,0), (3,0), ...]
@@ -522,7 +522,7 @@ def calculate_multiclass_metrics(
     tn_count_pooled = confusion_matrix[0, 0]
     fp_count_pooled = tf.reduce_sum(confusion_matrix[0, 1:])
     fn_count_pooled = tf.reduce_sum(confusion_matrix[1:, 0])
-    
+
     total_samples = tf.reduce_sum(confusion_matrix)
 
     fp_rate_pooled = fp_count_pooled / total_samples
