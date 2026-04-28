@@ -119,14 +119,14 @@ def load_datasets(config):
     print("Number of samples: ", train_samples + val_samples)
     print("Train Size: ", train_samples)
     print("Val Samples: ", val_samples)
-
-    batch_size = config["training"]["batch_size"]
-    train_ds = train_ds.batch(batch_size)
-    val_ds = val_ds.batch(batch_size)
-
+    
     # To counteract "Local rendezvous warning"
     train_ds = train_ds.repeat(-1)
     val_ds = val_ds.repeat(-1)
+    
+    batch_size = config["training"]["batch_size"]
+    train_ds = train_ds.shuffle(2000).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+    val_ds = val_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
     return {
         "train_ds": train_ds,
