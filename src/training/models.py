@@ -177,9 +177,11 @@ class FullModel(tf.keras.Model):
         )  # (B, 300)
 
         # Check overlap with object_mask
-        tp = tf.reduce_sum(top_k_mask * flat_object_mask)  # (B, )
-        num_objects = tf.reduce_sum(flat_object_mask)  # (B, )
-        recall_at_k = tp / tf.maximum(num_objects, 1e-8)  # ()
+        tp = tf.reduce_sum(top_k_mask * flat_object_mask)  # ( )
+        num_objects = tf.reduce_sum(flat_object_mask)  # ( )
+        recall_at_k = tp / tf.maximum(num_objects, 1e-8)  # ( )
+
+        class_distr = tf.cast(tp, tf.int32) / (B * n_candidates) # ( )
 
         # Compute MSE
         squared_error = tf.square(
@@ -221,6 +223,7 @@ class FullModel(tf.keras.Model):
             "mae": mae_metric,
             "bce": bce,
             "recall_at_k": recall_at_k,
+            "class_distribution": class_distr,
         }
 
     def classifier_loss(self, batch_data, results, object_name):
@@ -415,6 +418,7 @@ class FullModel(tf.keras.Model):
             for key in self.categories:
                 result[f"encoder_bce_{key}"] = encoder_losses[key]["bce"]
                 result[f"encoder_recall_at_k_{key}"] = encoder_losses[key]["recall_at_k"]
+                result[f"encoder_class_distribution_{key}"] = encoder_losses[key]["class_distribution"]
                 result[f"encoder_mse_{key}"] = encoder_losses[key]["mse"]
                 result[f"encoder_mae_{key}"] = encoder_losses[key]["mae"]
 
