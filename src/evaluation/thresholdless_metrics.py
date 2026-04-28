@@ -39,7 +39,7 @@ def load_dataset(config):
     )
 
     path_to_test_data = glob.glob(
-        Path("data/tfrecords/", f"{input_dims[1]}x{input_dims[0]}", "test_ds*.tfrecords").as_posix()
+        Path("data/tfrecords/", f"{input_dims[1]}x{input_dims[0]}", "val_ds*.tfrecords").as_posix()
     )
 
     test_ds = u_dataset_io.get_dataset(path_to_test_data, dataset_utils)
