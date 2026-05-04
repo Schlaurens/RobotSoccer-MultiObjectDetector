@@ -147,33 +147,33 @@ def _get_classifier_conv_v0(
 
     x = image
     # 32x32x3
-    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
+    # x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 3, strides=2, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 8x8x32
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 8x8x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(80, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(80, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(80, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(80, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 4x4x48
@@ -208,33 +208,32 @@ def _get_classifier_conv_v1(
 
     x = image
     # 32x32x3
-    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(24, 3, strides=2, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(40, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(40, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 8x8x32
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(40, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(40, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 8x8x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(68, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(68, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(68, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(68, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 4x4x48
@@ -269,33 +268,32 @@ def _get_classifier_conv_v2(
 
     x = image
     # 32x32x3
-    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(16, 3, strides=2, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 8x8x32
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 8x8x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(56, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(56, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(56, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(56, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 4x4x48
@@ -330,33 +328,32 @@ def _get_classifier_conv_v3(
 
     x = image
     # 32x32x3
-    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(12, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(12, 3, strides=2, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(12, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(12, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 8x8x32
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 8x8x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(44, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(44, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(44, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(44, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 4x4x48
@@ -391,33 +388,32 @@ def _get_classifier_conv_v4(
 
     x = image
     # 32x32x3
-    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(8, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(8, 3, strides=2, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(8, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(8, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 8x8x32
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(16, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 8x8x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 4x4x48
@@ -452,33 +448,32 @@ def _get_classifier_conv_v5(
 
     x = image
     # 32x32x3
-    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(4, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(4, 3, strides=2, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(4, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(4, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(8, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(8, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 8x8x32
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(8, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(8, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 8x8x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(20, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(20, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(20, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(20, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 4x4x48
@@ -513,33 +508,32 @@ def _get_classifier_conv_v6(
 
     x = image
     # 32x32x3
-    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(3, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(3, 3, strides=2, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(3, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(3, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(6, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(6, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 8x8x32
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(6, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(6, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 8x8x32
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(14, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(14, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     residual = x
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(14, 1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(14, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Add()([x, residual])
     # 4x4x48

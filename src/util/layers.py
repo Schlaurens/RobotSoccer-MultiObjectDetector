@@ -161,7 +161,7 @@ def IresBlockCompiledNN(filters, use_batch_norm, stride, expansion, name=None):
             filters * expansion,
             1,
             padding="same",
-            use_bias=False,
+            use_bias=True,
             # name=f"{name}_conv_expand",
         )(inputs)
 
@@ -184,7 +184,7 @@ def IresBlockCompiledNN(filters, use_batch_norm, stride, expansion, name=None):
             filters,
             1,
             padding="same",
-            use_bias=False,
+            use_bias=True,
             # name=f"{name}_conv_projection",
         )(x)
 
