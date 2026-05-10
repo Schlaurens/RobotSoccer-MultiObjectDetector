@@ -389,30 +389,21 @@ class FullModel(tf.keras.Model):
         }
 
     def _calculate_losses(self, batch_data, results, maps):
-        # This is a bit hacky and should be removed once there are no more models with the old Concatenated architecture.
         result = {}
 
         # =========================
         # == Handle Encoder Loss ==
         # =========================
         if self.train_encoder:
-            if f"{list(self.categories.keys())[0]}_interest" in maps:
-                encoder_losses = {
-                    key: self.encoder_loss(
-                        batch_data[key],
-                        interest=tf.squeeze(maps[f"{key}_interest"], -1),
-                        offsets=maps[f"{key}_offsets"],
-                        n_candidates=self.categories[key]["n_candidates"],
-                    )
-                    for key in self.categories
-                }
-            else:
-                encoder_losses = {
-                    key: self.encoder_loss(
-                        batch_data[key], interest=maps[key][..., 2], offsets=maps[key][..., :2]
-                    )
-                    for key in self.categories
-                }
+            encoder_losses = {
+                key: self.encoder_loss(
+                    batch_data[key],
+                    interest=tf.squeeze(maps[f"{key}_interest"], -1),
+                    offsets=maps[f"{key}_offsets"],
+                    n_candidates=self.categories[key]["n_candidates"],
+                )
+                for key in self.categories
+            }
 
             result["encoder_loss"] = tf.reduce_sum(
                 [value["loss"] for value in encoder_losses.values()]
@@ -685,43 +676,24 @@ class FullModel(tf.keras.Model):
         context = None
         if "context" in maps:
             context = maps["context"]  # (B, H_out, W_out, n_context)
-        # This is a bit hacky and should be removed once there are no more models with the old Concatenated architecture.
-        if f"{list(self.categories.keys())[0]}_interest" in maps:
-            results = {
-                key: self._handle_category(
-                    image,
-                    camera,
-                    intrinsics,
-                    value["object_height"],
-                    maps[f"{key}_interest"],
-                    maps[f"{key}_offsets"],
-                    context,
-                    value["n_classes"],
-                    value["sampler"],
-                    value["extractor"],
-                    value["classifier"],
-                    training=training,
-                )
-                for key, value in self.categories.items()
-            }  # Call _handle_category for each category and store the results in a dictionary
-        else:
-            results = {
-                key: self._handle_category(
-                    image,
-                    camera,
-                    intrinsics,
-                    value["object_height"],
-                    maps[key][..., 2],
-                    maps[key][..., :2],
-                    context,
-                    value["n_classes"],
-                    value["sampler"],
-                    value["extractor"],
-                    value["classifier"],
-                    training=training,
-                )
-                for key, value in self.categories.items()
-            }  # Call _handle_category for each category and store the results in a dictionary
+
+        results = {
+            key: self._handle_category(
+                image,
+                camera,
+                intrinsics,
+                value["object_height"],
+                maps[f"{key}_interest"],
+                maps[f"{key}_offsets"],
+                context,
+                value["n_classes"],
+                value["sampler"],
+                value["extractor"],
+                value["classifier"],
+                training=training,
+            )
+            for key, value in self.categories.items()
+        }  # Call _handle_category for each category and store the results in a dictionary
 
         # results: patches, masks
         # maps: [B, H_out, W_out, 3] (offsets, logits) or [B, H_out, W_out, n_context]
