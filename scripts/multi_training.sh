@@ -75,17 +75,14 @@ SETTINGSFILES=(
 # ==============================
 # == Contextvector Saturation ==
 # ==============================
-SETTINGSFILES=(
-    "ctx_vector_saturation/288x384_v6_32.yaml"
-    "ctx_vector_saturation/288x384_v6_64.yaml"
-    "ctx_vector_saturation/288x384_v6_256.yaml"
-)
+CPN_GRAYSCALE=false
+CPN_YUYV=false
 
 for F in "${SETTINGSFILES[@]}"; do
-    if [ "$GRAYSCALE" = true ]; then
+    if [ "$CPN_GRAYSCALE" = true ]; then
         F="cpn-evaluation-grayscale/$F"
     fi
-    if [ "$YUYV" = true ]; then
+    if [ "$CPN_YUYV" = true ]; then
         F="cpn-evaluation-yuyv/$F"
     fi
     echo "Running with settings file: $F"
