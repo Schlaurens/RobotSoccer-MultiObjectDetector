@@ -126,9 +126,12 @@ class FullModel(tf.keras.Model):
 
     @property
     def metrics(self):
-        if not self._test_metrics:
-            return []
-        return list(self._test_metrics.values())
+        metrics = []
+        if self._train_metrics:
+            metrics += list(self._train_metrics.values())
+        if self._test_metrics:
+            metrics += list(self._test_metrics.values())
+        return metrics
 
     def encoder_loss(self, batch_data, interest, offsets, n_candidates):
         B = tf.shape(interest)[0]  # Batch Size
