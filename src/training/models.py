@@ -181,7 +181,7 @@ class FullModel(tf.keras.Model):
         num_objects = tf.reduce_sum(flat_object_mask)  # ( )
         recall_at_k = tp / tf.maximum(num_objects, 1e-8)  # ( )
 
-        class_distr = tf.cast(tp, tf.int32) / (B * n_candidates) # ( )
+        class_distr = tf.cast(tp, tf.int32) / (B * n_candidates)  # ( )
 
         # Compute MSE
         squared_error = tf.square(
@@ -412,7 +412,9 @@ class FullModel(tf.keras.Model):
             for key in self.categories:
                 result[f"encoder_bce_{key}"] = encoder_losses[key]["bce"]
                 result[f"encoder_recall_at_k_{key}"] = encoder_losses[key]["recall_at_k"]
-                result[f"encoder_class_distribution_{key}"] = encoder_losses[key]["class_distribution"]
+                result[f"encoder_class_distribution_{key}"] = encoder_losses[key][
+                    "class_distribution"
+                ]
                 result[f"encoder_mse_{key}"] = encoder_losses[key]["mse"]
                 result[f"encoder_mae_{key}"] = encoder_losses[key]["mae"]
 
@@ -807,9 +809,7 @@ class FullModel(tf.keras.Model):
             )  # (B * N, n_context)
             classifier_inputs += [context_reshaped]
 
-        classification, offsets = classifier(
-            classifier_inputs, training=training
-        )  # + meta + context
+        classification, offsets = classifier(classifier_inputs, training=training)
 
         classification = tf.reshape(
             classification, (tf.shape(intrinsics)[0], sampler.n_sample, n_classes)
