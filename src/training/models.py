@@ -571,7 +571,7 @@ class FullModel(tf.keras.Model):
             filepath: the filepath to models directory
             filename: the name of the .keras file
             only_train_encoder: True if only the encoder has an impact on the loss function. The classifier will have no impact on the training. Defaults to False.
-            encoder_only: True if ONLY an existing encoder is loaded and the classifier. Defaults to False.
+            encoder_only: True if ONLY an existing encoder is loaded. Defaults to False.
             verbose: Print status messages that describe the status of the loading process. Defaults to False.
 
         Returns:
@@ -606,7 +606,7 @@ class FullModel(tf.keras.Model):
             print("Encoder loaded!")
 
         # Load each classifier
-        if train_classifier:
+        if train_classifier and not encoder_only:
             for name, value in model.categories.items():
                 try:
                     classifier_path = os.path.join(
