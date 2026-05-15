@@ -387,7 +387,8 @@ def main(args):
     if eval_classifier:
         print("Evaluating Classifier...")
         end_to_end = True
-        path_to_models = Path(args.model_dir, args.model_timestamp)
+        architecture_version = config["model"]["classifier"]["architecture"].split("_")[-1]
+        path_to_models = Path(args.model_dir, architecture_version, args.model_timestamp)
 
         print("Loading Model...")
         model = load_model(config, path_to_models, args.model_timestamp)
