@@ -325,6 +325,8 @@ class FullModel(tf.keras.Model):
 
             # Get combined probability of the positive classes.
             error_factor = 1 - y_pred[..., 0]  # (B, N)
+            
+            class_distr = tf.reduce_sum(tf.cast(y_true, tf.int32)[..., 1:-1]) / (tf.shape(y_true)[0] * tf.shape(y_true)[1]) # ( )
 
         elif object_name in [
             u_dataset.CategoryNames.BALL.value,
@@ -343,6 +345,8 @@ class FullModel(tf.keras.Model):
             cross_entropy = tf.reduce_sum(tf.reduce_mean(cross_entropy_multiplied, axis=-1))
 
             error_factor = tf.squeeze(y_pred, axis=-1)  # (B, N)
+            
+            class_distr = tf.reduce_sum(tf.cast(y_true, tf.int32)) / (tf.shape(y_true)[0] * tf.shape(y_true)[1]) # ( )
         else:
             raise ValueError("Invalid object_name.")
 
@@ -403,6 +407,7 @@ class FullModel(tf.keras.Model):
             "mse": mse,
             "euc_error": mean_euclidean_error,
             "ce": cross_entropy,
+            "class_distribution": class_distr,
         }
 
     def _calculate_losses(self, batch_data, results, maps):
@@ -456,6 +461,7 @@ class FullModel(tf.keras.Model):
                 result[f"classifier_ce_{key}"] = classifier_losses[key]["ce"]
                 result[f"classifier_mse_{key}"] = classifier_losses[key]["mse"]
                 result[f"classifier_euc_error_{key}"] = classifier_losses[key]["euc_error"]
+                result[f"classifier_class_distribution_{key}"] = classifier_losses[key]["class_distribution"]
 
         return result
 
