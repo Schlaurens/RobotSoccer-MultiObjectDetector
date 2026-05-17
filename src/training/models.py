@@ -794,6 +794,10 @@ class FullModel(tf.keras.Model):
         patch_indices = sampler(logits, distance_mask, training=training)  # [B, N_out]
         coords = tf.gather(coords, patch_indices, batch_dims=1)  # [B, N_out, 2]
 
+        if training and not self.train_encoder:
+            noise = tf.random.normal(tf.shape(coords), mean=0.0, stddev=1.0)
+            coords = coords + noise
+
         (patches, boxes, distances_in_camera, pixel_sizes) = extractor(
             image, coords, camera, intrinsics, training=training
         )  # [B, N_out, H_out, W_out, C], [B, N_out]
