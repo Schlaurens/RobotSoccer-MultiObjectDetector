@@ -851,7 +851,7 @@ class FullModel(tf.keras.Model):
 
         positions = tf.stop_gradient(coords) + tf.reshape(
             offsets, (tf.shape(intrinsics)[0], sampler.n_sample, 2)
-        )  # (B, N, 2)
+        ) * tf.expand_dims(tf.stop_gradient(pixel_sizes), -1)  # (B, N, 2)
 
         return {
             "patches": patches,
