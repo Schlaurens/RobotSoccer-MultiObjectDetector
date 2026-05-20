@@ -510,7 +510,10 @@ class DatasetUtils:
         )
 
     def classification_mask_to_one_hot(
-        self, classification_mask: tf.Tensor, object_name: str
+        self,
+        classification_mask: tf.Tensor,
+        object_name: str | None = None,
+        n_classes: int | None = None,
     ) -> tf.Tensor:
         """Converts the classification_mask (B, H, W) into a one hot encoding (B, H, W, N_C).
 
@@ -521,10 +524,13 @@ class DatasetUtils:
         Returns:
             The classficiation mask in a one-hot encoding (B, H, W, N_C)
         """
-        if object_name == CategoryNames.INTERSECTIONS.value:
-            n_classes = len(IntersectionType)
-        else:
-            raise ValueError("Invalid object_name")
+        if object_name is not None:
+            if object_name == CategoryNames.INTERSECTIONS.value:
+                n_classes = len(IntersectionType)
+            else:
+                raise ValueError("Invalid object_name")
+        elif n_classes is None:
+            raise ValueError("Either object_name or n_classes must be provided.")
 
         return tf.one_hot(indices=tf.cast(classification_mask, tf.int32), depth=n_classes, axis=-1)
 
