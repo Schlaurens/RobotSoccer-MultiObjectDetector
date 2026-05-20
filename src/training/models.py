@@ -362,82 +362,23 @@ class FullModel(tf.keras.Model):
             "class_distribution": class_distr,
         }
 
-    def encoder_metrics(self, batch_data, results, camera, intrinsics, object_name):
-        num_cells = self.dataset_config.output_dims[0] * self.dataset_config.output_dims[1]
-        object_mask_flat = tf.reshape(batch_data["object_mask"], (-1, num_cells))  # (B, H * W)
-        use_sample = tf.reduce_any(tf.cast(batch_data["loss_mask"], tf.bool), axis=[1, 2])  # (B,)
-        if object_name in [
-            u_dataset.CategoryNames.BALL.value,
-            u_dataset.CategoryNames.PENALTYMARK.value,
-        ]:
-            # Single GT coord per image (B, 2), normalized to [0, 1]. Can be [-1.0, -1.0].
-            coords_true = self.dataset_utils.get_coordinate_mask(batch_data["offset_mask"])[
-                :, 0, 0, :
-            ]  # (B, 2)
-            coords_true_normalized = coords_true / self.dataset_config.input_dims[::-1]
-
-            object_in_image = tf.reduce_any(
-                tf.cast(batch_data["object_mask"], tf.bool), [1, 2]
-            )  # (B,)
-            # Get the distance of the single object in the image. reduce_sum works because there at max one object per image.
-            distance_of_object = tf.reduce_sum(distance_mask * object_mask_flat, axis=-1)  # (B, )
-
-            # Check if any of the N candidate boxes contains the GT coord
-            # coords: (B, 1, 2), boxes: (B, N, 4) → (B, N)
-            covered = u_keypoint.are_coords_in_patch(
-                coords_true_normalized[:, tf.newaxis, :],
-                results["boxes"],
-                self.categories[object_name]["padding"],
-            )  # (B, N)
-
-            # False if no gt_coords have been covered by a candidate patch. True else
-            # Can also be True if there is no object and a patch covers the coords [-1.0, -1.0]
-            any_covered = tf.reduce_any(covered, axis=-1)  # (B,)
-
-            valid = (
-                object_in_image
-                & use_sample
-                & (distance_of_object <= self.categories[object_name]["max_distance"])
-            )  # (B, )
-            tp = tf.reduce_sum(tf.cast(any_covered & valid, tf.int32))
-            total = tf.reduce_sum(tf.cast(valid, tf.int32))
-
-        elif object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
-            gt_coord_mask = tf.reshape(
-                self.dataset_utils.get_coordinate_mask(batch_data["offset_mask"]),
-                (-1, num_cells, 2),
-            )  # (B, H * W, 2)
-            gt_coord_mask_normalized = (
-                gt_coord_mask / self.dataset_config.input_dims[::-1]
-            )  # (B, H * W, 2)
-
-            # For every GT cell x every candidate box: is GT coord inside the box?
-            # coords: (B, H*W, 1, 2), boxes: (B, 1, N, 4) → (B, H*W, N)
-            covered = u_keypoint.are_coords_in_patch(
-                gt_coord_mask_normalized[:, :, tf.newaxis, :],
-                results["boxes"][:, tf.newaxis, :, :],
-                padding=self.categories[object_name]["padding"],
-            )  # (B, H * W, N)
-
-            # A GT cell is covered if at least one candidate box contains it
-            is_covered = tf.reduce_any(covered, axis=-1)  # (B, H*W)
-
-            # Only count cells that actually have an object and belong to valid samples
-            valid_mask = (
-                tf.cast(object_mask_flat, tf.bool)
-                & use_sample[:, tf.newaxis]
-                & (distance_mask <= self.categories[object_name]["max_distance"])
-            )  # (B, H*W)
-            tp = tf.reduce_sum(tf.cast(is_covered & valid_mask, tf.int32))
-            total = tf.reduce_sum(tf.cast(valid_mask, tf.int32))
-
-        else:
-            raise ValueError(f"Unknown object_name: {object_name}")
-
-        recall_at_k = tf.cast(tp, tf.float32) / tf.maximum(tf.cast(total, tf.float32), 1e-8)
+    def encoder_metrics(
+        self,
+        batch_data,
+        results,
+        camera,
+        intrinsics,
+        object_name,
+    ):
+        recall_at_k, class_distribution = self.encoder_recall_at_k(
+            batch_data, results, camera, intrinsics, object_name
+        )
+        euclidean_error = self.encoder_euclidean_error(batch_data, results, object_name)
 
         return {
+            "class_distribution": class_distribution,
             "recall_at_k": recall_at_k,
+            "euclidean_error": euclidean_error,
         }
 
     def _calculate_losses(self, batch_data, results, maps):
@@ -508,7 +449,8 @@ class FullModel(tf.keras.Model):
 
         for key in self.categories:
             result[f"encoder_recall_at_k_{key}"] = encoder_metrics[key]["recall_at_k"]
-            result[f"encoder_mae_{key}"] = encoder_metrics[key]["mae"]
+            result[f"encoder_class_distribution_{key}"] = encoder_metrics[key]["class_distribution"]
+            result[f"encoder_euclidean_error_{key}"] = encoder_metrics[key]["euclidean_error"]
 
         return result
 
@@ -934,3 +876,132 @@ class FullModel(tf.keras.Model):
             "positions": positions,
             "distances": distances_in_camera,
         }
+
+    def encoder_recall_at_k(self, batch_data, results, camera, intrinsics, object_name):
+        B = tf.shape(camera)[0]
+        num_cells = self.dataset_config.output_dims[0] * self.dataset_config.output_dims[1]
+        object_mask_flat = tf.reshape(batch_data["object_mask"], (-1, num_cells))  # (B, H * W)
+        use_sample = tf.reduce_any(tf.cast(batch_data["loss_mask"], tf.bool), axis=[1, 2])  # (B,)
+
+        distance_mask = tf.reshape(
+            self.dataset_utils.get_distance_mask_from_offsets(
+                batch_data["offset_mask"], camera, intrinsics, 0.0
+            ),
+            (-1, num_cells),
+        )  # (B, H_out * W_out)
+
+        if object_name in [
+            u_dataset.CategoryNames.BALL.value,
+            u_dataset.CategoryNames.PENALTYMARK.value,
+        ]:
+            # Single GT coord per image (B, 2), normalized to [0, 1]. Can be [-1.0, -1.0].
+            coords_true = self.dataset_utils.get_coordinate_mask(batch_data["offset_mask"])[
+                :, 0, 0, :
+            ]  # (B, 2)
+            coords_true_normalized = coords_true / self.dataset_config.input_dims[::-1]
+
+            object_in_image = tf.reduce_any(
+                tf.cast(batch_data["object_mask"], tf.bool), [1, 2]
+            )  # (B,)
+            # Get the distance of the single object in the image. reduce_sum works because there at max one object per image.
+            distance_of_object = tf.reduce_sum(distance_mask * object_mask_flat, axis=-1)  # (B, )
+
+            # Check if any of the N candidate boxes contains the GT coord
+            # coords: (B, 1, 2), boxes: (B, N, 4) → (B, N)
+            covered = u_keypoint.are_coords_in_patch(
+                coords_true_normalized[:, tf.newaxis, :],
+                results["boxes"],
+                self.categories[object_name]["padding"],
+            )  # (B, N)
+
+            # False if no gt_coords have been covered by a candidate patch. True else
+            # Can also be True if there is no object and a patch covers the coords [-1.0, -1.0]
+            any_covered = tf.reduce_any(covered, axis=-1)  # (B,)
+
+            valid = (
+                object_in_image
+                & use_sample
+                & (distance_of_object <= self.categories[object_name]["max_distance"])
+            )  # (B, )
+            tp = tf.reduce_sum(tf.cast(any_covered & valid, tf.int32))
+            total = tf.reduce_sum(tf.cast(valid, tf.int32))
+
+        elif object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+            gt_coord_mask = tf.reshape(
+                self.dataset_utils.get_coordinate_mask(batch_data["offset_mask"]),
+                (-1, num_cells, 2),
+            )  # (B, H * W, 2)
+            gt_coord_mask_normalized = (
+                gt_coord_mask / self.dataset_config.input_dims[::-1]
+            )  # (B, H * W, 2)
+
+            # For every GT cell x every candidate box: is GT coord inside the box?
+            # coords: (B, H*W, 1, 2), boxes: (B, 1, N, 4) → (B, H*W, N)
+            covered = u_keypoint.are_coords_in_patch(
+                gt_coord_mask_normalized[:, :, tf.newaxis, :],
+                results["boxes"][:, tf.newaxis, :, :],
+                padding=self.categories[object_name]["padding"],
+            )  # (B, H * W, N)
+
+            # A GT cell is covered if at least one candidate box contains it
+            is_covered = tf.reduce_any(covered, axis=-1)  # (B, H*W)
+
+            # Only count cells that actually have an object and belong to valid samples
+            valid_mask = (
+                tf.cast(object_mask_flat, tf.bool)
+                & use_sample[:, tf.newaxis]
+                & (distance_mask <= self.categories[object_name]["max_distance"])
+            )  # (B, H*W)
+            tp = tf.reduce_sum(tf.cast(is_covered & valid_mask, tf.int32))
+            total = tf.reduce_sum(tf.cast(valid_mask, tf.int32))
+
+        else:
+            raise ValueError(f"Unknown object_name: {object_name}")
+
+        recall_at_k = tf.cast(tp, tf.float32) / tf.maximum(tf.cast(total, tf.float32), 1e-8)
+        class_distribution = tf.cast(tp, tf.int32) / (
+            B * self.categories[object_name]["n_candidates"]
+        )
+
+        return recall_at_k, class_distribution
+
+    def encoder_euclidean_error(self, batch_data, results, object_name):
+        num_cells = self.dataset_config.output_dims[0] * self.dataset_config.output_dims[1]
+
+        # === MAE (shared across both branches) ===
+        gt_coord_flat = tf.reshape(
+            self.dataset_utils.get_coordinate_mask(batch_data["offset_mask"]),
+            (-1, num_cells, 2),
+        )  # (B, H*W, 2)
+        pred_coords_at_patches = results["coords"]  # (B, N, 2)
+
+        # Gather GT and predicted coords at the sampled patch indices
+        gt_coords_at_patches = tf.gather(
+            gt_coord_flat, results["patch_indices"], batch_dims=1
+        )  # (B, N, 2)
+
+        # Normalize GT coords for are_coords_in_patch
+        gt_coords_at_patches_normalized = (
+            gt_coords_at_patches / self.dataset_config.input_dims[::-1]
+        )  # (B, N, 2)
+
+        # True where the sampled patch actually contains the GT object
+        object_at_patches = u_keypoint.are_coords_in_patch(
+            gt_coords_at_patches_normalized,
+            results["boxes"],
+            padding=self.categories[object_name]["padding"],
+        )  # (B, N)
+
+        error_in_pixels = tf.norm(
+            (gt_coords_at_patches - pred_coords_at_patches)
+            / self.dataset_config.image_res_scale[::-1],
+            axis=-1,
+        )  # (B, N)
+
+        num_objects = tf.reduce_sum(tf.cast(object_at_patches, tf.float32))
+
+        mae_metric = tf.reduce_sum(
+            error_in_pixels * tf.cast(object_at_patches, tf.float32)
+        ) / tf.maximum(num_objects, 1e-8)
+
+        return mae_metric
