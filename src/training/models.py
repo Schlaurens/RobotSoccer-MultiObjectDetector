@@ -389,8 +389,8 @@ class FullModel(tf.keras.Model):
         # If coords_true are inside the patch always calculate the MSE. Else the classifier's offset predictions are useless and should be ignored. Assign a constant max error that has gradient of zero. Also if there are no coords_true because the sample was ignored, the results have no impact on the loss.
         squared_error = tf.where(
             are_coords_true_inside_patch,
-            tf.reduce_sum(tf.square(coords_pred - coords_true_of_patches), axis=-1)
-            * tf.stop_gradient(results["distances"]),
+            tf.reduce_sum(tf.square(coords_pred - coords_true_of_patches), axis=-1),
+            # * tf.stop_gradient(results["distances"]),
             0.0,
         )  # (B, N)
         # If the classifier thinks that there is no object in the image, this error has a smaller contribution to the loss
