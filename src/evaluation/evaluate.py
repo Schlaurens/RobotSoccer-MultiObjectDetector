@@ -39,19 +39,7 @@ from util import metrics as u_metrics
 
 
 class EvaluateApplication:
-    def __init__(self, model_path, data_path):
-        path_to_model = "/".join(model_path.split("/")[:-2])
-        model_name = model_path.split("/")[-1]
-        resolution_string = model_path.split("/")[-3]
-        if "checkpoints" in path_to_model:
-            model_timestamp = path_to_model.split("/")[-1]
-        else:
-            model_timestamp = model_name.split(".")[0]
-
-        config = self.load_config(f"logs/fit/{resolution_string}/{model_timestamp}/config.yaml")
-
-        input_dims = config["model"]["encoder"]["input_dims"]
-        cell_dims = config["model"]["encoder"]["cell_dims"]
+    def __init__(self, log_path, data_path):
         self.dataset_utils = u_dataset.DatasetUtils(
             u_dataset.DatasetConfig(input_dims, cell_dims=cell_dims)
         )
@@ -482,8 +470,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="This script shows the results of a model.")
     parser.add_argument("data_path")
-    parser.add_argument("model_path")
+    parser.add_argument("log_path")
     args = parser.parse_args()
 
-    app = EvaluateApplication(args.model_path, args.data_path)
+    app = EvaluateApplication(args.log_path, args.data_path)
     app.run()
