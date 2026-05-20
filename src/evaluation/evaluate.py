@@ -89,6 +89,17 @@ class EvaluateApplication:
         self.initialize_figures()
         self.select_image()
 
+    def get_model_path(self):
+        print("Finding Model...")
+        timestamp = self.config["metadata"]["timestamp"]
+
+        for root, dirs, _ in os.walk("models"):
+            for dir_name in dirs[:]:
+                if dir_name == timestamp:
+                    full_path = os.path.join(root, dir_name)
+
+        return full_path
+
     def update_threshold(self, encoder: bool, object_name: str, val: float):
         self.thresholds["encoder" if encoder else "classifier"][object_name] = val
 
