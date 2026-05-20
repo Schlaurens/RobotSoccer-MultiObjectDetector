@@ -133,9 +133,7 @@ class FullModel(tf.keras.Model):
             metrics += list(self._test_metrics.values())
         return metrics
 
-    def encoder_loss(self, batch_data, interest, offsets, n_candidates):
-        B = tf.shape(interest)[0]  # Batch Size
-
+    def encoder_loss(self, batch_data, interest, offsets):
         # Compute Binary Cross Entropy
 
         # Numeric stabilizer
@@ -168,38 +166,6 @@ class FullModel(tf.keras.Model):
         tf.debugging.assert_all_finite(batch_data["loss_mask"], "batch_data[loss_mask]")
         tf.debugging.assert_all_finite(element_wise_bce_multiplied, "element_wise_bce_multiplied")
 
-        # ==============
-        # == Recall@k ==
-        # ==============
-
-        k = n_candidates
-
-        # Flatten spatial dims for each sample
-        flat_interest = tf.reshape(interest, [B, -1])  # (B, 300)
-        flat_object_mask = tf.reshape(batch_data["object_mask"], [B, -1])  # (B, 300)
-
-        top_k_indices = tf.math.top_k(flat_interest, k=k).indices  # (B, k)
-
-        # Build top-k mask by scattering 1s at top-k indices
-        batch_indices = tf.repeat(tf.range(B)[:, tf.newaxis], k, axis=1)  # (B, k)
-
-        # Which samples, which cell index
-        scatter_indices = tf.stack([batch_indices, top_k_indices], axis=-1)  # (B, k, 2)
-
-        # Places a 1 at each index that is in the top k indices.
-        top_k_mask = tf.tensor_scatter_nd_update(
-            tf.zeros([B, tf.reduce_prod(self.dataset_config.output_dims)]),  # (B, 300)
-            tf.reshape(scatter_indices, [-1, 2]),  # (B * k, 2)
-            tf.ones([B * k]),
-        )  # (B, 300)
-
-        # Check overlap with object_mask
-        tp = tf.reduce_sum(top_k_mask * flat_object_mask)  # ( )
-        num_objects = tf.reduce_sum(flat_object_mask)  # ( )
-        recall_at_k = tp / tf.maximum(num_objects, 1e-8)  # ( )
-
-        class_distr = tf.cast(tp, tf.int32) / (B * n_candidates)  # ( )
-
         # Compute MSE
         squared_error = tf.square(
             tf.norm(batch_data["offset_mask"] - offsets, axis=-1)
@@ -211,22 +177,7 @@ class FullModel(tf.keras.Model):
 
         mse_batched = tf.reduce_mean(squared_error_multiplied, axis=[1, 2]) * 10000  # (B, )
 
-        gt_coord_mask = self.dataset_utils.get_coordinate_mask(batch_data["offset_mask"])
-        pred_coord_mask = self.dataset_utils.get_coordinate_mask(offsets)
-
-        error_in_pixels = tf.norm(
-            (gt_coord_mask - pred_coord_mask) / self.dataset_config.image_res_scale[::-1], axis=-1
-        )  # (B, 15, 20)
-
-        error_in_pixels_multiplied = error_in_pixels * batch_data["object_mask"]  # (B, 15, 20)
-
-        # The RMSE Metric (not used int the loss)
-        sum_of_error_multiplied = tf.reduce_sum(error_in_pixels_multiplied)  # Shape: ( )
-        num_ones = tf.maximum(tf.reduce_sum(batch_data["object_mask"]), 1e-8)  # Shape: ( )
-        mae_metric = sum_of_error_multiplied / num_ones  # Shape: ( )
-
         tf.debugging.assert_all_finite(bce_batched, "Encoder BCE")
-        tf.debugging.assert_all_finite(mae_metric, "Encoder MAE Metric")
 
         # Total loss
         loss_batched = bce_batched + mse_batched  # (B, )
@@ -237,10 +188,7 @@ class FullModel(tf.keras.Model):
         return {
             "loss": loss,
             "mse": mse,
-            # "mae": mae_metric,
             "bce": bce,
-            # "recall_at_k": recall_at_k,
-            "class_distribution": class_distr,
         }
 
     def classifier_loss(self, batch_data, results, object_name):
@@ -504,7 +452,6 @@ class FullModel(tf.keras.Model):
                     batch_data[key],
                     interest=tf.squeeze(maps[f"{key}_interest"], -1),
                     offsets=maps[f"{key}_offsets"],
-                    n_candidates=self.categories[key]["n_candidates"],
                 )
                 for key in self.categories
             }
@@ -515,12 +462,7 @@ class FullModel(tf.keras.Model):
 
             for key in self.categories:
                 result[f"encoder_bce_{key}"] = encoder_losses[key]["bce"]
-                # result[f"encoder_recall_at_k_{key}"] = encoder_losses[key]["recall_at_k"]
-                result[f"encoder_class_distribution_{key}"] = encoder_losses[key][
-                    "class_distribution"
-                ]
                 result[f"encoder_mse_{key}"] = encoder_losses[key]["mse"]
-                # result[f"encoder_mae_{key}"] = encoder_losses[key]["mae"]
 
         # ============================
         # == Handle Classifier Loss ==
