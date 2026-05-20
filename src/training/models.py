@@ -811,6 +811,8 @@ class FullModel(tf.keras.Model):
                 "classification": None,
                 "positions": None,
                 "distances": distances_in_camera,
+                "pixel_sizes": pixel_sizes,
+                "classifier_offsets": None,
             }
 
         patches_reshaped = tf.reshape(
@@ -875,6 +877,8 @@ class FullModel(tf.keras.Model):
             "classification": classification,
             "positions": positions,
             "distances": distances_in_camera,
+            "pixel_sizes": pixel_sizes,
+            "classifier_offsets": offsets,
         }
 
     def encoder_recall_at_k(self, batch_data, results, camera, intrinsics, object_name):
