@@ -1,3 +1,4 @@
+import argparse
 import os
 import re
 import shutil
@@ -24,6 +25,10 @@ def find_timestamp_paths(root_dir="models", exclude_folders=None):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dry-run", default=False, type=bool)
+    args = parser.parse_args()
+
     log_dir = Path("logs", "fit")
     model_dir = Path("models")
 
@@ -36,6 +41,7 @@ if __name__ == "__main__":
         model_timestamps = p.split("/")[-1]
         if model_timestamps not in log_timestamps:
             counter += 1
-            shutil.rmtree(p)
+            if not args.dry_run:
+                shutil.rmtree(p)
 
     print(f"Done! Removed {counter} models.")
