@@ -393,7 +393,12 @@ def main(args):
         print("Evaluating Classifier...")
         end_to_end = True
         architecture_version = config["model"]["classifier"]["architecture"].split("_")[-1]
-        path_to_models = Path(args.model_dir, architecture_version, args.model_timestamp)
+        n_context = config["model"]["encoder"]["n_context"]
+        path_to_models = Path(
+            args.model_dir,
+            architecture_version if n_context == 0 else str(n_context),
+            args.model_timestamp,
+        )
 
         print("Loading Model...")
         model = load_model(config, path_to_models, args.model_timestamp)
