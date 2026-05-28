@@ -167,7 +167,7 @@ def evaluate_cpn(model, dataset):
     return metrics_list
 
 
-def evaluate_classifier(model, dataset, config, end_to_end):
+def evaluate_classifier(model, dataset, config, config_dir, end_to_end):
     def _get_metrics(
         predictions,
         groundtruth,
@@ -236,7 +236,7 @@ def evaluate_classifier(model, dataset, config, end_to_end):
 
         return metrics
 
-    def _calculate_ap_metrics(metrics_threshold_range_additive):
+    def _calculate_ap_metrics(metrics_threshold_range_additive, config_dir):
         metrics = {object.value: {} for object in u_dataset.CategoryNames}
 
         for object in u_dataset.CategoryNames:
@@ -248,24 +248,39 @@ def evaluate_classifier(model, dataset, config, end_to_end):
             # Pooled AP (binary)
             precision_pooled = np.array([x["precision_pooled"] for x in results])
             recall_pooled = np.array([x["recall_pooled"] for x in results])
-            
+
             # Sort
             sorted_idx = np.argsort(recall_pooled)
             recall_pooled_sorted = recall_pooled[sorted_idx]
             precision_pooled_sorted = precision_pooled[sorted_idx]
-            
+
             # Anchor point at Recall 0.0
             recalls_anchored = np.concatenate([[0.0], recall_pooled_sorted])
-            precisions_anchored = np.concatenate([[precision_pooled_sorted[0]], precision_pooled_sorted])
+            precisions_anchored = np.concatenate(
+                [[precision_pooled_sorted[0]], precision_pooled_sorted]
+            )
 
             # Interpolate precisions
             precisions_interp = np.maximum.accumulate(precisions_anchored[::-1])[::-1]
-            
+
             # Remove duplicate recalls to avoid sklearn error
             unique_mask = np.concatenate([[True], np.diff(recalls_anchored) > 0])
             ap_pooled = sklearn.metrics.auc(
                 recalls_anchored[unique_mask], precisions_interp[unique_mask]
             )
+
+            os.makedirs(Path(config_dir).parent.as_posix() + "/recalls", exist_ok=True)
+            os.makedirs(Path(config_dir).parent.as_posix() + "/precisions", exist_ok=True)
+
+            if object != u_dataset.CategoryNames.INTERSECTIONS:
+                np.save(
+                    Path(config_dir).parent.as_posix() + "/precisions" + f"/{object.value}",
+                    precisions_interp[unique_mask],
+                )
+                np.save(
+                    Path(config_dir).parent.as_posix() + "/recalls" + f"/{object.value}",
+                    recalls_anchored[unique_mask],
+                )
 
             if object == u_dataset.CategoryNames.INTERSECTIONS:
                 # Per-class AP (for mAP, skip background class 0)
@@ -292,6 +307,20 @@ def evaluate_classifier(model, dataset, config, end_to_end):
                         recalls_anchored[unique_mask], precisions_interp[unique_mask]
                     )
                     per_class_aps.append(ap)
+
+                    np.save(
+                        Path(config_dir).parent.as_posix()
+                        + "/precisions"
+                        + f"/{object.value}_{list(u_dataset.IntersectionType)[class_idx].name}",
+                        precisions_interp[unique_mask],
+                    )
+                    np.save(
+                        Path(config_dir).parent.as_posix()
+                        + "/recalls"
+                        + f"/{object.value}_{list(u_dataset.IntersectionType)[class_idx].name}",
+                        recalls_anchored[unique_mask],
+                    )
+
             else:
                 per_class_aps = ap_pooled
 
@@ -364,7 +393,7 @@ def evaluate_classifier(model, dataset, config, end_to_end):
         end_to_end,
     )
 
-    return _calculate_ap_metrics(metrics_threshold_range_additive)
+    return _calculate_ap_metrics(metrics_threshold_range_additive, config_dir)
 
 
 def main(args):
@@ -423,7 +452,7 @@ def main(args):
         print("Loading Model...")
         model = load_model(config, path_to_models, args.model_timestamp)
 
-        predicted_metrics = evaluate_classifier(model, test_ds, config, end_to_end)
+        predicted_metrics = evaluate_classifier(model, test_ds, config, config_dir, end_to_end)
         inference_metrics = model.evaluate(x=test_ds, return_dict=True)
         metrics_to_save = {}
         for category in u_dataset.CategoryNames:
