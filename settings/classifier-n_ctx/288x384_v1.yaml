@@ -3,12 +3,12 @@ model:
     architecture: "conv_16x16_v1"
     input_dims: [288, 384]
     cell_dims: [16, 16]
-    n_context: 256
+    n_context: 32
     channels_in: 1
     train_encoder: False
     use_batch_norm: False
   classifier:
-    architecture: "conv_v4"
+    architecture: "conv_v1"
     patch_size: [32, 32]
     n_meta: 0 # if 1 it's just the distance to the patch center
     with_offsets: True
@@ -24,8 +24,8 @@ training:
   from_checkpoint: False # < when starting training from checkpoint
   from_model: True # < when loading an existing model
   load_checkpoint:
-    initial_epoch: 1199
-    timestamp: "20260518-195325" 
+    initial_epoch: 1401
+    timestamp: "20260531-170250" 
     encoder_only: False # < when only loading the encoder
     verbose: True
   load_model:
