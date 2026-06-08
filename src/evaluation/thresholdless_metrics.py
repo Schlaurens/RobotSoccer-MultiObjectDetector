@@ -374,8 +374,8 @@ def evaluate_classifier(model, dataset, config, config_dir, end_to_end):
             groundtruth_concat[key] = groundtruth_dataset[0][key]
 
     nms_iou_threshold = 0.35
-    encoder_threshold = 0.0
-    threshold_range_additive = np.linspace(0, 1 + encoder_threshold, num=100)
+    encoder_threshold = 0.1
+    threshold_range_additive = np.linspace(0, 1, num=100)
 
     classifier_threshold_ranges_additive = {
         u_dataset.CategoryNames.BALL.value: threshold_range_additive,
