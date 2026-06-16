@@ -49,7 +49,7 @@ def load_dataset(config):
     return test_ds
 
 
-def load_model(config: dict, path_to_models: str, model_name: str):
+def load_model(config: dict, path_to_models: str, model_name: str, distance: int = None):
     encoder_architecture = config["model"]["encoder"]["architecture"]
     classifier_architecture = config["model"]["classifier"]["architecture"]
 
@@ -59,9 +59,9 @@ def load_model(config: dict, path_to_models: str, model_name: str):
     config["categories"]["penaltyMark"]["n_candidates"] = 4
     config["categories"]["intersections"]["n_candidates"] = 10
 
-    config["categories"]["ball"]["max_distance"] = 9
-    config["categories"]["penaltyMark"]["max_distance"] = 9
-    config["categories"]["intersections"]["max_distance"] = 9
+    config["categories"]["ball"]["max_distance"] = 9 if distance is None else distance
+    config["categories"]["penaltyMark"]["max_distance"] = 9 if distance is None else distance
+    config["categories"]["intersections"]["max_distance"] = 9 if distance is None else distance
 
     model = FullModel.load(
         encoder_architecture,
@@ -100,7 +100,8 @@ def append_to_csv(file_path, data):
     file_exists = os.path.isfile(file_path)
 
     if not file_exists:
-        with open(file_path, mode="w", newline="") as file:
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, mode="x", newline="") as file:
             writer = csv.DictWriter(file, fieldnames=data.keys())
             writer.writeheader()
             writer.writerow(data)
@@ -167,7 +168,7 @@ def evaluate_cpn(model, dataset):
     return metrics_list
 
 
-def evaluate_classifier(model, dataset, config, config_dir, end_to_end):
+def evaluate_classifier(model, dataset, config, config_dir, args, end_to_end):
     def _get_metrics(
         predictions,
         groundtruth,
@@ -269,16 +270,32 @@ def evaluate_classifier(model, dataset, config, config_dir, end_to_end):
                 recalls_anchored[unique_mask], precisions_interp[unique_mask]
             )
 
-            os.makedirs(Path(config_dir).parent.as_posix() + "/recalls", exist_ok=True)
-            os.makedirs(Path(config_dir).parent.as_posix() + "/precisions", exist_ok=True)
+            os.makedirs(
+                Path(config_dir).parent.as_posix()
+                + ("" if args.distance is None else "/" + str(args.distance))
+                + "/recalls",
+                exist_ok=True,
+            )
+            os.makedirs(
+                Path(config_dir).parent.as_posix()
+                + ("" if args.distance is None else "/" + str(args.distance))
+                + "/precisions",
+                exist_ok=True,
+            )
 
             if object != u_dataset.CategoryNames.INTERSECTIONS:
                 np.save(
-                    Path(config_dir).parent.as_posix() + "/precisions" + f"/{object.value}",
+                    Path(config_dir).parent.as_posix()
+                    + ("" if args.distance is None else "/" + str(args.distance))
+                    + "/precisions"
+                    + f"/{object.value}",
                     precisions_interp[unique_mask],
                 )
                 np.save(
-                    Path(config_dir).parent.as_posix() + "/recalls" + f"/{object.value}",
+                    Path(config_dir).parent.as_posix()
+                    + ("" if args.distance is None else "/" + str(args.distance))
+                    + "/recalls"
+                    + f"/{object.value}",
                     recalls_anchored[unique_mask],
                 )
 
@@ -310,12 +327,14 @@ def evaluate_classifier(model, dataset, config, config_dir, end_to_end):
 
                     np.save(
                         Path(config_dir).parent.as_posix()
+                        + ("" if args.distance is None else "/" + str(args.distance))
                         + "/precisions"
                         + f"/{object.value}_{list(u_dataset.IntersectionType)[class_idx].name}",
                         precisions_interp[unique_mask],
                     )
                     np.save(
                         Path(config_dir).parent.as_posix()
+                        + ("" if args.distance is None else "/" + str(args.distance))
                         + "/recalls"
                         + f"/{object.value}_{list(u_dataset.IntersectionType)[class_idx].name}",
                         recalls_anchored[unique_mask],
@@ -414,10 +433,16 @@ def main(args):
     cpn_architecture = config["model"]["encoder"]["architecture"]
     classifier_architecture = config["model"]["classifier"]["architecture"]
 
-    mode = args.log_dir.split("-")[-1]
+    mode = args.log_dir.split("-")[-1].split("/")[0]
+    run = args.log_dir.split("/")[-1]
+    print(mode)
+    print(run)
 
     if eval_cpn:
         print("Evaluating CPN...")
+
+        save_path = f"data/evaluation/cpn-{mode}/{run}.csv"
+
         architecture = glob.glob(
             os.path.join(args.model_dir, resolution, "**", f"{args.model_timestamp}.keras"),
             recursive=True,
@@ -430,7 +455,7 @@ def main(args):
 
         cpn_metrics = evaluate_cpn(model, test_ds)
         create_metrics_csv(
-            f"data/evaluation/cpn-{mode}.csv",
+            save_path,
             resolution,
             cpn_architecture,
             config,
@@ -440,6 +465,13 @@ def main(args):
 
     if eval_classifier:
         print("Evaluating Classifier...")
+
+        save_dir = (
+            f"data/evaluation/classifier-{mode}/{run}.csv"
+            if args.save_dir is None
+            else f"{args.save_dir}/{args.distance}/{run}.csv"
+        )
+
         end_to_end = True
         architecture_version = config["model"]["classifier"]["architecture"].split("_")[-1]
         n_context = config["model"]["encoder"]["n_context"]
@@ -450,9 +482,11 @@ def main(args):
         )
 
         print("Loading Model...")
-        model = load_model(config, path_to_models, args.model_timestamp)
+        model = load_model(config, path_to_models, args.model_timestamp, args.distance)
 
-        predicted_metrics = evaluate_classifier(model, test_ds, config, config_dir, end_to_end)
+        predicted_metrics = evaluate_classifier(
+            model, test_ds, config, config_dir, args, end_to_end
+        )
         inference_metrics = model.evaluate(x=test_ds, return_dict=True)
         metrics_to_save = {}
         for category in u_dataset.CategoryNames:
@@ -468,7 +502,7 @@ def main(args):
         metrics_to_save.update(inference_metrics)
 
         create_metrics_csv(
-            f"data/evaluation/classifier-{mode}.csv",
+            save_dir,
             resolution,
             classifier_architecture,
             config,
@@ -483,6 +517,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--model_timestamp", type=str)
     parser.add_argument("--log_dir", type=str)
+    parser.add_argument("--save_dir", type=str, required=False, default=None)
+    parser.add_argument("--distance", type=int, required=False, default=None)
     parser.add_argument("--model_dir", type=str)
     parser.add_argument("--cpn", type=bool, default=False, required=False)
     parser.add_argument("--classifier", type=bool, default=False, required=False)

@@ -23,7 +23,7 @@ for run in $(seq 1 $NUM_RUNS); do
     for timestamp in "$LOG_DIR"/*/*; do
         timestamp=$(basename "$timestamp")
         if [[ "$timestamp" =~ ^[0-9]{8}-[0-9]{6}$ ]]; then
-            uv run src/evaluation/thresholdless_metrics.py --model_timestamp "$timestamp" --log_dir "$LOG_DIR" --model_dir "$MODEL_DIR" --cpn "$CPN_EVAL" --classifier "$CLASSIFIER_EVAL"
+            uv run src/evaluation/thresholdless_metrics.py --model_timestamp "$timestamp" --log_dir "$LOG_DIR" --save_dir "$SAVE_DIR" --distance "$DISTANCE" --model_dir "$MODEL_DIR" --cpn "$CPN_EVAL" --classifier "$CLASSIFIER_EVAL"
         fi
     done
 done
