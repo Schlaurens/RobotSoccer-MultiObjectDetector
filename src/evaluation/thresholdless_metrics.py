@@ -30,6 +30,9 @@ class Evaluator:
         self.distance_filter = 9 if args.distance is None else args.distance
         self.n_candidates = (4, 4, 10) if args.n_candidates is None else args.n_candidates
 
+        print("Distance Filter:", self.distance_filter)
+        print("K_c:", self.n_candidates)
+        
         self.config_dir = Path(
             glob.glob(
                 os.path.join(args.log_dir, "**", args.model_timestamp, "config.yaml"),
