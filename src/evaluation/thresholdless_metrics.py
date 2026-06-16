@@ -175,7 +175,7 @@ def evaluate_classifier(model, dataset, config, config_dir, args, end_to_end):
         config,
         thresholds: dict,
         threshold_mode: str,
-        encoder_threshold: float = 0.04,
+        encoder_threshold: float = 0.01,
         nms_iou_threshold: float = None,
         end_to_end: bool = True,
     ) -> dict:
@@ -393,7 +393,7 @@ def evaluate_classifier(model, dataset, config, config_dir, args, end_to_end):
             groundtruth_concat[key] = groundtruth_dataset[0][key]
 
     nms_iou_threshold = 0.35
-    encoder_threshold = 0.04
+    encoder_threshold = 0.01
     threshold_range_additive = np.linspace(0, 1, num=100)
 
     classifier_threshold_ranges_additive = {
