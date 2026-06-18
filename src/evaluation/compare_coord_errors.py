@@ -23,8 +23,11 @@ def load_data(path_to_data: Path) -> dict:
 
 
 def main(args):
+    # logs/fit/final/20260711-000000/matches/d_9-K_4-4-11
+    specification_string = args.directory_matches.split("/")[-1]
+
     results = {}
-    for dir in Path(args.directory, args.model_timestamp, "matches").glob("**/"):
+    for dir in Path(args.directory_matches).glob("**/"):
         # Only leaf node directories
         if any(p.is_dir() for p in dir.iterdir()):
             continue
@@ -95,7 +98,12 @@ def main(args):
             "model_world_var": float(model_world_var),
         }
 
-    with open(Path(args.directory) / args.model_timestamp / "regression_error.yaml", "w") as file:
+    with open(
+        Path(args.directory_matches).parent.parent
+        / "regression_error"
+        / f"{specification_string}.yaml",
+        "w",
+    ) as file:
         yaml.dump(results, file)
 
 
@@ -103,8 +111,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Compare the detection errors of the model with the groundtruth and the current B-Human detectors."
     )
-    parser.add_argument("--model_timestamp")
-    parser.add_argument("--directory", default="data/evaluation")
+    parser.add_argument("--directory_matches", required=True, type=str)
     args = parser.parse_args()
 
     main(args)

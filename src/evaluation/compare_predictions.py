@@ -20,17 +20,14 @@ from util import labels as u_labels
 from util import metrics as u_metrics
 
 
-def load_data(path_to_data: Path, model_timestamp: str):
+def load_data(path_to_model: Path):
+    path_to_data = Path("data", "evaluation")
     test_groundtruth_path = Path(path_to_data, "test_groundtruth.json")
     test_bhuman_path = Path(path_to_data, "test_b-human_predictions.json")
 
-    test_model_intersections_path = Path(
-        path_to_data, model_timestamp, "predictions", "intersections.json"
-    )
-    test_model_ball_path = Path(path_to_data, model_timestamp, "predictions", "ball.json")
-    test_model_penaltymark_path = Path(
-        path_to_data, model_timestamp, "predictions", "penaltyMark.json"
-    )
+    test_model_intersections_path = Path(path_to_model, "intersections.json")
+    test_model_ball_path = Path(path_to_model, "ball.json")
+    test_model_penaltymark_path = Path(path_to_model, "penaltyMark.json")
 
     test_groundtruth = None
     test_bhuman = None
@@ -324,11 +321,18 @@ def print_results(metrics: dict, object_name: str, status: str = "") -> None:
 
 
 def main(args) -> None:
-    save_path_for_matches = Path(args.directory, args.model_timestamp, "matches")
+    specification_string = args.directory_predictions.split("/")[-1]
+
+    distance = float(specification_string.split("-")[0].split("_")[-1])
+
+    print("Max Distance:", distance)
+
+    save_path_for_matches = Path(
+        Path(args.directory_log), args.model_timestamp, "matches", specification_string
+    )
     os.makedirs(save_path_for_matches, exist_ok=True)
 
-    config = load_config(args.model_timestamp)
-    data = load_data(Path(args.directory), args.model_timestamp)
+    data = load_data(Path(args.directory_predictions))
 
     print("Calculating Comparisons for Balls...")
     metrics_ball_seen = compare_predictions(
@@ -336,7 +340,7 @@ def main(args) -> None:
         data["test_ball_model"],
         data["test_bhuman"],
         u_dataset.CategoryNames.BALL.value,
-        max_distance=config["categories"][u_dataset.CategoryNames.BALL.value]["max_distance"],
+        max_distance=distance,
         threshold=args.distance_threshold,
         save_path_for_matches=save_path_for_matches,
         ball_status_only_seen=True,
@@ -349,7 +353,7 @@ def main(args) -> None:
         data["test_ball_model"],
         data["test_bhuman"],
         u_dataset.CategoryNames.BALL.value,
-        max_distance=config["categories"][u_dataset.CategoryNames.BALL.value]["max_distance"],
+        max_distance=distance,
         threshold=args.distance_threshold,
         save_path_for_matches=save_path_for_matches,
         ball_status_only_seen=False,
@@ -362,9 +366,7 @@ def main(args) -> None:
         data["test_penaltymark_model"],
         data["test_bhuman"],
         u_dataset.CategoryNames.PENALTYMARK.value,
-        max_distance=config["categories"][u_dataset.CategoryNames.PENALTYMARK.value][
-            "max_distance"
-        ],
+        max_distance=distance,
         threshold=args.distance_threshold,
         save_path_for_matches=save_path_for_matches,
     )
@@ -376,16 +378,17 @@ def main(args) -> None:
         data["test_intersections_model"],
         data["test_bhuman"],
         u_dataset.CategoryNames.INTERSECTIONS.value,
-        max_distance=config["categories"][u_dataset.CategoryNames.INTERSECTIONS.value][
-            "max_distance"
-        ],
+        max_distance=distance,
         threshold=args.distance_threshold,
         save_path_for_matches=save_path_for_matches,
     )
     print_results(metrics_intersections, u_dataset.CategoryNames.INTERSECTIONS.value)
 
     # Save all the comparison into a single yaml file.
-    with open(Path(args.directory, args.model_timestamp, "comparisons.yaml"), "w") as file:
+    with open(
+        Path("logs/fit/final", args.model_timestamp, "comparisons", f"{specification_string}.yaml"),
+        "w",
+    ) as file:
         yaml.dump(
             {
                 "balls_seen": metrics_ball_seen,
@@ -404,9 +407,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="This script compares the prediction of the model with the given the given timestamp and the current B-Human detectors."
     )
-    parser.add_argument("--model_timestamp")
-    parser.add_argument("--directory", default="data/evaluation")
+    parser.add_argument("--model_timestamp", required=True)
+    parser.add_argument("--directory_log", default="logs/fit/final")
+
+    parser.add_argument("--directory_predictions", required=True)
     parser.add_argument("--distance_threshold", type=float, default=30.0)
+    # parser.add_argument("--distance", type=int, required=True, default=9)
+    # parser.add_argument(
+    #     "--n_candidates", type=lambda x: tuple(map(int, x.split(","))), required=False, default=None
+    # )
     args = parser.parse_args()
 
     main(args)
