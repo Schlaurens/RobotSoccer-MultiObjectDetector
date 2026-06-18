@@ -583,7 +583,7 @@ class Evaluator:
                 predictions["results"][object.value],
                 ground_truth,
                 object.value,
-                Path(self.config_dir.parent, "predictions"),
+                Path(self.config_dir.parent, "predictions", self.specification_string),
                 optimal_thresholds[object.value][0],
                 self.encoder_threshold,
                 self.nms_iou_threshold,
