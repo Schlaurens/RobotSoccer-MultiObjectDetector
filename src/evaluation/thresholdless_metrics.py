@@ -1,5 +1,6 @@
 import argparse
 import csv
+import json
 import os
 import sys
 
@@ -27,12 +28,21 @@ class Evaluator:
         self.eval_cpn = args.cpn
         self.eval_classifier = args.classifier
 
+        self.beta = 0.7
+
+        self.nms_iou_threshold = 0.35
+        self.encoder_threshold = 0.01
+
+        self.end_to_end = True
+
+        self.threshold_range = np.linspace(0, 1, num=100, dtype=np.float32)
+
         self.distance_filter = 9 if args.distance is None else args.distance
         self.n_candidates = (4, 4, 10) if args.n_candidates is None else args.n_candidates
 
         print("Distance Filter:", self.distance_filter)
         print("K_c:", self.n_candidates)
-        
+
         self.config_dir = Path(
             glob.glob(
                 os.path.join(args.log_dir, "**", args.model_timestamp, "config.yaml"),
@@ -88,8 +98,6 @@ class Evaluator:
                 else f"{args.save_dir}/{self.specification_string}/{self.run}.csv"
             )
 
-            end_to_end = True
-
             if self.run == "final":
                 path_to_models = Path(
                     args.model_dir,
@@ -113,23 +121,26 @@ class Evaluator:
             print("Loading Model...")
             self.model = self.load_model(path_to_models, args.model_timestamp)
 
-            predicted_metrics = self.evaluate_classifier(args, end_to_end)
-            inference_metrics = self.evaluate_cpn()
+            predicted_metrics = self.evaluate_classifier()
+
+            self.optimal_metrics = self.calculate_optimal_metrics(predicted_metrics)
+            print(self.optimal_metrics)
+            # inference_metrics = self.evaluate_cpn()
 
             metrics_to_save = {}
             for category in u_dataset.CategoryNames:
                 if category.value in predicted_metrics:
                     # metrics_to_save[f"{category.value}_precision"] = classifier_metrics[category.value]["precision"]
                     # metrics_to_save[f"{category.value}_recall"] = classifier_metrics[category.value]["recall"]
-                    metrics_to_save[f"{category.value}_ap_pooled"] = predicted_metrics[
-                        category.value
-                    ]["ap_pooled"]
+                    metrics_to_save[f"{category.value}_ap"] = predicted_metrics[category.value][
+                        "ap"
+                    ]
                     # metrics_to_save[f"{category.value}_ap"] = predicted_metrics[category.value]["ap_per_class"]
                     metrics_to_save[f"{category.value}_mAP"] = predicted_metrics[category.value][
                         "mAP"
                     ]
 
-            metrics_to_save.update(inference_metrics)
+            # metrics_to_save.update(inference_metrics)
 
             self.create_metrics_csv(
                 save_dir,
@@ -281,180 +292,121 @@ class Evaluator:
         metrics_list = self.model.evaluate(x=self.test_ds, return_dict=True)
         return metrics_list
 
-    def evaluate_classifier(self, args, end_to_end):
-        def _get_metrics(
-            predictions,
-            groundtruth,
-            config,
-            thresholds: dict,
-            threshold_mode: str,
-            encoder_threshold: float = 0.01,
-            nms_iou_threshold: float = None,
-            end_to_end: bool = True,
-        ) -> dict:
-            metrics = {}
+    def get_classifier_metrics(
+        self,
+        predictions,
+        groundtruth,
+        config,
+        thresholds: dict,
+        threshold_mode: str,
+        encoder_threshold: float = 0.01,
+        nms_iou_threshold: float = None,
+        end_to_end: bool = True,
+    ) -> dict:
+        metrics = {}
 
-            dataset_utils = u_dataset.DatasetUtils(
-                u_dataset.DatasetConfig(
-                    input_dims=config["model"]["encoder"]["input_dims"],
-                    cell_dims=config["model"]["encoder"]["cell_dims"],
-                )
+        dataset_utils = u_dataset.DatasetUtils(
+            u_dataset.DatasetConfig(
+                input_dims=config["model"]["encoder"]["input_dims"],
+                cell_dims=config["model"]["encoder"]["cell_dims"],
             )
+        )
 
-            for object in u_dataset.CategoryNames:
-                if object.value not in predictions["results"]:
-                    print(f"No {object.value} in results.")
+        for object in u_dataset.CategoryNames:
+            if object.value not in predictions["results"]:
+                print(f"No {object.value} in results.")
+                continue
+
+            if object.name == u_dataset.CategoryNames.INTERSECTIONS.name:
+                results = [
+                    u_metrics.calculate_metrics(
+                        dataset_utils,
+                        predictions["results"][object.value],
+                        groundtruth[object.value],
+                        config["categories"][object.value]["n_classes"],
+                        cla,
+                        encoder_threshold,
+                        threshold_mode,
+                        end_to_end,
+                        groundtruth["camera"],
+                        groundtruth["intrinsics"],
+                        config["categories"][object.value]["max_distance"],
+                        iou_threshold=nms_iou_threshold,
+                    )
+                    for cla in thresholds[object.value]
+                ]
+            else:
+                results = [
+                    u_metrics.calculate_metrics(
+                        dataset_utils,
+                        predictions["results"][object.value],
+                        groundtruth[object.value],
+                        config["categories"][object.value]["n_classes"],
+                        cla,
+                        encoder_threshold,
+                        threshold_mode,
+                        end_to_end,
+                        groundtruth["camera"],
+                        groundtruth["intrinsics"],
+                        config["categories"][object.value]["max_distance"],
+                        config["categories"][object.value]["padding"],
+                    )
+                    for cla in thresholds[object.value]
+                ]
+
+            if len(thresholds[object.value]) == 1:
+                metrics[object.value] = results[0]
+            else:
+                metrics[object.value] = results
+
+        return metrics
+
+    def evaluate_classifier(self):
+        def _calculate_ap_metrics(metrics_threshold_range: dict) -> dict:
+            metrics = {category.value: {} for category in u_dataset.CategoryNames}
+            eval_path = Path(self.config_dir.parent, "evaluation", self.specification_string)
+
+            for category in u_dataset.CategoryNames:
+                if category.value not in metrics_threshold_range:
                     continue
 
-                if object.name == u_dataset.CategoryNames.INTERSECTIONS.name:
-                    results = [
-                        u_metrics.calculate_metrics(
-                            dataset_utils,
-                            predictions["results"][object.value],
-                            groundtruth[object.value],
-                            config["categories"][object.value]["n_classes"],
-                            cla,
-                            encoder_threshold,
-                            threshold_mode,
-                            end_to_end,
-                            groundtruth["camera"],
-                            groundtruth["intrinsics"],
-                            config["categories"][object.value]["max_distance"],
-                            iou_threshold=nms_iou_threshold,
-                        )
-                        for cla in thresholds[object.value]
-                    ]
-                else:
-                    results = [
-                        u_metrics.calculate_metrics(
-                            dataset_utils,
-                            predictions["results"][object.value],
-                            groundtruth[object.value],
-                            config["categories"][object.value]["n_classes"],
-                            cla,
-                            encoder_threshold,
-                            threshold_mode,
-                            end_to_end,
-                            groundtruth["camera"],
-                            groundtruth["intrinsics"],
-                            config["categories"][object.value]["max_distance"],
-                            config["categories"][object.value]["padding"],
-                        )
-                        for cla in thresholds[object.value]
-                    ]
+                results = metrics_threshold_range[category.value]
+                is_intersection = category == u_dataset.CategoryNames.INTERSECTIONS
+                intersection_types = list(u_dataset.IntersectionType)
 
-                if len(thresholds[object.value]) == 1:
-                    metrics[object.value] = results[0]
-                else:
-                    metrics[object.value] = results
-
-            return metrics
-
-        def _calculate_ap_metrics(metrics_threshold_range_additive):
-            metrics = {object.value: {} for object in u_dataset.CategoryNames}
-
-            for object in u_dataset.CategoryNames:
-                if object.value not in metrics_threshold_range_additive:
-                    continue
-
-                results = metrics_threshold_range_additive[object.value]
-
-                # Pooled AP (binary)
-                precision_pooled = np.array([x["precision_pooled"] for x in results])
-                recall_pooled = np.array([x["recall_pooled"] for x in results])
-
-                # Sort
-                sorted_idx = np.argsort(recall_pooled)
-                recall_pooled_sorted = recall_pooled[sorted_idx]
-                precision_pooled_sorted = precision_pooled[sorted_idx]
-
-                # Anchor point at Recall 0.0
-                recalls_anchored = np.concatenate([[0.0], recall_pooled_sorted])
-                precisions_anchored = np.concatenate(
-                    [[precision_pooled_sorted[0]], precision_pooled_sorted]
+                class_indices = (
+                    range(1, len(results[0]["precisions"])) if is_intersection else [None]
                 )
+                per_class_aps = []
+                per_class_precisions = []
+                per_class_recalls = []
 
-                # Interpolate precisions
-                precisions_interp = np.maximum.accumulate(precisions_anchored[::-1])[::-1]
-
-                # Remove duplicate recalls to avoid sklearn error
-                unique_mask = np.concatenate([[True], np.diff(recalls_anchored) > 0])
-                ap_pooled = sklearn.metrics.auc(
-                    recalls_anchored[unique_mask], precisions_interp[unique_mask]
-                )
-
-                precisions_path = Path(
-                    self.config_dir.parent.as_posix(),
-                    "evaluation",
-                    self.specification_string,
-                    "precisions",
-                ).as_posix()
-                recalls_path = Path(
-                    self.config_dir.parent.as_posix(),
-                    "evaluation",
-                    self.specification_string,
-                    "recalls",
-                ).as_posix()
-                os.makedirs(precisions_path, exist_ok=True)
-                os.makedirs(recalls_path, exist_ok=True)
-
-                if object != u_dataset.CategoryNames.INTERSECTIONS:
-                    np.save(
-                        precisions_path + f"/{object.value}",
-                        precisions_interp[unique_mask],
-                    )
-                    np.save(
-                        recalls_path + f"/{object.value}",
-                        recalls_anchored[unique_mask],
-                    )
-
-                if object == u_dataset.CategoryNames.INTERSECTIONS:
-                    # Per-class AP (for mAP, skip background class 0)
-                    num_classes = len(results[0]["precisions"])
-                    per_class_aps = []
-                    for class_idx in range(1, num_classes):
+                for class_idx in class_indices:
+                    if class_idx is not None:
                         precisions = np.array([x["precisions"][class_idx] for x in results])
                         recalls = np.array([x["recalls"][class_idx] for x in results])
+                        name = f"{category.value}_{intersection_types[class_idx].name}"
+                    else:
+                        precisions = np.array([x["precisions"] for x in results])
+                        recalls = np.array([x["recalls"] for x in results])
+                        name = category.value
 
-                        # Sort
-                        sorted_idx = np.argsort(recalls)
-                        recall_sorted = recalls[sorted_idx]
-                        precision_sorted = precisions[sorted_idx]
+                    processed_pr = u_metrics.process_precision_recall(precisions, recalls)
+                    ap = sklearn.metrics.auc(processed_pr["recalls"], processed_pr["precisions"])
+                    per_class_aps.append(ap)
+                    per_class_precisions.append(precisions)
+                    per_class_recalls.append(recalls)
 
-                        # Anchor point at Recall 0.0
-                        recalls_anchored = np.concatenate([[0.0], recall_sorted])
-                        precisions_anchored = np.concatenate(
-                            [[precision_sorted[0]], precision_sorted]
-                        )
+                    for subfolder in ("precisions", "recalls"):
+                        path = eval_path / subfolder
+                        os.makedirs(path, exist_ok=True)
+                        np.save(path / name, locals()[subfolder])
 
-                        # Interpolate precisions
-                        precisions_interp = np.maximum.accumulate(precisions_anchored[::-1])[::-1]
-
-                        unique_mask = np.concatenate([[True], np.diff(recalls_anchored) > 0])
-                        ap = sklearn.metrics.auc(
-                            recalls_anchored[unique_mask], precisions_interp[unique_mask]
-                        )
-                        per_class_aps.append(ap)
-
-                        np.save(
-                            precisions_path
-                            + f"/{object.value}_{list(u_dataset.IntersectionType)[class_idx].name}",
-                            precisions_interp[unique_mask],
-                        )
-                        np.save(
-                            recalls_path
-                            + f"/{object.value}_{list(u_dataset.IntersectionType)[class_idx].name}",
-                            recalls_anchored[unique_mask],
-                        )
-
-                else:
-                    per_class_aps = ap_pooled
-
-                metrics[object.value] = {
-                    "precision_pooled": precision_pooled_sorted,
-                    "recall_pooled": recall_pooled_sorted,
-                    "ap_pooled": ap_pooled,
-                    "per_class_aps": per_class_aps,
+                metrics[category.value] = {
+                    "precisions": per_class_precisions,
+                    "recalls": per_class_recalls,
+                    "ap": ap,
+                    "per_class_aps": per_class_aps if is_intersection else ap,
                     "mAP": np.mean(per_class_aps),
                 }
 
@@ -465,12 +417,12 @@ class Evaluator:
             predictions_list.append(self.model.predict(batch))
 
         # Then concat manually
-        predictions_concat = {"results": {}}
+        self.predictions_concat = {"results": {}}
         for object in u_dataset.CategoryNames:
             key = object.value
             if key not in predictions_list[0]["results"]:
                 continue
-            predictions_concat["results"][key] = {
+            self.predictions_concat["results"][key] = {
                 field: tf.concat([p["results"][key][field] for p in predictions_list], axis=0)
                 for field in predictions_list[0]["results"][key]
             }
@@ -479,53 +431,135 @@ class Evaluator:
         for x in self.test_ds:
             groundtruth_dataset.append(x)
 
-        groundtruth_concat = {}
+        self.groundtruth_concat = {}
         for key in groundtruth_dataset[0]:
             if isinstance(groundtruth_dataset[0][key], tf.Tensor):
                 # Top-level tensors like intrinsics, camera
-                groundtruth_concat[key] = tf.concat([g[key] for g in groundtruth_dataset], axis=0)
+                self.groundtruth_concat[key] = tf.concat(
+                    [g[key] for g in groundtruth_dataset], axis=0
+                )
             elif isinstance(groundtruth_dataset[0][key], dict):
                 # Nested dicts like groundtruth["ball"], groundtruth["penaltymark"]
-                groundtruth_concat[key] = {}
+                self.groundtruth_concat[key] = {}
                 for subkey in groundtruth_dataset[0][key]:
                     if isinstance(groundtruth_dataset[0][key][subkey], tf.Tensor):
-                        groundtruth_concat[key][subkey] = tf.concat(
+                        self.groundtruth_concat[key][subkey] = tf.concat(
                             [g[key][subkey] for g in groundtruth_dataset], axis=0
                         )
                     else:
-                        groundtruth_concat[key][subkey] = groundtruth_dataset[0][key][subkey]
+                        self.groundtruth_concat[key][subkey] = groundtruth_dataset[0][key][subkey]
             else:
-                groundtruth_concat[key] = groundtruth_dataset[0][key]
-
-        nms_iou_threshold = 0.35
-        encoder_threshold = 0.01
-        threshold_range_additive = np.linspace(0, 1, num=100, dtype=np.float32)
+                self.groundtruth_concat[key] = groundtruth_dataset[0][key]
 
         classifier_threshold_ranges_additive = {
-            u_dataset.CategoryNames.BALL.value: threshold_range_additive,
-            u_dataset.CategoryNames.PENALTYMARK.value: threshold_range_additive,
+            u_dataset.CategoryNames.BALL.value: self.threshold_range,
+            u_dataset.CategoryNames.PENALTYMARK.value: self.threshold_range,
             u_dataset.CategoryNames.INTERSECTIONS.value: [
                 {
                     u_dataset.IntersectionType.L.value: t,
                     u_dataset.IntersectionType.T.value: t,
                     u_dataset.IntersectionType.X.value: t,
                 }
-                for t in threshold_range_additive
+                for t in self.threshold_range
             ],
         }
 
-        metrics_threshold_range_additive = _get_metrics(
-            predictions_concat,
-            groundtruth_concat,
+        metrics_threshold_range_additive = self.get_classifier_metrics(
+            self.predictions_concat,
+            self.groundtruth_concat,
             self.config,
             classifier_threshold_ranges_additive,
             "additive",
-            encoder_threshold,
-            nms_iou_threshold,
-            end_to_end,
+            self.encoder_threshold,
+            self.nms_iou_threshold,
+            self.end_to_end,
         )
 
         return _calculate_ap_metrics(metrics_threshold_range_additive)
+
+    def calculate_optimal_metrics(self, metrics: dict):
+        optimal_thresholds = {}
+        intersection_types = list(u_dataset.IntersectionType)[1:]  # Ignore None-Class
+
+        for category in u_dataset.CategoryNames:
+            if category.value not in metrics:
+                continue
+
+            if category == u_dataset.CategoryNames.INTERSECTIONS:
+                optimal_thresholds[category.value] = []
+                type_thresholds = {}
+                for i, (precisions, recalls) in enumerate(
+                    zip(
+                        metrics[category.value]["precisions"],
+                        metrics[category.value]["recalls"],
+                        strict=True,
+                    ),
+                ):
+                    name = intersection_types[i].value
+                    threshold, _ = u_metrics.calculate_optimal_threshold(
+                        self.beta, precisions, recalls, self.threshold_range
+                    )
+                    type_thresholds[name] = threshold
+
+                optimal_thresholds[category.value].append(type_thresholds)
+            else:
+                threshold, _ = u_metrics.calculate_optimal_threshold(
+                    self.beta,
+                    metrics[category.value]["precisions"][0],
+                    metrics[category.value]["recalls"][0],
+                    self.threshold_range,
+                )
+                optimal_thresholds[category.value] = [threshold]
+
+        optimal_metrics = self.get_classifier_metrics(
+            self.predictions_concat,
+            self.groundtruth_concat,
+            self.config,
+            optimal_thresholds,
+            "additive",
+            self.encoder_threshold,
+            self.nms_iou_threshold,
+            self.end_to_end,
+        )
+
+        self.save_optimal_metrics(optimal_metrics, optimal_thresholds)
+
+        return optimal_metrics
+
+    def save_optimal_metrics(self, optimal_metrics: dict, optimal_thresholds: dict):
+        def to_serializable(obj):
+            if isinstance(obj, dict):
+                return {k: to_serializable(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [to_serializable(v) for v in obj]
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            if hasattr(obj, "numpy"):  # TF tensor
+                return obj.numpy().tolist()
+            if isinstance(obj, np.generic):  # np.float32, np.int32, etc.
+                return obj.item()
+            return obj
+
+        output = {}
+
+        for category, values in optimal_metrics.items():
+            output[category] = {
+                "beta": self.beta,
+                "thresholds": to_serializable(optimal_thresholds.get(category)),
+                "precisions": to_serializable(values["precisions"]),
+                "recalls": to_serializable(values["recalls"]),
+                "confusion_matrix": to_serializable(values["confusion_matrix"]),
+            }
+
+        save_path = Path(
+            self.config_dir.parent,
+            "thresholded_metrics",
+            self.specification_string,
+            "metrics.json",
+        )
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(save_path, "w") as f:
+            json.dump(output, f, indent=2)
 
 
 if __name__ == "__main__":

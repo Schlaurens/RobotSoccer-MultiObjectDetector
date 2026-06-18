@@ -310,15 +310,10 @@ def calculate_binary_metrics(
     precision = tp_count / (tp_count + fp_count) if (tp_count + fp_count) > 0 else 1.0
     recall = tp_count / total_objects if (total_objects) > 0 else 0.0
 
-    fp_rate = fp_count / np.sum(confusion_matrix)
-    fn_rate = fn_count / np.sum(confusion_matrix)
-
     return {
         "confusion_matrix": confusion_matrix,
-        "precision": precision,
-        "recall": recall,
-        "fp_rate": fp_rate,
-        "fn_rate": fn_rate,
+        "precisions": precision,
+        "recalls": recall,
     }
 
 
@@ -355,7 +350,6 @@ def calculate_multiclass_metrics(
     predicted_probabilities = predictions["classification"]  # (B, N, num_classes)
     num_classes = tf.shape(predicted_probabilities)[-1]
     num_candidates = tf.shape(predicted_probabilities)[1]
-
     processed_predictions = handle_predictions_multiclass(
         predictions, encoder_threshold, classifier_threshold, iou_threshold
     )
@@ -539,50 +533,10 @@ def calculate_multiclass_metrics(
         tf.linalg.diag_part(confusion_matrix), total_objects_per_class
     )  # (num_classes, )
 
-    # =========================================
-    # = Pooled metrics (class 0 = background) =
-    # =========================================
-    tp_count_pooled = tf.reduce_sum(tf.linalg.diag_part(confusion_matrix)[1:])
-    tn_count_pooled = confusion_matrix[0, 0]
-    fp_count_pooled = tf.reduce_sum(confusion_matrix[0, 1:])
-    fn_count_pooled = tf.reduce_sum(confusion_matrix[1:, 0])
-
-    total_samples = tf.reduce_sum(confusion_matrix)
-
-    fp_rate_pooled = fp_count_pooled / total_samples
-    fn_rate_pooled = fn_count_pooled / total_samples
-
-    # Pooled metrics
-    pooled_confusion_matrix = np.array(
-        [
-            [tp_count_pooled, fn_count_pooled],
-            [fp_count_pooled, tn_count_pooled],
-        ]
-    )
-
-    # Precision = TP / TP + FP
-    pooled_precision = (
-        pooled_confusion_matrix[0][0]
-        / (pooled_confusion_matrix[0][0] + pooled_confusion_matrix[1][0])
-        if pooled_confusion_matrix[0][0] + pooled_confusion_matrix[1][0] > 0
-        else 1.0
-    )
-    # Recall = TP / TP + FN
-    pooled_recall = (
-        pooled_confusion_matrix[0][0] / tf.reduce_sum(total_objects_per_class[1:])
-        if tf.reduce_sum(total_objects_per_class[1:]) > 0
-        else 0.0
-    )
-
     return {
         "confusion_matrix": confusion_matrix.numpy(),
         "precisions": precisions,
         "recalls": recalls,
-        "confusion_matrix_pooled": pooled_confusion_matrix,
-        "precision_pooled": pooled_precision,
-        "recall_pooled": pooled_recall,
-        "fp_rate": fp_rate_pooled,
-        "fn_rate": fn_rate_pooled,
     }
 
 
@@ -659,7 +613,7 @@ def calculate_metrics(
         )
 
     else:
-        binary_metrics = calculate_binary_metrics(
+        return calculate_binary_metrics(
             dataset_utils,
             predictions,
             groundtruth,
@@ -672,16 +626,6 @@ def calculate_metrics(
             treshold_mode,
             end_to_end,
         )
-        return {
-            "confusion_matrix": binary_metrics["confusion_matrix"],
-            "precisions": np.array([binary_metrics["precision"], binary_metrics["precision"]]),
-            "recalls": np.array([binary_metrics["recall"], binary_metrics["recall"]]),
-            "confusion_matrix_pooled": binary_metrics["confusion_matrix"],
-            "precision_pooled": binary_metrics["precision"],
-            "recall_pooled": binary_metrics["recall"],
-            "fp_rate": binary_metrics["fp_rate"],
-            "fn_rate": binary_metrics["fn_rate"],
-        }
 
 
 def get_thresholding_mask(
@@ -1068,6 +1012,7 @@ def handle_predictions_multiclass(
             - "nms_num_valid": Tensor of shape (B,) containing the number of valid candidates per batch after non-maximum suppression, or None if non-maximum suppression was not applied.
     """
     # Build a threshold tensor aligned with class indices [background=0, L=1, T=2, X=3]
+
     if isinstance(classifier_threshold, dict):
         thresholds = tf.constant(
             [
@@ -1130,6 +1075,7 @@ def handle_predictions_multiclass(
 
     # y_pred_labels is (B, N), values in {1, 2, 3} — use it to look up per-class threshold
     per_candidate_threshold = tf.gather(thresholds, y_pred_labels)  # (B, N)
+
     threshold_mask = max_class_scores >= tf.cast(per_candidate_threshold, tf.float32)  # (B, N)
 
     if encoder_threshold is not None:
@@ -1200,3 +1146,33 @@ def handle_predictions(
         raise ValueError(
             "Unknown number of classes. Classification Tensor in predictions probably has no num_classes dimension."
         )
+
+
+def process_precision_recall(precisions, recalls):
+    # Sort
+    sorted_idx = np.argsort(recalls)
+    recall_sorted = recalls[sorted_idx]
+    precision_sorted = precisions[sorted_idx]
+
+    # Anchor point at Recall 0.0
+    recalls_anchored = np.concatenate([[0.0], recall_sorted])
+    precisions_anchored = np.concatenate([[precision_sorted[0]], precision_sorted])
+
+    # Interpolate precisions
+    precisions_interp = np.maximum.accumulate(precisions_anchored[::-1])[::-1]
+
+    unique_mask = np.concatenate([[True], np.diff(recalls_anchored) > 0])
+
+    return {
+        "precisions": precisions_interp[unique_mask],
+        "recalls": recalls_anchored[unique_mask],
+    }
+
+
+def calculate_optimal_threshold(beta, precisions, recalls, thresholds):
+    assert len(recalls) == len(precisions)
+    assert len(thresholds) == len(precisions)
+
+    f_beta = (1 + beta**2) * (precisions * recalls) / (beta**2 * precisions + recalls)
+    optimal_idx = np.argmax(f_beta)
+    return thresholds[optimal_idx], f_beta
