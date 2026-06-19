@@ -28,9 +28,9 @@ class Evaluator:
         self.eval_cpn = args.cpn
         self.eval_classifier = args.classifier
 
-        self.beta = 0.7
+        self.beta = args.beta
 
-        self.nms_iou_threshold = 0.35
+        self.nms_iou_threshold = args.nms_iou
         self.encoder_threshold = 0.01
 
         self.end_to_end = True
@@ -602,6 +602,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_candidates", type=lambda x: tuple(map(int, x.split(","))), required=False, default=None
     )
+    parser.add_argument("--beta", type=float, required=False, default=0.5)
+    parser.add_argument("--nms_iou", type=float, required=False, default=0.35)
     parser.add_argument("--model_dir", type=str)
     parser.add_argument("--cpn", type=bool, default=False, required=False)
     parser.add_argument("--classifier", type=bool, default=False, required=False)
