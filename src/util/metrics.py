@@ -248,7 +248,7 @@ def calculate_binary_metrics(
     coords_true_distance_mask = coords_true_distances_valid <= max_distance
 
     best_predictions = handle_predictions_binary(
-        predictions, encoder_threshold, classifier_threshold, threshold_mode
+        predictions, encoder_threshold, classifier_threshold
     )
 
     # The best box of each sample
