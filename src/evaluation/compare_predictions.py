@@ -519,6 +519,18 @@ def main(args) -> None:
         "model_confusion_matrix": metrics_intersections["model_confusion_matrix"].tolist(),
         "bhuman_confusion_matrix": metrics_intersections["bhuman_confusion_matrix"].tolist(),
     }
+    metrics_ball_seen = {
+        "model_confusion_matrix": metrics_ball_seen["model_confusion_matrix"].tolist(),
+        "bhuman_confusion_matrix": metrics_ball_seen["bhuman_confusion_matrix"].tolist(),
+    }
+    metrics_ball_seen_guessed = {
+        "model_confusion_matrix": metrics_ball_seen_guessed["model_confusion_matrix"].tolist(),
+        "bhuman_confusion_matrix": metrics_ball_seen_guessed["bhuman_confusion_matrix"].tolist(),
+    }
+    metrics_penaltyMark = {
+        "model_confusion_matrix": metrics_penaltymark["model_confusion_matrix"].tolist(),
+        "bhuman_confusion_matrix": metrics_penaltymark["bhuman_confusion_matrix"].tolist(),
+    }
 
     # Dump to JSON
     with open(
@@ -529,7 +541,7 @@ def main(args) -> None:
             {
                 "balls_seen": metrics_ball_seen,
                 "balls_seen_guessed": metrics_ball_seen_guessed,
-                "penaltyMark": metrics_penaltymark,
+                "penaltyMark": metrics_penaltyMark,
                 "intersections": metrics_intersections,
             },
             file,
