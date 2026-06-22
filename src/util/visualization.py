@@ -1,7 +1,10 @@
+import os
+
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import patches
+from matplotlib.colors import LinearSegmentedColormap
 
 from util import dataset as u_dataset
 from util import dataset_io as u_dataset_io
@@ -287,3 +290,127 @@ def show_patches_on_image(image, label, results):
     axes[4].imshow(results[label]["patches"][0, 4, ..., 0].numpy() / 255, cmap="gray")
 
     plt.show()
+
+
+def plot_cm_comparison(data, object_name):
+    """
+    Plot B-Human (red) and Model (blue) confusion matrices as separate figures.
+
+    Parameters
+    ----------
+    data        : dict  — full metrics dict with 'bhuman_confusion_matrix'
+    and 'model_confusion_matrix' per object
+    object_name : str   — e.g. "balls_seen", "penaltyMark", "intersections"
+    """
+
+    # ── Helpers ───────────────────────────────────────────────────────────────────
+    def class_labels(name, n):
+        if name in [u_dataset.CategoryNames.BALL.value, "balls_seen_guessed", "balls_seen"]:
+            return ["Kein Ball", "Ball"]
+        if name == u_dataset.CategoryNames.PENALTYMARK.value:
+            return ["Kein Elfmeterpunkt", "Elfmeterpunkt"]
+        if name == u_dataset.CategoryNames.INTERSECTIONS.value:
+            return ["None", "L", "T", "X"]
+        return [str(i) for i in range(n)]
+
+    def title_label(name, n):
+        if name == "balls_seen_guessed":
+            return "Ball (Seen + Guessed)"
+        if name in [u_dataset.CategoryNames.BALL.value, "balls_seen"]:
+            return "Ball"
+        if name == u_dataset.CategoryNames.PENALTYMARK.value:
+            return "Elfmeterpunkt"
+        if name == u_dataset.CategoryNames.INTERSECTIONS.value:
+            return "Linienkreuzungen"
+        return [str(i) for i in range(n)]
+
+    if object_name not in data:
+        raise KeyError(f"'{object_name}' not found. Available: {list(data.keys())}")
+
+    entry = data[object_name]
+    configs = [
+        (
+            "bhuman",
+            "B-Human",
+            entry["bhuman_confusion_matrix"],
+            LinearSegmentedColormap.from_list("bwr", ["#fcebeb", "#e24b4a", "#501313"], N=256),
+        ),
+        (
+            "model",
+            "Model",
+            entry["model_confusion_matrix"],
+            LinearSegmentedColormap.from_list("bwb", ["#e6f1fb", "#378add", "#042c53"], N=256),
+        ),
+    ]
+
+    n = len(np.array(configs[0][2]))
+    labels = class_labels(object_name, n)
+
+    save_path = "../../plots/confusion_matrices"
+    os.makedirs(save_path, exist_ok=True)
+
+    for file_prefix, display_name, cm, cmap in configs:
+        cm_arr = np.array(cm)
+        row_sums = cm_arr.sum(axis=1, keepdims=True)
+        cm_norm = np.where(row_sums > 0, cm_arr / row_sums, 0.0)
+
+        precisions, recalls = [], []
+        for k in range(n):
+            col_sum = cm_arr[:, k].sum()
+            row_sum = cm_arr[k, :].sum()
+            precisions.append(cm_arr[k, k] / col_sum if col_sum > 0 else 0)
+            recalls.append(cm_arr[k, k] / row_sum if row_sum > 0 else 0)
+
+        fig_size = max(5, n * 1.6)
+        fig, ax = plt.subplots(figsize=(fig_size, fig_size), facecolor="#f7f9fc")
+        ax.set_facecolor("#f7f9fc")
+
+        im = ax.imshow(cm_norm, cmap=cmap, vmin=0, vmax=1, aspect="equal")
+
+        ax.set_xticks(range(n))
+        ax.set_yticks(range(n))
+        ax.set_xticklabels(labels, fontsize=10, fontweight="medium")
+        ax.set_yticklabels(labels, fontsize=10, fontweight="medium", rotation=90, va="center")
+        ax.set_xlabel("Vorhergesagt", fontsize=11, labelpad=8)
+        ax.set_ylabel("Ground Truth", fontsize=11, labelpad=8)
+
+        thresh = 0.55
+        for i in range(n):
+            for j in range(n):
+                val = cm_arr[i, j]
+                frac = cm_norm[i, j]
+                color = "white" if frac > thresh else "#1a1a2e"
+                ax.text(
+                    j,
+                    i,
+                    f"{val:,}\n({frac:.1%})",
+                    ha="center",
+                    va="center",
+                    fontsize=9,
+                    color=color,
+                    fontweight="bold" if i == j else "normal",
+                )
+
+        for k in range(n):
+            rect = plt.Rectangle(
+                (k - 0.5, k - 0.5), 1, 1, linewidth=2.2, edgecolor="white", facecolor="none"
+            )
+            ax.add_patch(rect)
+
+        cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_ticks([])
+
+        avg_p = np.mean(precisions)
+        avg_r = np.mean(recalls)
+        ax.set_title(
+            f"{title_label(object_name, n)} · {display_name}\n"
+            f"Precision {avg_p:.3f}  ·  Recall {avg_r:.3f}",
+            fontsize=12,
+            fontweight="bold",
+            pad=12,
+            color="#1a1a2e",
+        )
+
+        fig.tight_layout()
+        plt.savefig(f"{save_path}/{object_name}_{file_prefix}.pdf", bbox_inches="tight")
+        plt.show()
