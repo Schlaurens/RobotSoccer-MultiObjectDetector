@@ -110,11 +110,21 @@ def filter_coords_by_distance(
             return (
                 tf.stack([filtered_pred_tensor, filtered_gt_tensor], axis=1),
                 distances,
+                mask,
             )  # (M, 2, 2), (M, 2)
         else:
-            return filtered_gt_tensor, distances_gt  # (M, 2), (M, )
+            return (
+                filtered_gt_tensor,
+                distances_gt,
+                mask,
+            )  # (M, 2), (M, )
     else:
-        return (tf.zeros((0, 2, 2), tf.float32), tf.zeros((0, 2), tf.float32))  # (0, 2, 2), (0, 2)
+        empty_mask = tf.zeros((0,), dtype=tf.bool)
+        return (
+            tf.zeros((0, 2, 2), tf.float32),
+            tf.zeros((0, 2), tf.float32),
+            empty_mask,
+        )  # (0, 2, 2), (0, 2)
 
 
 def process_object_metrics(
@@ -123,13 +133,46 @@ def process_object_metrics(
     object_name: str,
     threshold_world: float,
     threshold_image: float,
-    intersection_type: str | None = None,
     ball_status_only_seen: bool | None = None,
 ) -> dict:
+    # Helper function to safely concatenate tensors. Accounts for all empty tensors.
+    def safe_concat(tensors, axis=0):
+        if not tensors:
+            # Return an empty tensor with shape (0, 2) and type float32 (adjust as needed)
+            return tf.constant([], shape=(0, 2), dtype=tf.float32)
+        return tf.concat(tensors, axis=axis)
+
     # Extract coordinates for the given object type
     if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
-        pred_coords = extract_coordinates(preds[object_name][intersection_type])
-        gt_coords = extract_coordinates(gt_frame[object_name][intersection_type])
+        gt_labels = tf.concat(
+            [
+                [t.value] * len(gt_frame[object_name][t.name])
+                for t in list(u_dataset.IntersectionType)[1:]
+            ],
+            axis=0,
+        )
+        pred_labels = tf.concat(
+            [
+                [t.value] * len(preds[object_name][t.name])
+                for t in list(u_dataset.IntersectionType)[1:]
+            ],
+            axis=0,
+        )
+        # For pred_coords
+        tensors_to_concat = [
+            extract_coordinates(preds[object_name][t.name])
+            for t in list(u_dataset.IntersectionType)[1:]
+            if len(preds[object_name][t.name]) > 0
+        ]
+        pred_coords = safe_concat(tensors_to_concat, axis=0)
+
+        # For gt_coords
+        tensors_to_concat = [
+            extract_coordinates(gt_frame[object_name][t.name])
+            for t in list(u_dataset.IntersectionType)[1:]
+            if len(gt_frame[object_name][t.name]) > 0
+        ]
+        gt_coords = safe_concat(tensors_to_concat, axis=0)
     elif object_name in [
         u_dataset.CategoryNames.BALL.value,
         u_dataset.CategoryNames.PENALTYMARK.value,
@@ -160,7 +203,7 @@ def process_object_metrics(
     gt_tensor = tf.constant(gt_coords, dtype=tf.float32)  # (N, 2)
 
     # Match keypoints and return metrics
-    return u_metrics.match_keypoints_world(
+    matches = u_metrics.match_keypoints_world(
         pred_tensor,
         gt_tensor,
         u_dataset_io.camera_from_label(gt_frame),
@@ -169,6 +212,48 @@ def process_object_metrics(
         threshold_image,
         0 if object_name != "ball" else 0.05,
     )
+
+    if object_name != u_dataset.CategoryNames.INTERSECTIONS.value:
+        return matches
+
+    if len(pred_labels) == 0 and len(gt_labels) == 0:
+        return {
+            **matches,
+            "matched_true_labels": np.array([], dtype=np.int32),
+            "matched_pred_labels": np.array([], dtype=np.int32),
+            "fn_labels": np.array([], dtype=np.int32),
+            "fp_labels": np.array([], dtype=np.int32),
+        }
+
+    matched_pred_indices = (
+        matches["matched_pred_indices"]
+        if matches["matched_pred_indices"] is not None
+        else np.array([], dtype=np.int64)
+    )
+    matched_true_indices = (
+        matches["matched_true_indices"]
+        if matches["matched_true_indices"] is not None
+        else np.array([], dtype=np.int64)
+    )
+
+    pred_labels = np.array(pred_labels, dtype=np.int32)
+    gt_labels = np.array(gt_labels, dtype=np.int32)
+
+    matched_pred_labels = pred_labels[matched_pred_indices]
+    matched_true_labels = gt_labels[matched_true_indices]
+    # FN
+    fn_indices = list(set(range(len(gt_labels))) - set(matched_true_indices.astype(int)))
+
+    # FP
+    fp_indices = list(set(range(len(pred_labels))) - set(matched_pred_indices.astype(int)))
+
+    return {
+        **matches,
+        "matched_true_labels": matched_true_labels,
+        "matched_pred_labels": matched_pred_labels,
+        "fn_labels": gt_labels[fn_indices],
+        "fp_labels": pred_labels[fp_indices],
+    }
 
 
 def compare_predictions(
@@ -182,15 +267,16 @@ def compare_predictions(
     save_path_for_matches: str,
     ball_status_only_seen: bool | None = None,
 ) -> dict:
-    # TODO: lose the for-loop and only do tensor operations to save a lot of time.
     if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
         metrics = {
-            "model_true_positives": {k.name: 0 for k in u_labels.IntersectionType},
-            "model_false_negatives": {k.name: 0 for k in u_labels.IntersectionType},
-            "model_false_positives": {k.name: 0 for k in u_labels.IntersectionType},
-            "bhuman_true_positives": {k.name: 0 for k in u_labels.IntersectionType},
-            "bhuman_false_negatives": {k.name: 0 for k in u_labels.IntersectionType},
-            "bhuman_false_positives": {k.name: 0 for k in u_labels.IntersectionType},
+            "model_confusion_matrix": np.zeros(
+                (len(list(u_dataset.IntersectionType)), len(list(u_dataset.IntersectionType))),
+                np.int32,
+            ),
+            "bhuman_confusion_matrix": np.zeros(
+                (len(list(u_dataset.IntersectionType)), len(list(u_dataset.IntersectionType))),
+                np.int32,
+            ),
         }
         tp_matches = {
             "model": {k.name: {"matches": [], "distances": []} for k in u_labels.IntersectionType},
@@ -216,7 +302,6 @@ def compare_predictions(
     # Iterate over each frame
     for idx, gt_frame in enumerate(groundtruth):
         frame_time = gt_frame["frame_time"]
-
         assert frame_time == model_preds[idx]["frame_time"]
         assert frame_time == bhuman_preds[idx]["frame_time"]
 
@@ -229,62 +314,79 @@ def compare_predictions(
         ):
             continue
 
-        for intersection_type in intersection_types:
-            model_matches = process_object_metrics(
-                model_preds[idx],
-                gt_frame,
-                object_name,
-                threshold_world,
-                threshold_image,
-                intersection_type,
-            )
-            bhuman_matches = process_object_metrics(
-                bhuman_preds[idx],
-                gt_frame,
-                object_name,
-                threshold_world,
-                threshold_image,
-                intersection_type,
-                ball_status_only_seen,
-            )
+        model_matches = process_object_metrics(
+            model_preds[idx],
+            gt_frame,
+            object_name,
+            threshold_world,
+            threshold_image,
+        )
 
-            for prefix, matches in [("model", model_matches), ("bhuman", bhuman_matches)]:
-                # Filter and get lengths for false positives, false negatives, and matched ground truth
-                fp_len = tf.shape(
-                    filter_coords_by_distance(
-                        matches["fp_tensor"], camera, intrinsics, max_distance
-                    )[0]
-                )[0]
-                fn_len = tf.shape(
-                    filter_coords_by_distance(
-                        matches["fn_tensor"], camera, intrinsics, max_distance
-                    )[0]
-                )[0]
+        bhuman_matches = process_object_metrics(
+            bhuman_preds[idx],
+            gt_frame,
+            object_name,
+            threshold_world,
+            threshold_image,
+            ball_status_only_seen,
+        )
 
-                filtered_matches, distances = filter_coords_by_distance(
-                    matches["matches"],
-                    camera,
-                    intrinsics,
-                    max_distance,
+        for prefix, matches in [("model", model_matches), ("bhuman", bhuman_matches)]:
+            # Filter and get lengths for false positives, false negatives, and matched ground truth
+            fp_len = tf.shape(
+                filter_coords_by_distance(matches["fp_tensor"], camera, intrinsics, max_distance)[0]
+            )[0]
+            fn_len = tf.shape(
+                filter_coords_by_distance(matches["fn_tensor"], camera, intrinsics, max_distance)[0]
+            )[0]
+            filtered_matches, distances, mask = filter_coords_by_distance(
+                matches["matches"], camera, intrinsics, max_distance
+            )
+            matches_len = tf.shape(filtered_matches)[0]
+
+            if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+                # ==== Construct Confusion Matrix ===
+                _, _, mask_fn = filter_coords_by_distance(
+                    matches["fn_tensor"], camera, intrinsics, max_distance
                 )
-                matches_len = tf.shape(filtered_matches)[0]
+                fn_labels = matches["fn_labels"][mask_fn.numpy()]
 
-                if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
-                    tp_matches[prefix][intersection_type]["matches"].append(filtered_matches)
-                    tp_matches[prefix][intersection_type]["distances"].append(distances)
+                _, _, mask_fp = filter_coords_by_distance(
+                    matches["fp_tensor"], camera, intrinsics, max_distance
+                )
+                fp_labels = matches["fp_labels"][mask_fp.numpy()]
 
-                    # Update metrics
-                    metrics[f"{prefix}_true_positives"][intersection_type] += int(matches_len)
-                    metrics[f"{prefix}_false_negatives"][intersection_type] += int(fn_len)
-                    metrics[f"{prefix}_false_positives"][intersection_type] += int(fp_len)
-                else:
-                    tp_matches[prefix]["matches"].append(filtered_matches)
-                    tp_matches[prefix]["distances"].append(distances)
+                filtered_true_labels = matches["matched_true_labels"][mask.numpy()]
+                filtered_pred_labels = matches["matched_pred_labels"][mask.numpy()]
 
-                    # Update metrics
-                    metrics[f"{prefix}_true_positives"] += int(matches_len)
-                    metrics[f"{prefix}_false_negatives"] += int(fn_len)
-                    metrics[f"{prefix}_false_positives"] += int(fp_len)
+                confusion_matrix = np.zeros((4, 4), dtype=np.int64)
+
+                if len(filtered_true_labels) > 0:
+                    np.add.at(confusion_matrix, (filtered_true_labels, filtered_pred_labels), 1)
+
+                if len(fn_labels) > 0:
+                    np.add.at(
+                        confusion_matrix, (fn_labels, np.zeros(len(fn_labels), dtype=np.int64)), 1
+                    )
+
+                if len(fp_labels) > 0:
+                    np.add.at(
+                        confusion_matrix, (np.zeros(len(fp_labels), dtype=np.int64), fp_labels), 1
+                    )
+
+                for i in list(u_dataset.IntersectionType)[1:]:
+                    type_mask = filtered_true_labels == i.value
+                    tp_matches[prefix][i.name]["matches"].append(filtered_matches[type_mask])
+                    tp_matches[prefix][i.name]["distances"].append(distances[type_mask])
+                metrics[f"{prefix}_confusion_matrix"] += confusion_matrix
+            else:
+                tp_matches[prefix]["matches"].append(filtered_matches)
+                tp_matches[prefix]["distances"].append(distances)
+
+                # Update metrics
+                metrics[f"{prefix}_true_positives"] += int(matches_len)
+                metrics[f"{prefix}_false_negatives"] += int(fn_len)
+                metrics[f"{prefix}_false_positives"] += int(fp_len)
 
     status_str = ""
     if ball_status_only_seen is not None:
@@ -320,16 +422,28 @@ def compare_predictions(
 
 
 def print_results(metrics: dict, object_name: str, status: str = "") -> None:
-    print(f"==== {object_name.capitalize()}{f', status: {status}' if len(status) > 0 else ''} ====")
-    print("=== Model ===")
-    print("TP: ", metrics["model_true_positives"])
-    print("FP: ", metrics["model_false_positives"])
-    print("FN: ", metrics["model_false_negatives"])
+    if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+        print(
+            f"==== {object_name.capitalize()}{f', status: {status}' if len(status) > 0 else ''} ===="
+        )
+        print("=== Model ===")
+        print(metrics["model_confusion_matrix"])
 
-    print("=== B-Human ===")
-    print("TP : ", metrics["bhuman_true_positives"])
-    print("FP: ", metrics["bhuman_false_positives"])
-    print("FN: ", metrics["bhuman_false_negatives"])
+        print("=== B-Human ===")
+        print(metrics["bhuman_confusion_matrix"])
+    else:
+        print(
+            f"==== {object_name.capitalize()}{f', status: {status}' if len(status) > 0 else ''} ===="
+        )
+        print("=== Model ===")
+        print("TP: ", metrics["model_true_positives"])
+        print("FP: ", metrics["model_false_positives"])
+        print("FN: ", metrics["model_false_negatives"])
+
+        print("=== B-Human ===")
+        print("TP : ", metrics["bhuman_true_positives"])
+        print("FP: ", metrics["bhuman_false_positives"])
+        print("FN: ", metrics["bhuman_false_negatives"])
 
 
 def main(args) -> None:
@@ -360,19 +474,6 @@ def main(args) -> None:
     )
     print_results(metrics_ball_seen, u_dataset.CategoryNames.BALL.value, "seen")
 
-    print("Calculating Comparisons for PenaltyMarks...")
-    metrics_penaltymark = compare_predictions(
-        data["test_groundtruth"],
-        data["test_penaltymark_model"],
-        data["test_bhuman"],
-        u_dataset.CategoryNames.PENALTYMARK.value,
-        max_distance=distance,
-        threshold_world=args.threshold_world,
-        threshold_image=args.threshold_image,
-        save_path_for_matches=save_path_for_matches,
-    )
-    print_results(metrics_penaltymark, u_dataset.CategoryNames.PENALTYMARK.value)
-
     print("Calculating Comparisons for Intersections...")
     metrics_intersections = compare_predictions(
         data["test_groundtruth"],
@@ -385,6 +486,19 @@ def main(args) -> None:
         save_path_for_matches=save_path_for_matches,
     )
     print_results(metrics_intersections, u_dataset.CategoryNames.INTERSECTIONS.value)
+
+    print("Calculating Comparisons for PenaltyMarks...")
+    metrics_penaltymark = compare_predictions(
+        data["test_groundtruth"],
+        data["test_penaltymark_model"],
+        data["test_bhuman"],
+        u_dataset.CategoryNames.PENALTYMARK.value,
+        max_distance=distance,
+        threshold_world=args.threshold_world,
+        threshold_image=args.threshold_image,
+        save_path_for_matches=save_path_for_matches,
+    )
+    print_results(metrics_penaltymark, u_dataset.CategoryNames.PENALTYMARK.value)
 
     print("Calculating Comparisons for Balls...")
     metrics_ball_seen_guessed = compare_predictions(
@@ -400,12 +514,18 @@ def main(args) -> None:
     )
     print_results(metrics_ball_seen_guessed, u_dataset.CategoryNames.BALL.value, "seen+guessed")
 
-    # Save all the comparison into a single yaml file.
+    # Convert NumPy arrays to lists (if not already done)
+    metrics_intersections = {
+        "model_confusion_matrix": metrics_intersections["model_confusion_matrix"].tolist(),
+        "bhuman_confusion_matrix": metrics_intersections["bhuman_confusion_matrix"].tolist(),
+    }
+
+    # Dump to JSON
     with open(
-        Path("logs/fit/final", args.model_timestamp, "comparisons", f"{specification_string}.yaml"),
+        Path("logs/fit/final", args.model_timestamp, "comparisons", f"{specification_string}.json"),
         "w",
     ) as file:
-        yaml.dump(
+        json.dump(
             {
                 "balls_seen": metrics_ball_seen,
                 "balls_seen_guessed": metrics_ball_seen_guessed,
@@ -414,8 +534,7 @@ def main(args) -> None:
             },
             file,
             indent=4,
-            default_flow_style=False,
-            sort_keys=False,
+            separators=(",", ": "),
         )
 
 
