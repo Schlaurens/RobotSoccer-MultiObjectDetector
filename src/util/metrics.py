@@ -739,6 +739,8 @@ def match_keypoints_world(
             "false_positives": number_of_kps,
             "fn_tensor": y_true,
             "fp_tensor": y_pred,
+            "matched_pred_indices": None,
+            "matched_true_indices": None, 
         }
 
     # image_to_world expects one camera/intrinsics entry per point -> broadcast the
@@ -794,6 +796,8 @@ def match_keypoints_world(
         "false_positives": false_positives,
         "fn_tensor": fn_tensor,
         "fp_tensor": fp_tensor,
+        "matched_pred_indices": row_ind[assigned],
+        "matched_true_indices": col_ind[assigned], 
     }
 
 
