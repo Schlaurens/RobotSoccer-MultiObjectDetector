@@ -355,15 +355,23 @@ def plot_cm_comparison(data, object_name, distance):
         cm_norm = np.where(row_sums > 0, cm_arr / row_sums, 0.0)
 
         precisions, recalls = [], []
-        for k in range(n):
-            col_sum = cm_arr[:, k].sum()
-            row_sum = cm_arr[k, :].sum()
-            precisions.append(cm_arr[k, k] / col_sum if col_sum > 0 else 0)
-            recalls.append(cm_arr[k, k] / row_sum if row_sum > 0 else 0)
+        for k in range(1, n):  # Skip index 0 (None/TN class)
+            tp = cm_arr[k, k]
+
+            # Precision: TP / all predictions for class k (column k)
+            # Column k contains: TP at [k,k], and FPs from other rows predicted as k
+            col_sum = cm_arr[:, k].sum()  # TP + FP
+            precisions.append(tp / col_sum if col_sum > 0 else 0)
+
+            # Recall: TP / all actual instances of class k (row k)
+            # Row k contains: TP at [k,k], and FNs predicted as other classes
+            # BUT col 0 of row k are items predicted as "None" = also FNs
+            row_sum = cm_arr[k, :].sum()  # TP + FN
+            recalls.append(tp / row_sum if row_sum > 0 else 0)
 
         fig_size = max(5, n * 1.6)
         fig, ax = plt.subplots(figsize=(fig_size, fig_size), facecolor="#f7f9fc")
-        ax.set_facecolor("#f7f9fc")
+        ax.set_facecolor("#ffffff")
 
         im = ax.imshow(cm_norm, cmap=cmap, vmin=0, vmax=1, aspect="equal")
 
