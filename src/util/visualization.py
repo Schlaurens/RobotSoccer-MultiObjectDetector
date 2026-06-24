@@ -292,7 +292,7 @@ def show_patches_on_image(image, label, results):
     plt.show()
 
 
-def plot_cm_comparison(data, object_name):
+def plot_cm_comparison(data, object_name, distance):
     """
     Plot B-Human (red) and Model (blue) confusion matrices as separate figures.
 
@@ -403,7 +403,7 @@ def plot_cm_comparison(data, object_name):
         avg_p = np.mean(precisions)
         avg_r = np.mean(recalls)
         ax.set_title(
-            f"{title_label(object_name, n)} · {display_name}\n"
+            f"{title_label(object_name, n)} · {display_name} · Distanz {distance} m\n"
             f"Precision {avg_p:.3f}  ·  Recall {avg_r:.3f}",
             fontsize=12,
             fontweight="bold",
@@ -412,5 +412,6 @@ def plot_cm_comparison(data, object_name):
         )
 
         fig.tight_layout()
-        plt.savefig(f"{save_path}/{object_name}_{file_prefix}.pdf", bbox_inches="tight")
+        if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+            plt.savefig(f"{save_path}/d_{distance}_{object_name}_{file_prefix}.pdf", bbox_inches="tight")
         plt.show()
