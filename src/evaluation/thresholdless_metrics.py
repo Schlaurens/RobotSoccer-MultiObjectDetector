@@ -189,6 +189,11 @@ class Evaluator:
         self.config["categories"]["penaltyMark"]["max_distance"] = self.distance_filter
         self.config["categories"]["intersections"]["max_distance"] = self.distance_filter
 
+        if channels_in != 1:
+            input_dims = self.config["model"]["encoder"]["input_dims"] // np.array((1, 2))
+        else:
+            input_dims = self.config["model"]["encoder"]["input_dims"]
+
         model = FullModel.load(
             encoder_architecture,
             classifier_architecture,
