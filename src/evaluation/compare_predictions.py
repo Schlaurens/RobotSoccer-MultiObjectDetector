@@ -393,8 +393,8 @@ def compare_predictions(
                 # Update metrics
                 metrics[f"{prefix}_confusion_matrix"] += np.array(
                     [
-                        [0, int(fn_len)],
-                        [int(fp_len), int(matches_len)],
+                        [0, int(fp_len)],
+                        [int(fn_len), int(matches_len)],
                     ],
                     np.int32,
                 )
