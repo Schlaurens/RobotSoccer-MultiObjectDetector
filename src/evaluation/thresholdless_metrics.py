@@ -194,7 +194,7 @@ class Evaluator:
             classifier_architecture,
             filepath=path_to_models,
             filename=model_name,
-            input_dims=self.config["model"]["encoder"]["input_dims"],
+            input_dims=input_dims,
             encoder_channels=channels_in,
             cell_dims=self.config["model"]["encoder"]["cell_dims"],
             n_context=self.config["model"]["encoder"]["n_context"],
