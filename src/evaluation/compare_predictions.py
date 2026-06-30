@@ -265,34 +265,36 @@ def compare_predictions(
     threshold_world: float,
     threshold_image: float,
     save_path_for_matches: str,
+    save_path_for_confused_idx: str,
     ball_status_only_seen: bool | None = None,
 ) -> dict:
     if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+        empty_cm = lambda: np.zeros(
+            (len(list(u_dataset.IntersectionType)), len(list(u_dataset.IntersectionType))),
+            np.int32,
+        )
         metrics = {
-            "model_confusion_matrix": np.zeros(
-                (len(list(u_dataset.IntersectionType)), len(list(u_dataset.IntersectionType))),
-                np.int32,
-            ),
-            "bhuman_confusion_matrix": np.zeros(
-                (len(list(u_dataset.IntersectionType)), len(list(u_dataset.IntersectionType))),
-                np.int32,
-            ),
+            "model_confusion_matrix": empty_cm(),
+            "bhuman_confusion_matrix": empty_cm(),
         }
         tp_matches = {
             "model": {k.name: {"matches": [], "distances": []} for k in u_labels.IntersectionType},
             "bhuman": {k.name: {"matches": [], "distances": []} for k in u_labels.IntersectionType},
         }
         intersection_types = [t.name for t in list(u_labels.IntersectionType)]
+        confused_idx = []
 
     else:
+        empty_cm = lambda: np.zeros((2, 2), np.int32)
         metrics = {
-            "model_confusion_matrix": np.zeros((2, 2), np.int32),
-            "bhuman_confusion_matrix": np.zeros((2, 2), np.int32),
+            "model_confusion_matrix": empty_cm(),
+            "bhuman_confusion_matrix": empty_cm(),
         }
         tp_matches = {
             "model": {"matches": [], "distances": []},
             "bhuman": {"matches": [], "distances": []},
         }
+        confused_idx = []
         intersection_types = [None]
 
     size_ball_dataset = 0
@@ -312,7 +314,14 @@ def compare_predictions(
             and gt_frame[object_name]["ignore_sample"]
         ):
             continue
-        
+
+        frame_confused = {
+            "index": idx,
+            "name": model_preds[idx]["name"],
+            "model_confusion_matrix": empty_cm(),
+            "bhuman_confusion_matrix": empty_cm(),
+        }
+
         if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
             size_intersections_dataset += (
                 len(gt_frame[object_name][u_dataset.IntersectionType.L.name])
@@ -386,23 +395,36 @@ def compare_predictions(
                     tp_matches[prefix][i.name]["matches"].append(filtered_matches[type_mask])
                     tp_matches[prefix][i.name]["distances"].append(distances[type_mask])
                 metrics[f"{prefix}_confusion_matrix"] += confusion_matrix
+
+                frame_confused[f"{prefix}_confusion_matrix"] = confusion_matrix
+
             else:
                 tp_matches[prefix]["matches"].append(filtered_matches)
                 tp_matches[prefix]["distances"].append(distances)
 
                 # Update metrics
-                metrics[f"{prefix}_confusion_matrix"] += np.array(
+                confusion_matrix = np.array(
                     [
                         [0, int(fp_len)],
                         [int(fn_len), int(matches_len)],
                     ],
                     np.int32,
                 )
+
+                metrics[f"{prefix}_confusion_matrix"] += confusion_matrix
+                frame_confused[f"{prefix}_confusion_matrix"] = confusion_matrix
+
+        confused_idx.append(frame_confused)
+
     for prefix in ["model", "bhuman"]:
         if object_name != u_dataset.CategoryNames.INTERSECTIONS.value:
-            metrics[f"{prefix}_confusion_matrix"][0, 0] = size_ball_dataset - np.sum(metrics[f"{prefix}_confusion_matrix"])
+            metrics[f"{prefix}_confusion_matrix"][0, 0] = size_ball_dataset - np.sum(
+                metrics[f"{prefix}_confusion_matrix"]
+            )
         else:
-            metrics[f"{prefix}_confusion_matrix"][0, 0] = size_intersections_dataset - np.sum(metrics[f"{prefix}_confusion_matrix"])
+            metrics[f"{prefix}_confusion_matrix"][0, 0] = size_intersections_dataset - np.sum(
+                metrics[f"{prefix}_confusion_matrix"]
+            )
 
     status_str = ""
     if ball_status_only_seen is not None:
@@ -434,6 +456,26 @@ def compare_predictions(
                 model_tp_distances_concat.numpy(),
             )
 
+    save_path_conf_idx = Path(save_path_for_confused_idx)
+
+    os.makedirs(save_path_conf_idx, exist_ok=True)
+
+    # Save confused indices in .json file
+    def numpy_to_python(obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.integer):
+            return int(obj)
+        raise TypeError(f"Not serializable: {type(obj)}")
+
+    for intersection_type in intersection_types:
+        with open(
+            f"{save_path_conf_idx}/{object_name}{status_str}"
+            f"{intersection_type if intersection_type is not None else ''}.json",
+            "w",
+        ) as file:
+            json.dump(confused_idx, file, indent=4, default=numpy_to_python)
+
     return metrics
 
 
@@ -457,6 +499,9 @@ def main(args) -> None:
     save_path_for_matches = Path(
         Path(args.directory_log), args.model_timestamp, "matches", specification_string
     )
+    save_path_for_confused_idx = Path(
+        Path(args.directory_log), args.model_timestamp, "confusion_idx", specification_string
+    )
     os.makedirs(save_path_for_matches, exist_ok=True)
 
     data = load_data(Path(args.directory_predictions))
@@ -471,6 +516,7 @@ def main(args) -> None:
         threshold_world=args.threshold_world,
         threshold_image=args.threshold_image,
         save_path_for_matches=save_path_for_matches,
+        save_path_for_confused_idx=save_path_for_confused_idx,
         ball_status_only_seen=True,
     )
     print_results(metrics_ball_seen, u_dataset.CategoryNames.BALL.value, "seen")
@@ -485,6 +531,7 @@ def main(args) -> None:
         threshold_world=args.threshold_world,
         threshold_image=args.threshold_image,
         save_path_for_matches=save_path_for_matches,
+        save_path_for_confused_idx=save_path_for_confused_idx,
     )
     print_results(metrics_intersections, u_dataset.CategoryNames.INTERSECTIONS.value)
 
@@ -498,6 +545,7 @@ def main(args) -> None:
         threshold_world=args.threshold_world,
         threshold_image=args.threshold_image,
         save_path_for_matches=save_path_for_matches,
+        save_path_for_confused_idx=save_path_for_confused_idx,
     )
     print_results(metrics_penaltymark, u_dataset.CategoryNames.PENALTYMARK.value)
 
@@ -511,6 +559,7 @@ def main(args) -> None:
         threshold_world=args.threshold_world,
         threshold_image=args.threshold_image,
         save_path_for_matches=save_path_for_matches,
+        save_path_for_confused_idx=save_path_for_confused_idx,
         ball_status_only_seen=False,
     )
     print_results(metrics_ball_seen_guessed, u_dataset.CategoryNames.BALL.value, "seen+guessed")
