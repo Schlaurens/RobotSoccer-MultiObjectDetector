@@ -36,10 +36,19 @@ from util import metrics as u_metrics
 
 
 class EvaluateApplication:
-    def __init__(self, log_path, data_path):
+    def __init__(self, log_path, data_path, distance):
         self.config = self.load_config(log_path + "/config.yaml")
 
         self.categories = self.config["categories"]
+
+        self.categories["ball"]["max_distance"] = distance
+        self.categories["penaltyMark"]["max_distance"] = distance
+        self.categories["intersections"]["max_distance"] = distance
+
+        self.categories["ball"]["n_candidates"] = 5
+        self.categories["penaltyMark"]["n_candidates"] = 4
+        self.categories["intersections"]["n_candidates"] = 11
+
         input_dims = self.config["model"]["encoder"]["input_dims"]
         cell_dims = self.config["model"]["encoder"]["cell_dims"]
         self.dataset_utils = u_dataset.DatasetUtils(
@@ -463,7 +472,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="This script shows the results of a model.")
     parser.add_argument("data_path")
     parser.add_argument("log_path")
+    parser.add_argument("--distance", type=int, default=9)
     args = parser.parse_args()
 
-    app = EvaluateApplication(args.log_path, args.data_path)
+    app = EvaluateApplication(args.log_path, args.data_path, args.distance)
     app.run()
