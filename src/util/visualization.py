@@ -350,22 +350,26 @@ def plot_cm_comparison(data, object_name, distance):
     os.makedirs(save_path, exist_ok=True)
 
     for file_prefix, display_name, cm, cmap in configs:
-        cm_arr = np.array(cm)
+        cm_arr = np.array(cm, dtype=float)  # Ensure float for NaN handling
         row_sums = cm_arr.sum(axis=1, keepdims=True)
+
+        # Set True Negatives (0,0) to NaN
+        cm_arr[0, 0] = np.nan
+
+        # Normalize, but exclude NaN from row sums
+        row_sums = np.nansum(cm_arr, axis=1, keepdims=True)
         cm_norm = np.where(row_sums > 0, cm_arr / row_sums, 0.0)
+        cm_norm[0, 0] = np.nan  # Ensure normalized value is also NaN
 
         precisions, recalls = [], []
         for k in range(1, n):  # Skip index 0 (None/TN class)
             tp = cm_arr[k, k]
 
             # Precision: TP / all predictions for class k (column k)
-            # Column k contains: TP at [k,k], and FPs from other rows predicted as k
             col_sum = cm_arr[:, k].sum()  # TP + FP
             precisions.append(tp / col_sum if col_sum > 0 else 0)
 
             # Recall: TP / all actual instances of class k (row k)
-            # Row k contains: TP at [k,k], and FNs predicted as other classes
-            # BUT col 0 of row k are items predicted as "None" = also FNs
             row_sum = cm_arr[k, :].sum()  # TP + FN
             recalls.append(tp / row_sum if row_sum > 0 else 0)
 
@@ -387,17 +391,27 @@ def plot_cm_comparison(data, object_name, distance):
             for j in range(n):
                 val = cm_arr[i, j]
                 frac = cm_norm[i, j]
-                color = "white" if frac > thresh else "#1a1a2e"
-                ax.text(
-                    j,
-                    i,
-                    f"{val:,}\n({frac:.1%})",
-                    ha="center",
-                    va="center",
-                    fontsize=9,
-                    color=color,
-                    fontweight="bold" if i == j else "normal",
-                )
+                if i == 0 and j == 0:
+                    # Display "--" for True Negatives
+                    ax.text(
+                        j, i, "--",
+                        ha="center", va="center",
+                        fontsize=9, color="#1a1a2e",
+                        fontweight="bold" if i == j else "normal",
+                    )
+                else:
+                    # Display value and percentage for other cells
+                    color = "white" if frac > thresh else "#1a1a2e"
+                    ax.text(
+                        j,
+                        i,
+                        f"{int(val):,}\n({frac:.1%})" if not np.isnan(frac) else "--",
+                        ha="center",
+                        va="center",
+                        fontsize=9,
+                        color=color,
+                        fontweight="bold" if i == j else "normal",
+                    )
 
         for k in range(n):
             rect = plt.Rectangle(
