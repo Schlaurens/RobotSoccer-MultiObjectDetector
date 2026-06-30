@@ -633,7 +633,6 @@ def get_thresholding_mask(
     classifier_threshold: float,
     encoder_preds: tf.Tensor = None,
     encoder_threshold: float = None,
-    mode: str = "additive",
 ):
     """Generates a binary mask that is True everwhere the prediction is within the specified theshold. This function assumes that `classifier_preds` and `encoder_preds` are of the same shape. `encoder_preds` and `encoder_threshold` are optional.
 
@@ -646,28 +645,18 @@ def get_thresholding_mask(
     Returns:
     The thresholding mask.
     """
-    if mode == "additive":
-        if encoder_preds is not None and encoder_threshold > 0:
-            combined_score = classifier_preds + encoder_preds
-            return combined_score >= (classifier_threshold + encoder_threshold)
-        else:
-            return classifier_preds >= classifier_threshold
+    classifier_preds_thresholded = classifier_preds >= classifier_threshold  # (...)
 
-    elif mode == "logical_and":
-        classifier_preds_thresholded = classifier_preds >= classifier_threshold  # (...)
+    if encoder_preds is not None and encoder_threshold is not None:
+        encoder_preds_thresholded = encoder_preds >= encoder_threshold  # (...)
+    else:
+        encoder_preds_thresholded = tf.ones_like(classifier_preds_thresholded)
 
-        if encoder_preds is not None and encoder_threshold is not None:
-            encoder_preds_thresholded = encoder_preds >= encoder_threshold  # (...)
-        else:
-            encoder_preds_thresholded = tf.ones_like(classifier_preds_thresholded)
+    tf.assert_equal(tf.shape(classifier_preds_thresholded), tf.shape(encoder_preds_thresholded))
 
-        tf.assert_equal(tf.shape(classifier_preds_thresholded), tf.shape(encoder_preds_thresholded))
+    combined_thresholds = tf.logical_and(classifier_preds_thresholded, encoder_preds_thresholded)
 
-        combined_thresholds = tf.logical_and(
-            classifier_preds_thresholded, encoder_preds_thresholded
-        )
-
-        return combined_thresholds
+    return combined_thresholds
 
 
 def match_keypoints_world(
@@ -740,7 +729,7 @@ def match_keypoints_world(
             "fn_tensor": y_true,
             "fp_tensor": y_pred,
             "matched_pred_indices": None,
-            "matched_true_indices": None, 
+            "matched_true_indices": None,
         }
 
     # image_to_world expects one camera/intrinsics entry per point -> broadcast the
@@ -797,7 +786,7 @@ def match_keypoints_world(
         "fn_tensor": fn_tensor,
         "fp_tensor": fp_tensor,
         "matched_pred_indices": row_ind[assigned],
-        "matched_true_indices": col_ind[assigned], 
+        "matched_true_indices": col_ind[assigned],
     }
 
 
