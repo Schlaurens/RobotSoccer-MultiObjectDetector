@@ -1,4 +1,4 @@
-# MA_MachineLearning
+# MultiObjectDetector
 
 This repository contains the implementation for extracting, processing, training, and evaluating neural networks for object detection in images as part of a master's thesis project. The core of the repository is a modular object detection pipeline that processes input images through a series of well-defined stages: **encoder**, **patch sampler**, **patch extractor**, and **classifier**. This structured approach enables efficient and accurate detection and classification of objects such as balls, penalty marks, and intersections in image data.
 
