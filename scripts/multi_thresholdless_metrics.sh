@@ -3,16 +3,9 @@
 export TF_CPP_MIN_LOG_LEVEL=2
 
 # CPN_EVAL=True
-# LOG_DIR="logs/fit/cpn-yuyv"
-# MODEL_DIR="models/evaluation/cpn-yuyv"
-
-CPN_EVAL=True
-LOG_DIR_BASE="logs/fit/cpn-grayscale"
-MODEL_DIR_BASE="models/evaluation/cpn-grayscale"
-
-# CLASSIFIER_EVAL=True
-# LOG_DIR_BASE="logs/fit/classifier-basic/"
-# MODEL_DIR_BASE="models/evaluation/classifier-basic"
+# LOG_DIR_BASE="logs/fit/cpn-yuyv"
+# MODEL_DIR_BASE="models/evaluation/cpn-yuyv"
+# DISTANCE=9
 
 NUM_RUNS=3
 
