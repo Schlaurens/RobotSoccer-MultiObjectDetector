@@ -3,29 +3,28 @@ name = "MultiObjectDetector"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = "==3.10.19"
+requires-python = "~=3.12.13"
 dependencies = [
-    "albumentations>=2.0.5",
-    "jupyter>=1.1.1",
-    "matplotlib>=3.9.4",
-    "opencv-python>=4.11.0.86",
-    "pybh>=0.3.9",
-    "pyturbojpeg>=1.7.7",
-    "tensorflow<2.16.2; sys_platform == 'darwin'",
-    "tensorflow<2.16.2; sys_platform == 'Windows'",
-    "tensorflow[and-cuda]==2.16.2; sys_platform == 'linux'",
-    "pyqt6>=6.9.0",
-    "scipy>=1.15.2",
-    "dvc>=3.63.0",
-    "dvc-ssh>=4.2.1",
-    "shapely>=2.1.2",
-    "scikit-learn>=1.7.2",
-    "pytest>=9.0.1",
-    "pytest-cov>=7.0.0",
-    "setuptools<=81.0.0",
-    "tensorboard>=2.16.2",
-    "tf2onnx==1.16.1",
-    "seaborn>=0.13.2",
+    "jupyter",
+    "matplotlib",
+    "opencv-python",
+    "pybh",
+    "pyturbojpeg",
+    "tensorflow~=2.21.0; sys_platform == 'darwin'",
+    "tensorflow~=2.21.0; sys_platform == 'Windows'",
+    "tensorflow[and-cuda]~=2.21.0; sys_platform == 'linux'",
+    "pyqt6",
+    "scipy",
+    "dvc",
+    "dvc-ssh",
+    "shapely",
+    "scikit-learn",
+    "pytest",
+    "pytest-cov",
+    "setuptools",
+    "tensorboard",
+    "tf2onnx",
+    "seaborn",
 ]
 
 [tool.uv.sources]
@@ -67,5 +66,5 @@ show-fixes = true  # Enumerate all fixed violations.
 
 [dependency-groups]
 dev = [
-    "ruff>=0.11.10",
+    "ruff",
 ]
