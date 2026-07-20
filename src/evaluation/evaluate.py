@@ -128,8 +128,10 @@ class EvaluateApplication:
         self.remove_artists()
 
         image_rgb = u_image.convert_yuyv_to_rgb(self.data[self.index]["image"])  # (H_in, W_in, 3)
-        
-        image_rgb_full = u_image.convert_yuyv_to_rgb(self.full_data[self.index]["image"])  # (H_in, W_in, 3)
+
+        image_rgb_full = u_image.convert_yuyv_to_rgb(
+            self.full_data[self.index]["image"]
+        )  # (H_in, W_in, 3)
 
         output = self.model(
             {
@@ -217,9 +219,13 @@ class EvaluateApplication:
         )
 
         if ~tf.reduce_all(coords_true == -1.0):
-            axes.plot(*(coords_true_patch), "gx")
-        axes.plot(*(patch_center), "rx")  # Encoder prediction is always in the middle of the patch
-        axes.plot(*(patch_center + output["classifier_offsets"][best_score_index]), "bx")
+            # tf.print(coords_true_patch)
+
+            # axes.plot(*(coords_true_patch), "gx")
+            pass
+
+        # axes.plot(*(patch_center), "rx")  # Encoder prediction is always in the middle of the patch
+        # axes.plot(*(patch_center + output["classifier_offsets"][best_score_index]), "bx")
 
         axes.text(0, 2, f"cand.: {best_score_index + 1}", color="lime")
         axes.text(
@@ -234,7 +240,6 @@ class EvaluateApplication:
             f"cla.: {processed_predictions['classifier_confidences'][0].numpy():.3f}",
             color="lime",
         )
-        axes.text(0, 8, f"err.: {abs_error:.3f}", color="lime")
         return axes.imshow(output["patches"][0][best_score_index][..., 0], cmap="gray")
 
     def remove_artists(self):
@@ -282,15 +287,20 @@ class EvaluateApplication:
 
             rect = patches.Rectangle(
                 box_coords / self.dataset_utils.config.image_res_scale[::-1],
-                width /self.dataset_utils.config.image_res_scale[0],
-                height/ self.dataset_utils.config.image_res_scale[1],
+                width / self.dataset_utils.config.image_res_scale[0],
+                height / self.dataset_utils.config.image_res_scale[1],
                 linewidth=1,
                 edgecolor="blue",
                 facecolor=(255 / 255, 123 / 255, 0 / 255, 0 / 255),
             )
 
             # Each patch has a number to identify the ordering
-            # axes.text(x=(box_coords[0] + 4.0), y=box_coords[1] + 17.0, s=i + 1, color="lime")
+            axes.text(
+                x=(box_coords[0] / self.dataset_utils.config.image_res_scale[0] + 4.0),
+                y=box_coords[1] / self.dataset_utils.config.image_res_scale[1] + 17.0,
+                s=i,
+                color="red",
+            )
             if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
                 pred_patch_class = processed_predictions["classes_of_candidates"][0][i]
 
