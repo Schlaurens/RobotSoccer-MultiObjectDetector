@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 
 from training import classifier_architectures as u_classifiers
-from training import encoder_architectures as u_encoders
+from training import cpn_architectures as u_encoders
 from util import augmentation as u_augmentation
 from util import dataset as u_dataset
 from util import image as u_image
