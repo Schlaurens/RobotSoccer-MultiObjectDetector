@@ -153,7 +153,7 @@ class IresBlock(tf.keras.layers.Layer):
         return self.add([x, residual])
 
 
-def IresBlockCompiledNN(filters, use_batch_norm, stride, expansion, name=None):
+def IresBlockCompiledNN(filters, stride, expansion, name=None):
     def forward(inputs):
         residual = inputs
         # Conv expand
