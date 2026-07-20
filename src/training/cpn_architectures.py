@@ -28,7 +28,7 @@ def get_cpn(
     Returns:
         A tf.keras.Model with the provided architecture
     """
-    if colorspace not in ["yuyv", "rgb"]:
+    if colorspace not in ["yuyv", "grayscale"]:
         raise ValueError(f"Unknown Colorspace: {colorspace}")
 
     if cpn_architecture == "ires_16x16_v1":
