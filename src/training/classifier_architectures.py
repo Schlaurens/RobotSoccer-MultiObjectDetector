@@ -9,7 +9,6 @@ def get_classifier(
     n_context: int,
     n_classes: int,
     with_offset: bool = True,
-    use_batch_norm: bool = False,
     **kwargs,
 ):
     """Return the specified classifier model
@@ -38,7 +37,6 @@ def get_classifier(
             n_context,
             n_classes,
             with_offset,
-            use_batch_norm,
         )
     else:
         raise ValueError(f"Unknown classifier name: {classifier_architecture}")
@@ -74,7 +72,7 @@ def _get_common_classifier_output(x, n_classes, with_offset, inputs):
 
 # ========= Classifier Architectures =========
 def _get_classifier_conv_v0(
-    patch_size, channels_in, n_meta, n_context, n_classes, with_offset, use_batch_norm
+    patch_size, channels_in, n_meta, n_context, n_classes, with_offset
 ):
     image = tf.keras.layers.Input((*patch_size, channels_in))
     inputs = [image]
@@ -87,11 +85,11 @@ def _get_classifier_conv_v0(
 
     x = image
     # 32x32x3
-    x = tf.keras.layers.Conv2D(32, 3, strides=2, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.Conv2D(48, 3, strides=2, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
-    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     # 16x16x16
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
@@ -124,6 +122,8 @@ def _get_classifier_conv_v0(
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Dense(40)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
-    x = tf.keras.layers.Dense(24)(x)
+    x = tf.keras.layers.Dense(32)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Dense(16)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     return _get_common_classifier_output(x, n_classes, with_offset, inputs)
