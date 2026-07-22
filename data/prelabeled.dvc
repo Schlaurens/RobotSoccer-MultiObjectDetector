@@ -1,0 +1,6 @@
+outs:
+- md5: 1637f02ac33f5a446b81a615add95956.dir
+  size: 184926753
+  nfiles: 3736
+  hash: md5
+  path: prelabeled
