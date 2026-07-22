@@ -30,7 +30,7 @@ class LabelMode(Enum):
 
 class LabelApplication:
     def __init__(self, directory):
-        self.img_dims = (480, 640)  # y, x
+        self.img_dims = (448, 544)  # y, x
         self.directory = directory
         self.labels = u_dataset_io.load_labels(args.directory)
         self.label_mode = LabelMode.BALL
