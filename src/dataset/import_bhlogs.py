@@ -64,7 +64,7 @@ def main(args):
         with open(u_dataset_io.get_image_path(destination, name), "wb") as f:
             f.write(jpeg_image._data[16:])
 
-        label = u_labels.create_empty_label(name, frame_time)
+        label = u_labels.create_empty_label(name, frame_time, args.ball_size)
         u_labels.set_camera_pose(
             label, camera_matrix.translation.z, [_.elems[2] for _ in camera_matrix.rotation.cols]
         )  # the latter is the z-axis ("up") in camera coordinates, which fixes the attitude, but not the yaw relative to the ground. this could also be expressed with two DoF as theta=inclination=arccos(z), phi=azimuth=sgn(y)*arccos(x/sqrt(x*x+y*y))
@@ -112,14 +112,21 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--thread-filter", default=["Upper"], nargs="+")
+    parser.add_argument("--thread-filter", default=["Color"], nargs="+")
     parser.add_argument("--import-labels", default=True, action="store_true")
     parser.add_argument(
         "--destination",
-        default=os.path.join(os.path.dirname(__file__), "../data"),
+        default=os.path.join(os.path.dirname(__file__), "../data/groundtruth_raw"),
     )
-    parser.add_argument("--step", default=30, type=int)
+    parser.add_argument("--step", default=60, type=int)
+    parser.add_argument(
+        "--ball_size",
+        required=True,
+        type=float,
+        help="Ball Size 3 := 0.19 m diameter, Ball Size 5 := 0.22 m diameter",
+    )
     parser.add_argument("path")
+
     args = parser.parse_args()
 
     main(args)
