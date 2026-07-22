@@ -98,7 +98,20 @@ class LabelApplication:
                     )
                 )
             )
-            self.patches.append(self.ax_img.add_patch(plt.Circle((x, y), 2, color="r", fill=True)))
+            self.patches.append(
+                self.ax_img.add_patch(
+                    plt.Rectangle(
+                        (0, 0),
+                        width=self.img_dims[1],
+                        height=self.img_dims[0],
+                        color="r",
+                        fill=False,
+                        linewidth=6,
+                    )
+                )
+            )
+
+            self.patches.append(self.ax_img.add_patch(plt.Circle((x, y), 1, color="r", fill=True)))
         if u_labels.has_penalty_mark(labels):
             x, y = u_labels.get_penalty_mark(labels)
             self.patches.append(
@@ -107,18 +120,18 @@ class LabelApplication:
             self.patches.append(self.ax_img.add_patch(plt.Circle((x, y), 2, color="b", fill=True)))
         if u_labels.has_intersections(labels):
             intersections = u_labels.get_intersections(labels)
-            self.patches.append(
-                self.ax_img.add_patch(
-                    plt.Rectangle(
-                        (0, 0),
-                        width=self.img_dims[1],
-                        height=self.img_dims[0],
-                        color="r" if intersections["ignore_sample"] else "b",
-                        fill=False,
-                        linewidth=4,
-                    )
-                )
-            )
+            # self.patches.append(
+            #     self.ax_img.add_patch(
+            #         plt.Rectangle(
+            #             (0, 0),
+            #             width=self.img_dims[1],
+            #             height=self.img_dims[0],
+            #             color="r" if intersections["ignore_sample"] else "b",
+            #             fill=False,
+            #             linewidth=4,
+            #         )
+            #     )
+            # )
             for type in u_labels.IntersectionType:
                 for intersection in intersections[type.value]:
                     self.patches.append(
