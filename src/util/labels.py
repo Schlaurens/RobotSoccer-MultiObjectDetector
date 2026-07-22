@@ -17,8 +17,8 @@ OBSTACLES_WIDTH = 20
 OBSTACLES_HEIGHT = 15
 
 
-def create_empty_label(name, frame_time):
-    return {"name": name, "frame_time": frame_time}
+def create_empty_label(name, frame_time, ball_size):
+    return {"name": name, "frame_time": frame_time, "ball_size": ball_size}
 
 
 def set_camera_pose(label, h, z):
