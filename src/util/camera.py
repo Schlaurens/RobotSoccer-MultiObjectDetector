@@ -160,3 +160,65 @@ def rot_camera_in_world(camera):
         ],
         axis=-2,
     )
+
+
+def project_sphere_bbox_square(center_world, radius, camera, camera_intr, point_in_image):
+    """
+    Forward-project a sphere's true silhouette extents, then build a square
+    patch centered exactly on the given 2D point, sized to contain the ball.
+
+    center_world: (B, 3) - ball center in world coords
+    radius: float - real-world radius (m)
+    camera: (B, 3) - roll, pitch, height
+    camera_intr: (B, 4) - cx, cy, fx, fy
+    point_in_image: (B, 2) - the original predicted center point (x, y),
+                    used as the exact center of the output square
+
+    Returns: (B, 4) - (x_left, x_right, y_top, y_bottom) of the square patch
+    """
+    # Ensure point_in_image, camera inputs and camera intrinsics are batched
+    if isinstance(center_world, list | tuple):
+        center_world = keras.ops.convert_to_tensor(center_world, dtype=tf.float32)
+        if len(keras.ops.shape(center_world)) == 1:
+            center_world = keras.ops.expand_dims(center_world, axis=0)
+    if isinstance(point_in_image, list | tuple):
+        point_in_image = keras.ops.convert_to_tensor(point_in_image, dtype=tf.float32)
+        if len(keras.ops.shape(point_in_image)) == 1:
+            point_in_image = keras.ops.expand_dims(point_in_image, axis=0)
+    if isinstance(camera, list | tuple):
+        camera = keras.ops.convert_to_tensor(camera, dtype=tf.float32)
+        if len(keras.ops.shape(camera)) == 1:
+            camera = keras.ops.expand_dims(camera, axis=0)
+    if isinstance(camera_intr, list | tuple):
+        camera_intr = keras.ops.convert_to_tensor(camera_intr, dtype=tf.float32)
+        if len(keras.ops.shape(camera_intr)) == 1:
+            camera_intr = keras.ops.expand_dims(camera_intr, axis=0)
+
+    x, y = tf.unstack(point_in_image, axis=-1)
+    cx, cy, fx, fy = tf.unstack(camera_intr, axis=-1)
+
+    # Get distance to point in world
+    D = tf.linalg.norm(center_world, axis=-1)
+    
+    alpha = tf.asin(tf.clip_by_value(radius / D, -1.0, 1.0))  # angular radius of ball (B,)
+
+    # Angular height and width of the patch
+    theta_c = tf.atan((cx - x) / fx)
+    phi_c = tf.atan((cy - y) / fy)
+
+    # True (oval) extents, in pixels, from the tangent cone
+    width_px = tf.abs(fx * tf.tan(theta_c + alpha) - fx * tf.tan(theta_c - alpha))
+    height_px = tf.abs(fy * tf.tan(phi_c + alpha) - fy * tf.tan(phi_c - alpha))
+
+    # Use the larger dimension so the ball is fully contained
+    side_px = tf.maximum(width_px, height_px)  # (B,)
+    half_side = side_px / 2.0
+
+    x_center, y_center = tf.unstack(point_in_image, axis=-1)  # exact given center
+
+    x_left = x_center - half_side
+    x_right = x_center + half_side
+    y_top = y_center - half_side
+    y_bottom = y_center + half_side
+
+    return tf.stack([x_left, x_right, y_top, y_bottom], axis=-1)
