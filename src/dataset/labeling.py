@@ -217,19 +217,19 @@ class LabelApplication:
         if self.label_mode == LabelMode.BALL:
             camera_intr = u_dataset_io.intrinsics_from_label(self.labels[current])
             camera = u_dataset_io.camera_from_label(self.labels[current])
-            ball_size = 0.1  # m
+            ball_size = self.labels[current]["ball_size"]
 
             # Transform camera coords to world coords
             data_in_world = u_camera.image_to_world(
                 camera, camera_intr, (event.xdata, event.ydata), object_height=ball_size
             )
+            ballbbox = u_camera.project_sphere_bbox_square(
+                data_in_world, ball_size / 2, camera, camera_intr, (event.xdata, event.ydata)
+            )
 
-            distance_to_camera = np.linalg.norm(data_in_world) if data_in_world is not None else 1.0
-
-            # Get the size of a single pixel at the position of the ball
-            pixel_size = (ball_size * camera_intr[2]) / distance_to_camera
-
-            radius = pixel_size / 2
+            radius = float(
+                max(ballbbox[..., 3] - ballbbox[..., 2], ballbbox[..., 1] - ballbbox[..., 0]) / 2
+            )
 
             u_labels.set_ball(self.labels[current], event.xdata, event.ydata, radius)
         elif self.label_mode == LabelMode.OBSTACLES:
