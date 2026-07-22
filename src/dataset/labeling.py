@@ -89,7 +89,14 @@ class LabelApplication:
         if u_labels.has_ball(labels):
             x, y, radius = u_labels.get_ball(labels)
             self.patches.append(
-                self.ax_img.add_patch(plt.Circle((x, y), radius, color="r", fill=False))
+                self.ax_img.add_patch(
+                    plt.Rectangle(
+                        [x-radius, y-radius],
+                        radius * 2, radius * 2,
+                        color="r",
+                        fill=False,
+                    )
+                )
             )
             self.patches.append(self.ax_img.add_patch(plt.Circle((x, y), 2, color="r", fill=True)))
         if u_labels.has_penalty_mark(labels):
