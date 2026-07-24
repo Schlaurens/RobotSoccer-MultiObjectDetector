@@ -26,6 +26,8 @@ class LabelMode(Enum):
     INTERSECTION_X = 4
     INTERSECTION_T = 5
     INTERSECTION_L = 6
+    ROBOT_BASE_STANDING = 7
+    ROBOT_BASE_FALLEN = 8
 
 
 class LabelApplication:
@@ -149,30 +151,45 @@ class LabelApplication:
                             color="m",
                         )
                     )
-        if u_labels.has_obstacles(labels):
-            mask = u_labels.get_obstacles(labels)
-            for y, row in enumerate(mask):
-                for x, value in enumerate(row):
-                    if value > 0:
-                        self.patches.append(
-                            self.ax_img.add_patch(
-                                plt.Rectangle(
-                                    [x * 16, y * 16],
-                                    16,
-                                    16,
-                                    alpha=0.5 * value,
-                                    color="y",
-                                )
-                            )  # TODO: 16
+        if u_labels.has_robot_base(labels):
+            robot_bases = u_labels.get_robot_base(labels)
+            for state in u_labels.RobotState:
+                for base in robot_bases[state.value]:
+                    self.patches.append(
+                        self.ax_img.add_patch(
+                            plt.Circle((base["x"], base["y"]), 2, color="darkviolet", fill=True)
                         )
+                    )
+                    self.patches.append(
+                        self.ax_img.text(
+                            base["x"] - 7,
+                            base["y"] - 7,
+                            state.value.capitalize(),
+                            color="darkviolet",
+                        )
+                    )
+            if self.label_mode in [LabelMode.ROBOT_BASE_STANDING, LabelMode.ROBOT_BASE_FALLEN]:
+                self.patches.append(
+                    self.ax_img.add_patch(
+                        plt.Rectangle(
+                            (0, 0),
+                            width=self.img_dims[1],
+                            height=self.img_dims[0],
+                            color="r" if robot_bases["ignore_sample"] else "b",
+                            fill=False,
+                            linewidth=4,
+                        )
+                    )
+                )
+
         self.fig.canvas.draw()
 
     def image_slider_changed(self, val):
         self.select_image(int(val))
 
     def key_released(self, event):
+        current = int(self.slider_image.val)
         if event.key in ["left", "right"]:
-            current = int(self.slider_image.val)
             sign = 1 if event.key == "right" else -1
             current += sign
             # If no intersection has been set, ignore this sample for intersections.
@@ -188,8 +205,16 @@ class LabelApplication:
                 self.redraw_labels(self.labels[current])
         elif event.key == "b":
             self.label_mode = LabelMode.BALL
-        elif event.key == "o":
-            self.label_mode = LabelMode.OBSTACLES
+        elif event.key == ".":
+            prior_mode = self.label_mode
+            self.label_mode = LabelMode.ROBOT_BASE_STANDING
+            if prior_mode not in [LabelMode.ROBOT_BASE_STANDING, LabelMode.ROBOT_BASE_FALLEN]:
+                self.redraw_labels(self.labels[current])
+        elif event.key == "-":
+            prior_mode = self.label_mode
+            self.label_mode = LabelMode.ROBOT_BASE_FALLEN
+            if prior_mode not in [LabelMode.ROBOT_BASE_STANDING, LabelMode.ROBOT_BASE_FALLEN]:
+                self.redraw_labels(self.labels[current])
         elif event.key == "p":
             self.label_mode = LabelMode.PENALTY_MARK
         elif event.key == ",":
@@ -200,11 +225,18 @@ class LabelApplication:
             self.label_mode = LabelMode.INTERSECTION_X
         elif event.key == "ö":  # Unignore the (non-existing) intersection labels in this sample
             current = int(self.slider_image.val)
-            u_labels.set_ignore_intersection_sample_flag(self.labels[current], False)
+            elif self.label_mode in [LabelMode.ROBOT_BASE_STANDING, LabelMode.ROBOT_BASE_FALLEN]:
+                u_labels.set_ignore_robot_base_sample_flag(self.labels[current], False)
             self.redraw_labels(self.labels[current])
         elif event.key == "ä":  # Ignore the (non-existing) intersection labels in this sample
-            current = int(self.slider_image.val)
-            u_labels.set_ignore_intersection_sample_flag(self.labels[current], True)
+            if self.label_mode in [
+                LabelMode.INTERSECTION_L,
+                LabelMode.INTERSECTION_T,
+                LabelMode.INTERSECTION_X,
+            ]:
+                u_labels.set_ignore_intersection_sample_flag(self.labels[current], True)
+            elif self.label_mode in [LabelMode.ROBOT_BASE_STANDING, LabelMode.ROBOT_BASE_FALLEN]:
+                u_labels.set_ignore_robot_base_sample_flag(self.labels[current], True)
             self.redraw_labels(self.labels[current])
         elif event.key == "alt":
             self.unset_current_label()
@@ -252,22 +284,13 @@ class LabelApplication:
             )
 
             u_labels.set_ball(self.labels[current], event.xdata, event.ydata, radius)
-        elif self.label_mode == LabelMode.OBSTACLES:
-            x, y = int(event.xdata / 16), int(event.ydata / 16)  # TODO: 16
-            x_start, y_start = (
-                (int(self.drag_start_pos[0] / 16), int(self.drag_start_pos[1] / 16))
-                if self.drag_start_pos
-                else (x, y)
-            )  # TODO: 16
-            u_labels.set_obstacles(
-                self.labels[current],
-                min(x, x_start),
-                min(y, y_start),
-                max(x, x_start),
-                max(y, y_start),
-                op=u_labels.ObstaclesOp.SET
-                if event.key == "control"
-                else u_labels.ObstaclesOp.INVERT,
+        elif self.label_mode == LabelMode.ROBOT_BASE_STANDING:
+            u_labels.set_robot_base(
+                self.labels[current], event.xdata, event.ydata, u_labels.RobotState.STANDING
+            )
+        elif self.label_mode == LabelMode.ROBOT_BASE_FALLEN:
+            u_labels.set_robot_base(
+                self.labels[current], event.xdata, event.ydata, u_labels.RobotState.FALLEN
             )
         elif self.label_mode == LabelMode.PENALTY_MARK:
             u_labels.set_penalty_mark(self.labels[current], event.xdata, event.ydata)
@@ -292,6 +315,10 @@ class LabelApplication:
             u_labels.unset_ball(self.labels[current])
         elif self.label_mode == LabelMode.PENALTY_MARK:
             u_labels.unset_penalty_mark(self.labels[current])
+        elif self.label_mode == LabelMode.ROBOT_BASE_STANDING:
+            u_labels.unset_robot_base(self.labels[current], u_labels.RobotState.STANDING)
+        elif self.label_mode == LabelMode.ROBOT_BASE_FALLEN:
+            u_labels.unset_robot_base(self.labels[current], u_labels.RobotState.FALLEN)
         elif self.label_mode == LabelMode.INTERSECTION_L:
             u_labels.unset_intersection(self.labels[current], u_labels.IntersectionType.L)
         elif self.label_mode == LabelMode.INTERSECTION_T:
