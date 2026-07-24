@@ -13,6 +13,11 @@ class IntersectionType(Enum):
     X = "X"
 
 
+class RobotState(Enum):
+    STANDING = "standing"
+    FALLEN = "fallen"
+
+
 OBSTACLES_WIDTH = 20
 OBSTACLES_HEIGHT = 15
 
@@ -149,3 +154,39 @@ def unset_intersection(label, type):
     if len(label["intersections"][type.value]) == 0:
         return
     del label["intersections"][type.value][-1]
+
+
+def has_robot_base(label):
+    return "robot_base" in label
+
+
+def get_robot_base(label):
+    return label["robot_base"]
+
+
+def set_robot_base(label, x, y, state):
+    robot_base = {"x": x, "y": y}
+    if not has_robot_base(label):
+        label["robot_base"] = {
+            "ignore_sample": True,
+            RobotState.STANDING.value: [],
+            RobotState.FALLEN.value: [],
+        }
+    label["robot_base"][state.value].append(robot_base)
+    label["robot_base"]["ignore_sample"] = False
+
+
+def set_ignore_robot_base_sample_flag(label, ignore_sample=False):
+    if not has_robot_base(label):
+        label["robot_base"] = {
+            "ignore_sample": True,
+            RobotState.STANDING.value: [],
+            RobotState.FALLEN.value: [],
+        }
+    label["robot_base"]["ignore_sample"] = ignore_sample
+
+
+def unset_robot_base(label, state):
+    if len(label["robot_base"][state.value]) == 0:
+        return
+    del label["robot_base"][state.value][-1]
