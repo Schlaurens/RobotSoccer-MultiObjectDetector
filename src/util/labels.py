@@ -64,41 +64,6 @@ def has_obstacles(label):
     return "obstacles" in label
 
 
-def get_obstacles(label):
-    return label["obstacles"]["mask"]
-
-
-def set_obstacles(label, x1, y1, x2, y2, op=ObstaclesOp.INVERT):
-    if "obstacles" not in label:
-        if op == ObstaclesOp.UNSET:
-            return
-        label["obstacles"] = {}
-        label["obstacles"]["mask"] = []
-        for _ in range(OBSTACLES_HEIGHT):
-            label["obstacles"]["mask"].append([0] * OBSTACLES_WIDTH)
-    for y in range(max(0, y1), min(y2 + 1, OBSTACLES_HEIGHT)):
-        for x in range(max(0, x1), min(x2 + 1, OBSTACLES_WIDTH)):
-            label["obstacles"]["mask"][y][x] = (
-                (1 - label["obstacles"]["mask"][y][x])
-                if op == ObstaclesOp.INVERT
-                else (1 if op == ObstaclesOp.SET else 0)
-            )
-    if all(all(_ <= 0 for _ in row) for row in label["obstacles"]["mask"]):
-        unset_obstacles(label)
-
-
-def set_obstacles_direct(label, mask):
-    if all(all(_ <= 0 for _ in row) for row in mask):
-        unset_obstacles(label)
-    else:
-        label["obstacles"] = {}
-        label["obstacles"]["mask"] = mask
-
-
-def unset_obstacles(label):
-    del label["obstacles"]
-
-
 def has_penalty_mark(label):
     return "penaltyMark" in label
 
