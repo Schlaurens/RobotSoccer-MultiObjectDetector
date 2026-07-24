@@ -93,8 +93,9 @@ class LabelApplication:
             self.patches.append(
                 self.ax_img.add_patch(
                     plt.Rectangle(
-                        [x-radius, y-radius],
-                        radius * 2, radius * 2,
+                        [x - radius, y - radius],
+                        radius * 2,
+                        radius * 2,
                         color="r",
                         fill=False,
                     )
