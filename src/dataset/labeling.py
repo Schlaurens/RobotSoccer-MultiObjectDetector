@@ -205,14 +205,16 @@ class LabelApplication:
                 u_labels.set_ignore_intersection_sample_flag(self.labels[current], True)
             self.slider_image.set_val(max(0, min(current, len(self.labels) - 1)))
         elif event.key in ["up", "down"]:
-            current = int(self.slider_image.val)
             if self.label_mode == LabelMode.BALL and u_labels.has_ball(self.labels[current]):
                 x, y, r = u_labels.get_ball(self.labels[current])
                 r += 1 if event.key == "up" else -1
                 u_labels.set_ball(self.labels[current], x, y, r)
                 self.redraw_labels(self.labels[current])
         elif event.key == "b":
+            prior_mode = self.label_mode
             self.label_mode = LabelMode.BALL
+            if prior_mode != LabelMode.BALL:
+                self.redraw_labels(self.labels[current])
         elif event.key == ".":
             prior_mode = self.label_mode
             self.label_mode = LabelMode.ROBOT_BASE_STANDING
@@ -225,14 +227,41 @@ class LabelApplication:
                 self.redraw_labels(self.labels[current])
         elif event.key == "p":
             self.label_mode = LabelMode.PENALTY_MARK
-        elif event.key == ",":
+        elif event.key == "t":
+            prior_mode = self.label_mode
             self.label_mode = LabelMode.INTERSECTION_L
-        elif event.key == ".":
+            if prior_mode not in [
+                LabelMode.INTERSECTION_L,
+                LabelMode.INTERSECTION_T,
+                LabelMode.INTERSECTION_X,
+            ]:
+                self.redraw_labels(self.labels[current])
+        elif event.key == "r":
+            prior_mode = self.label_mode
             self.label_mode = LabelMode.INTERSECTION_T
-        elif event.key == "-":
+            if prior_mode not in [
+                LabelMode.INTERSECTION_L,
+                LabelMode.INTERSECTION_T,
+                LabelMode.INTERSECTION_X,
+            ]:
+                self.redraw_labels(self.labels[current])
+        elif event.key == "e":
+            prior_mode = self.label_mode
             self.label_mode = LabelMode.INTERSECTION_X
+            if prior_mode not in [
+                LabelMode.INTERSECTION_L,
+                LabelMode.INTERSECTION_T,
+                LabelMode.INTERSECTION_X,
+            ]:
+                self.redraw_labels(self.labels[current])
         elif event.key == "ö":  # Unignore the (non-existing) intersection labels in this sample
             current = int(self.slider_image.val)
+            if self.label_mode in [
+                LabelMode.INTERSECTION_L,
+                LabelMode.INTERSECTION_T,
+                LabelMode.INTERSECTION_X,
+            ]:
+                u_labels.set_ignore_intersection_sample_flag(self.labels[current], False)
             elif self.label_mode in [LabelMode.ROBOT_BASE_STANDING, LabelMode.ROBOT_BASE_FALLEN]:
                 u_labels.set_ignore_robot_base_sample_flag(self.labels[current], False)
             self.redraw_labels(self.labels[current])
