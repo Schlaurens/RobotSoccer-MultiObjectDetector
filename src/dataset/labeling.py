@@ -101,18 +101,19 @@ class LabelApplication:
                     )
                 )
             )
-            self.patches.append(
-                self.ax_img.add_patch(
-                    plt.Rectangle(
-                        (0, 0),
-                        width=self.img_dims[1],
-                        height=self.img_dims[0],
-                        color="r",
-                        fill=False,
-                        linewidth=6,
+            if self.label_mode == LabelMode.BALL:
+                self.patches.append(
+                    self.ax_img.add_patch(
+                        plt.Rectangle(
+                            (0, 0),
+                            width=self.img_dims[1],
+                            height=self.img_dims[0],
+                            color="r",
+                            fill=False,
+                            linewidth=6,
+                        )
                     )
                 )
-            )
 
             self.patches.append(self.ax_img.add_patch(plt.Circle((x, y), 1, color="r", fill=True)))
         if u_labels.has_penalty_mark(labels):
@@ -123,18 +124,6 @@ class LabelApplication:
             self.patches.append(self.ax_img.add_patch(plt.Circle((x, y), 2, color="b", fill=True)))
         if u_labels.has_intersections(labels):
             intersections = u_labels.get_intersections(labels)
-            # self.patches.append(
-            #     self.ax_img.add_patch(
-            #         plt.Rectangle(
-            #             (0, 0),
-            #             width=self.img_dims[1],
-            #             height=self.img_dims[0],
-            #             color="r" if intersections["ignore_sample"] else "b",
-            #             fill=False,
-            #             linewidth=4,
-            #         )
-            #     )
-            # )
             for type in u_labels.IntersectionType:
                 for intersection in intersections[type.value]:
                     self.patches.append(
@@ -152,6 +141,24 @@ class LabelApplication:
                             color="m",
                         )
                     )
+            if self.label_mode in [
+                LabelMode.INTERSECTION_L,
+                LabelMode.INTERSECTION_T,
+                LabelMode.INTERSECTION_X,
+            ]:
+                self.patches.append(
+                    self.ax_img.add_patch(
+                        plt.Rectangle(
+                            (0, 0),
+                            width=self.img_dims[1],
+                            height=self.img_dims[0],
+                            color="r" if intersections["ignore_sample"] else "b",
+                            fill=False,
+                            linewidth=4,
+                        )
+                    )
+                )
+
         if u_labels.has_robot_base(labels):
             robot_bases = u_labels.get_robot_base(labels)
             for state in u_labels.RobotState:
