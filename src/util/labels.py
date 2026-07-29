@@ -129,25 +129,25 @@ def get_robot_base(label):
     return label["robot_base"]
 
 
+def set_empty_robot_base(label):
+    label["robot_base"] = {
+        "ignore_sample": True,
+        RobotState.STANDING.value: [],
+        RobotState.FALLEN.value: [],
+    }
+
+
 def set_robot_base(label, x, y, state):
     robot_base = {"x": x, "y": y}
     if not has_robot_base(label):
-        label["robot_base"] = {
-            "ignore_sample": True,
-            RobotState.STANDING.value: [],
-            RobotState.FALLEN.value: [],
-        }
+        set_empty_robot_base(label)
     label["robot_base"][state.value].append(robot_base)
     label["robot_base"]["ignore_sample"] = False
 
 
 def set_ignore_robot_base_sample_flag(label, ignore_sample=False):
     if not has_robot_base(label):
-        label["robot_base"] = {
-            "ignore_sample": True,
-            RobotState.STANDING.value: [],
-            RobotState.FALLEN.value: [],
-        }
+        set_empty_robot_base(label)
     label["robot_base"]["ignore_sample"] = ignore_sample
 
 
