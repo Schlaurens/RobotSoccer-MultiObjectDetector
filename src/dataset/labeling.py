@@ -21,7 +21,6 @@ from util import labels as u_labels
 
 class LabelMode(Enum):
     BALL = 1
-    OBSTACLES = 2
     PENALTY_MARK = 3
     INTERSECTION_X = 4
     INTERSECTION_T = 5
