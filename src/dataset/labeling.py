@@ -219,7 +219,7 @@ class LabelApplication:
             self.label_mode = LabelMode.ROBOT_BASE_STANDING
             if prior_mode not in [LabelMode.ROBOT_BASE_STANDING, LabelMode.ROBOT_BASE_FALLEN]:
                 self.redraw_labels(self.labels[current])
-        elif event.key == "-":
+        elif event.key == "/":
             prior_mode = self.label_mode
             self.label_mode = LabelMode.ROBOT_BASE_FALLEN
             if prior_mode not in [LabelMode.ROBOT_BASE_STANDING, LabelMode.ROBOT_BASE_FALLEN]:
@@ -253,7 +253,7 @@ class LabelApplication:
                 LabelMode.INTERSECTION_X,
             ]:
                 self.redraw_labels(self.labels[current])
-        elif event.key == "ö":  # Unignore the (non-existing) intersection labels in this sample
+        elif event.key == ";":  # Unignore the (non-existing) intersection labels in this sample
             current = int(self.slider_image.val)
             if self.label_mode in [
                 LabelMode.INTERSECTION_L,
@@ -264,7 +264,7 @@ class LabelApplication:
             elif self.label_mode in [LabelMode.ROBOT_BASE_STANDING, LabelMode.ROBOT_BASE_FALLEN]:
                 u_labels.set_ignore_robot_base_sample_flag(self.labels[current], False)
             self.redraw_labels(self.labels[current])
-        elif event.key == "ä":  # Ignore the (non-existing) intersection labels in this sample
+        elif event.key == "'":  # Ignore the (non-existing) intersection labels in this sample
             if self.label_mode in [
                 LabelMode.INTERSECTION_L,
                 LabelMode.INTERSECTION_T,
