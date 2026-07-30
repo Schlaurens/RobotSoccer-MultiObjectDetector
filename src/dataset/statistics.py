@@ -235,13 +235,13 @@ def main(
                     (number_of_penalty_mark_samples / number_of_samples) * 100, 2
                 ),
                 "percent_l_intersection_samples": round(
-                    (number_of_l_intersection_samples / number_of_intersection_samples) * 100, 2
+                    (number_of_l_intersection_samples / (number_of_intersection_samples + 1e-7)) * 100, 2
                 ),
                 "percent_t_intersection_samples": round(
-                    (number_of_t_intersection_samples / number_of_intersection_samples) * 100, 2
+                    (number_of_t_intersection_samples / (number_of_intersection_samples + 1e-7)) * 100, 2
                 ),
                 "percent_x_intersection_samples": round(
-                    (number_of_x_intersection_samples / number_of_intersection_samples) * 100, 2
+                    (number_of_x_intersection_samples / (number_of_intersection_samples + 1e-7)) * 100, 2
                 ),
             },
             "baselines": {
