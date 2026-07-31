@@ -2,11 +2,12 @@ import os
 import sys
 from enum import Enum
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+
 import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
 from matplotlib import gridspec, widgets
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -311,8 +312,10 @@ class LabelApplication:
             data_in_world = u_camera.image_to_world(
                 camera, camera_intr, (event.xdata, event.ydata), object_height=ball_size
             )
-            ballbbox = u_camera.project_sphere_bbox_square(
-                data_in_world, ball_size / 2, camera, camera_intr, (event.xdata, event.ydata)
+            ballbbox = tf.squeeze(
+                u_camera.project_sphere_bbox_square(
+                    data_in_world, ball_size / 2, camera, camera_intr, (event.xdata, event.ydata)
+                )
             )
 
             radius = float(
