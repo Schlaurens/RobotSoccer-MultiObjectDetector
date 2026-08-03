@@ -388,7 +388,7 @@ class FullModel(tf.keras.Model):
             "recall_at_k": recall_at_k,
             "recall_for_l_intersection": recall_per_class[0],
             "recall_for_t_intersection": recall_per_class[1],
-            "recall_for_x_intersection": recall_per_class[2] if len(recall_per_class) > 2 else -1,
+            "recall_for_x_intersection": recall_per_class[2] if object_name == u_dataset.CategoryNames.INTERSECTIONS.value else -1,
             "recall_for_standing_robot_base": recall_per_class[0],
             "recall_for_fallen_robot_base": recall_per_class[1],
             "euclidean_error": euclidean_error,
