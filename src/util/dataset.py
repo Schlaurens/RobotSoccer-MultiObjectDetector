@@ -10,7 +10,7 @@ from . import keypoint as u_keypoint
 
 @dataclass
 class DatasetConfig:
-    input_dims: tuple[int, int] | list[int, int] = (480, 640)
+    input_dims: tuple[int, int] | list[int, int] = (448, 544)
     output_dims: np.ndarray = None
     cell_dims: tuple[int, int] | list[int, int] = None
     cell_center: float = None
@@ -27,7 +27,7 @@ class DatasetConfig:
         if self.output_dims is None:
             self.output_dims = np.array(self.input_dims, np.int32) // self.cell_dims
         self.scale = np.array(self.output_dims) / np.array(self.input_dims)
-        self.image_res_scale = np.array(self.input_dims) / np.array((480, 640))
+        self.image_res_scale = np.array(self.input_dims) / np.array((448, 544))
         self.cell_dims = np.array(self.input_dims) // np.array(self.output_dims)
 
         # The center of a cell (starts at 0).
