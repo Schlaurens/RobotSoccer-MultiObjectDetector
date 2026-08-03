@@ -102,7 +102,7 @@ def count_robot_bases_per_log(labels: dict, robot_base_type: str):
     return [
         sum(
             [
-                len(sample["robot_base"][robot_base_type])
+                len(sample["robotBase"][robot_base_type])
                 for sample in log_labels
                 if u_labels.has_robot_base(sample)
             ]
@@ -133,7 +133,7 @@ def main(
         [
             sample
             for sample in labels_concat
-            if u_labels.has_robot_base(sample) and not sample["robot_base"]["ignore_sample"]
+            if u_labels.has_robot_base(sample) and not sample["robotBase"]["ignore_sample"]
         ]
     )
     number_of_non_empty_samples = len(
@@ -160,7 +160,7 @@ def main(
     number_of_ignored_robot_base_samples_per_log = [
         sum(
             [
-                int(sample["robot_base"]["ignore_sample"])
+                int(sample["robotBase"]["ignore_sample"])
                 for sample in x
                 if u_labels.has_robot_base(sample)
             ]

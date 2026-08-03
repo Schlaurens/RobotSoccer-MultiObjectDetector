@@ -122,15 +122,15 @@ def unset_intersection(label, type):
 
 
 def has_robot_base(label):
-    return "robot_base" in label
+    return "robotBase" in label
 
 
 def get_robot_base(label):
-    return label["robot_base"]
+    return label["robotBase"]
 
 
 def set_empty_robot_base(label):
-    label["robot_base"] = {
+    label["robotBase"] = {
         "ignore_sample": True,
         RobotState.STANDING.value: [],
         RobotState.FALLEN.value: [],
@@ -141,17 +141,17 @@ def set_robot_base(label, x, y, state):
     robot_base = {"x": x, "y": y}
     if not has_robot_base(label):
         set_empty_robot_base(label)
-    label["robot_base"][state.value].append(robot_base)
-    label["robot_base"]["ignore_sample"] = False
+    label["robotBase"][state.value].append(robot_base)
+    label["robotBase"]["ignore_sample"] = False
 
 
 def set_ignore_robot_base_sample_flag(label, ignore_sample=False):
     if not has_robot_base(label):
         set_empty_robot_base(label)
-    label["robot_base"]["ignore_sample"] = ignore_sample
+    label["robotBase"]["ignore_sample"] = ignore_sample
 
 
 def unset_robot_base(label, state):
-    if len(label["robot_base"][state.value]) == 0:
+    if len(label["robotBase"][state.value]) == 0:
         return
-    del label["robot_base"][state.value][-1]
+    del label["robotBase"][state.value][-1]
