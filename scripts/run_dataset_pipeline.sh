@@ -33,7 +33,7 @@
 #     - Make sure `save_datasets.sh` and other required scripts are in the specified directories and executable.
 
 # Suppress TensorFlow warnings and messages
-export TF_CPP_MIN_LOG_LEVEL=3  # Suppress TensorFlow logs (0 = all, 1 = info, 2 = warnings, 3 = errors)
+export TF_CPP_MIN_LOG_LEVEL=1  # Suppress TensorFlow logs (0 = all, 1 = info, 2 = warnings, 3 = errors)
 
 # ===== Configuration =====
 # Paths
