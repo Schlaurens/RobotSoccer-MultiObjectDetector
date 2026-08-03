@@ -98,6 +98,19 @@ def count_intersections_per_log(labels: dict, intersection_type: str):
     ]
 
 
+def count_robot_bases_per_log(labels: dict, robot_base_type: str):
+    return [
+        sum(
+            [
+                len(sample["robot_base"][robot_base_type])
+                for sample in log_labels
+                if u_labels.has_robot_base(sample)
+            ]
+        )
+        for log_labels in labels
+    ]
+
+
 def main(
     data_path: str,
     calculate_distances: bool,
@@ -116,11 +129,21 @@ def main(
             if u_labels.has_intersections(sample) and not sample["intersections"]["ignore_sample"]
         ]
     )
+    number_of_robot_base_samples = len(
+        [
+            sample
+            for sample in labels_concat
+            if u_labels.has_robot_base(sample) and not sample["robot_base"]["ignore_sample"]
+        ]
+    )
     number_of_non_empty_samples = len(
         [
-            _
-            for _ in labels_concat
-            if u_labels.has_ball(_) or u_labels.has_penalty_mark(_) or u_labels.has_intersections(_)
+            l
+            for l in labels_concat
+            if u_labels.has_ball(l)
+            or u_labels.has_penalty_mark(l)
+            or u_labels.has_intersections(l)
+            or u_labels.has_robot_base(l)
         ]
     )
     number_of_ignored_intersection_samples_per_log = [
@@ -129,6 +152,17 @@ def main(
                 int(sample["intersections"]["ignore_sample"])
                 for sample in x
                 if u_labels.has_intersections(sample)
+            ]
+        )
+        for x in labels
+    ]
+
+    number_of_ignored_robot_base_samples_per_log = [
+        sum(
+            [
+                int(sample["robot_base"]["ignore_sample"])
+                for sample in x
+                if u_labels.has_robot_base(sample)
             ]
         )
         for x in labels
@@ -147,10 +181,21 @@ def main(
         labels, u_dataset.IntersectionType.X.name
     )
 
+    number_of_standing_robot_base_per_log = count_robot_bases_per_log(
+        labels, u_dataset.RobotBaseType.STANDING.name.lower()
+    )
+    number_of_fallen_robot_base_per_log = count_robot_bases_per_log(
+        labels, u_dataset.RobotBaseType.FALLEN.name.lower()
+    )
+
     number_of_l_intersection_samples = sum(number_of_l_intersections_per_log)
     number_of_t_intersection_samples = sum(number_of_t_intersections_per_log)
     number_of_x_intersection_samples = sum(number_of_x_intersections_per_log)
     number_of_ignored_intersection_samples = sum(number_of_ignored_intersection_samples_per_log)
+
+    number_of_standing_robot_base_samples = sum(number_of_standing_robot_base_per_log)
+    number_of_fallen_robot_base_samples = sum(number_of_fallen_robot_base_per_log)
+    number_of_ignored_robot_base_samples = sum(number_of_ignored_robot_base_samples_per_log)
 
     # ===== Cross-Entropy baselines ======
     ball_bce_baseline = float(get_bce_baseline(number_of_ball_samples, number_of_samples))
@@ -185,6 +230,16 @@ def main(
                 "height": 0,
                 "intersection_type": u_dataset.IntersectionType.X.name,
             },
+            "standing_robot_base": {
+                "name": u_dataset.CategoryNames.ROBOT_BASE.value,
+                "height": 0,
+                "robot_base_type": u_dataset.RobotBaseType.STANDING.name,
+            },
+            "fallen_robot_base": {
+                "name": u_dataset.CategoryNames.ROBOT_BASE.value,
+                "height": 0,
+                "robot_base_type": u_dataset.RobotBaseType.FALLEN.name,
+            },
         }
 
         distances = {}
@@ -214,6 +269,7 @@ def main(
             "number_of_logs": len(labels),
             "number_of_samples": number_of_samples,
             "number_of_intersection_samples": number_of_intersection_samples,
+            "number_of_robot_base_samples": number_of_robot_base_samples,
             "number_of_non_empty_samples": number_of_non_empty_samples,
             "number_of_ball_samples": number_of_ball_samples,
             "number_of_penalty_mark_samples": number_of_penalty_mark_samples,
@@ -221,10 +277,16 @@ def main(
             "number_of_l_intersection_samples": number_of_l_intersection_samples,
             "number_of_t_intersection_samples": number_of_t_intersection_samples,
             "number_of_x_intersection_samples": number_of_x_intersection_samples,
-            "number_of_ignored_intersection_samples_per_log": number_of_ignored_intersection_samples_per_log,
+            "number_of_ignored_intersection_samples_per_log": number_of_ignored_intersection_samples,
             "number_of_l_intersections_per_log": number_of_l_intersections_per_log,
             "number_of_t_intersections_per_log": number_of_t_intersections_per_log,
             "number_of_x_intersections_per_log": number_of_x_intersections_per_log,
+            "number_of_ignored_robot_base_samples": number_of_ignored_robot_base_samples,
+            "number_of_standing_robot_base_samples": number_of_standing_robot_base_samples,
+            "number_of_fallen_robot_base_samples": number_of_fallen_robot_base_samples,
+            "number_of_ignored_robot_base_samples_per_log": number_of_ignored_robot_base_samples_per_log,
+            "number_of_standing_robot_base_per_log": number_of_standing_robot_base_per_log,
+            "number_of_fallen_robot_base_per_log": number_of_fallen_robot_base_per_log,
             "distance_moments": moments,
             "percentages": {
                 "percent_ball_samples": round(
@@ -234,13 +296,29 @@ def main(
                     (number_of_penalty_mark_samples / number_of_samples) * 100, 2
                 ),
                 "percent_l_intersection_samples": round(
-                    (number_of_l_intersection_samples / (number_of_intersection_samples + 1e-7)) * 100, 2
+                    (number_of_l_intersection_samples / (number_of_intersection_samples + 1e-7))
+                    * 100,
+                    2,
                 ),
                 "percent_t_intersection_samples": round(
-                    (number_of_t_intersection_samples / (number_of_intersection_samples + 1e-7)) * 100, 2
+                    (number_of_t_intersection_samples / (number_of_intersection_samples + 1e-7))
+                    * 100,
+                    2,
                 ),
                 "percent_x_intersection_samples": round(
-                    (number_of_x_intersection_samples / (number_of_intersection_samples + 1e-7)) * 100, 2
+                    (number_of_x_intersection_samples / (number_of_intersection_samples + 1e-7))
+                    * 100,
+                    2,
+                ),
+                "percent_standing_robot_base_samples": round(
+                    (number_of_standing_robot_base_samples / (number_of_robot_base_samples + 1e-7))
+                    * 100,
+                    2,
+                ),
+                "percent_fallen_robot_base_samples": round(
+                    (number_of_fallen_robot_base_samples / (number_of_robot_base_samples + 1e-7))
+                    * 100,
+                    2,
                 ),
             },
             "baselines": {

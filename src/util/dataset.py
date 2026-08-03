@@ -51,6 +51,7 @@ class CategoryNames(Enum):
     BALL = "ball"
     PENALTYMARK = "penaltyMark"
     INTERSECTIONS = "intersections"
+    ROBOT_BASE = "robot_base"
 
 
 class IntersectionType(Enum):
@@ -58,6 +59,12 @@ class IntersectionType(Enum):
     L = 1
     T = 2
     X = 3
+
+
+class RobotBaseType(Enum):
+    NONE = 0
+    STANDING = 1
+    FALLEN = 2
 
 
 class DatasetUtils:
