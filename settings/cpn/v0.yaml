@@ -1,7 +1,7 @@
 model:
   cpn:
     architecture: "ires_16x16_v1"
-    input_dims: [240, 320]
+    input_dims: [272, 488]
     cell_dims: [16, 16]
     n_context: 0
     channels_in: 4
@@ -14,7 +14,7 @@ model:
     train_classifier: False
 
 training:
-  epochs: 800
+  epochs: 400
   initial_epoch: 0
   batch_size: 32
   verbose: 1
