@@ -1,7 +1,7 @@
 model:
   cpn:
-    architecture: "ires_16x16_v1"
-    input_dims: [272, 488]
+    architecture: "conv_16x16_v1"
+    input_dims: [448, 544]
     cell_dims: [16, 16]
     n_context: 0
     channels_in: 4
