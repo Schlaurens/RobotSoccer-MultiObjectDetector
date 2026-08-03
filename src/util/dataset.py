@@ -21,9 +21,9 @@ class DatasetConfig:
 
     def __post_init__(self):
         if self.cell_dims is None:
-            assert self.input_dims[0] % 15 == 0
-            assert self.input_dims[1] % 20 == 0
-            self.cell_dims = self.input_dims / np.array((15, 20))
+            assert self.input_dims[0] % 28 == 0
+            assert self.input_dims[1] % 34 == 0
+            self.cell_dims = self.input_dims / np.array((28, 34))
         self.cell_dims = np.array(self.cell_dims, np.int32)
         if self.output_dims is None:
             self.output_dims = np.array(self.input_dims, np.int32) // self.cell_dims
