@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 
 from training import classifier_architectures as u_classifiers
-from training import cpn_architectures as u_encoders
+from training import cpn_architectures as u_cpn_architectures
 from util import augmentation as u_augmentation
 from util import dataset as u_dataset
 from util import image as u_image
@@ -14,28 +14,28 @@ from util.layers import IresBlock, Normalization, PatchExtractor, PatchSampler
 class FullModel(tf.keras.Model):
     def __init__(
         self,
-        encoder_architecture: str,
+        cpn_architecture: str,
         classifier_architecture: str,
         height: int,
         width: int,
-        encoder_channels: int = 4,
+        cpn_channels: int = 4,
         cell_dims: list[int] = None,
         n_context: int = 0,
-        train_encoder: bool = True,
+        train_cpn: bool = True,
         train_classifier: bool = True,
         classifier_offsets: bool = True,
         n_meta: int = 0,
-        encoder_use_batch_norm: bool = False,
+        cpn_use_batch_norm: bool = False,
         classifier_use_batch_norm: bool = False,
         categories_config: dict = None,
     ):
         """Constructs the FullModel
 
         Args:
-            encoder_architecture: the name of the encoder architecture
-            height: encoder input height
-            width: encoder input width
-            only_train_encoder: True if ONLY the encoder is the be trained. Then the classifiers have no impact on the loss function. Defaults to False.
+            cpn_architecture: the name of the CPN architecture
+            height: CPN input height
+            width: CPN input width
+            only_train_cpn: True if ONLY the CPN is the be trained. Then the classifiers have no impact on the loss function. Defaults to False.
             n_context: The size of the context vector. Defaults to 0.
             classifier_architecture: the name of classifier architecture. Defaults to None.
         """
@@ -43,12 +43,12 @@ class FullModel(tf.keras.Model):
         self.image_height = height
         self.image_width = width
 
-        # Encoder config
-        self.encoder_architecture = encoder_architecture
+        # CPN config
+        self.cpn_architecture = cpn_architecture
         self.n_context = n_context
-        self.train_encoder = train_encoder
-        self.encoder_use_batch_norm = encoder_use_batch_norm
-        self.encoder_channels = encoder_channels
+        self.train_cpn = train_cpn
+        self.cpn_use_batch_norm = cpn_use_batch_norm
+        self.cpn_channels = cpn_channels
 
         # Classifier config
         self.classifier_architecture = classifier_architecture
@@ -66,7 +66,7 @@ class FullModel(tf.keras.Model):
         self.dataset_config = u_dataset.DatasetConfig(
             (
                 self.image_height,
-                self.image_width * 2 if encoder_channels == 4 else self.image_width,
+                self.image_width * 2 if self.cpn_channels == 4 else self.image_width,
             ),
             cell_dims=cell_dims,
         )
@@ -105,14 +105,14 @@ class FullModel(tf.keras.Model):
                     self.classifier_offsets,
                     self.classifier_use_batch_norm,
                 )  # The patch classifier for the category with the fixed number of classes
-        self.encoder = u_encoders.get_encoder(
-            self.encoder_architecture,
+        self.cpn = u_cpn_architectures.get_cpn(
+            self.cpn_architecture,
             self.image_height,
             self.image_width,
-            self.encoder_channels,
+            self.cpn_channels,
             self.categories.keys(),
             self.n_context,
-            self.encoder_use_batch_norm,
+            self.cpn_use_batch_norm,
         )
 
         object.__setattr__(self, "_test_metrics", {})  # not tracked by Keras
@@ -134,7 +134,7 @@ class FullModel(tf.keras.Model):
             metrics += list(self._test_metrics.values())
         return metrics
 
-    def encoder_loss(self, batch_data, interest, offsets):
+    def cpn_loss(self, batch_data, interest, offsets):
         # Compute Binary Cross Entropy
 
         # Numeric stabilizer
@@ -178,7 +178,7 @@ class FullModel(tf.keras.Model):
 
         mse_batched = tf.reduce_mean(squared_error_multiplied, axis=[1, 2]) * 10000  # (B, )
 
-        tf.debugging.assert_all_finite(bce_batched, "Encoder BCE")
+        tf.debugging.assert_all_finite(bce_batched, "CPN BCE")
 
         # Total loss
         loss_batched = bce_batched + mse_batched  # (B, )
@@ -223,8 +223,8 @@ class FullModel(tf.keras.Model):
         # == Classification Loss ==
         # =========================
 
-        # The Encoder predictions for each of the patches
-        encoder_predictions = tf.gather(
+        # The CPN predictions for each of the patches
+        cpn_predictions = tf.gather(
             results["logits"], results["patch_indices"], batch_dims=1
         )  # (B, N)
 
@@ -266,9 +266,9 @@ class FullModel(tf.keras.Model):
             )  # (B, 1)
 
             # If a sample should be ignored the cross_entropy of that sample is set to a constant 0 which is not differentiable.
-            # Also multiply the cross_entropy with the output of the encoder to weed out patches the encoder is not confident in.
+            # Also multiply the cross_entropy with the output of the CPN to weed out patches the CPN is not confident in.
             cross_entropy_multiplied = (
-                cross_entropy_batched * use_sample * tf.stop_gradient(encoder_predictions)
+                cross_entropy_batched * use_sample * tf.stop_gradient(cpn_predictions)
             )  # (B, N)
             cross_entropy = tf.reduce_sum(
                 tf.reduce_mean(cross_entropy_multiplied, axis=-1)
@@ -295,7 +295,7 @@ class FullModel(tf.keras.Model):
             )(y_true, y_pred)  # Shape: (B, N)
 
             cross_entropy_multiplied = cross_entropy_batched * tf.stop_gradient(
-                tf.expand_dims(encoder_predictions, axis=-1)
+                tf.expand_dims(cpn_predictions, axis=-1)
             )
 
             cross_entropy = tf.reduce_sum(tf.reduce_mean(cross_entropy_multiplied, axis=-1))
@@ -373,7 +373,7 @@ class FullModel(tf.keras.Model):
             "ctx_std": ctx_std,
         }
 
-    def encoder_metrics(
+    def cpn_metrics(
         self,
         batch_data,
         results,
@@ -381,10 +381,11 @@ class FullModel(tf.keras.Model):
         intrinsics,
         object_name,
     ):
-        recall_at_k, recall_per_class, class_distribution = self.encoder_recall_at_k(
+
+        recall_at_k, recall_per_class, class_distribution = self.cpn_recall_at_k(
             batch_data, results, camera, intrinsics, object_name
         )
-        euclidean_error = self.encoder_euclidean_error(batch_data, results, object_name)
+        euclidean_error = self.cpn_euclidean_error(batch_data, results, object_name)
 
         return {
             "class_distribution": class_distribution,
@@ -400,12 +401,12 @@ class FullModel(tf.keras.Model):
     def _calculate_losses(self, batch_data, results, maps):
         result = {}
 
-        # =========================
-        # == Handle Encoder Loss ==
-        # =========================
-        if self.train_encoder:
-            encoder_losses = {
-                key: self.encoder_loss(
+        # =====================
+        # == Handle CPN Loss ==
+        # =====================
+        if self.train_cpn:
+            cpn_losses = {
+                key: self.cpn_loss(
                     batch_data[key],
                     interest=tf.squeeze(maps[f"{key}_interest"], -1),
                     offsets=maps[f"{key}_offsets"],
@@ -413,13 +414,11 @@ class FullModel(tf.keras.Model):
                 for key in self.categories
             }
 
-            result["encoder_loss"] = tf.reduce_sum(
-                [value["loss"] for value in encoder_losses.values()]
-            )
+            result["cpn_loss"] = tf.reduce_sum([value["loss"] for value in cpn_losses.values()])
 
             for key in self.categories:
-                result[f"encoder_bce_{key}"] = encoder_losses[key]["bce"]
-                result[f"encoder_mse_{key}"] = encoder_losses[key]["mse"]
+                result[f"cpn_bce_{key}"] = cpn_losses[key]["bce"]
+                result[f"cpn_mse_{key}"] = cpn_losses[key]["mse"]
 
         # ============================
         # == Handle Classifier Loss ==
@@ -453,9 +452,9 @@ class FullModel(tf.keras.Model):
     def _calculate_metrics(self, batch_data, results):
         result = {}
 
-        if self.train_encoder:
-            encoder_metrics = {
-                key: self.encoder_metrics(
+        if self.train_cpn:
+            cpn_metrics = {
+                key: self.cpn_metrics(
                     batch_data[key],
                     results[key],
                     camera=batch_data["camera"],
@@ -466,19 +465,17 @@ class FullModel(tf.keras.Model):
             }
 
             for key in self.categories:
-                result[f"encoder_recall_at_k_{key}"] = encoder_metrics[key]["recall_at_k"]
-                result[f"encoder_class_distribution_{key}"] = encoder_metrics[key][
-                    "class_distribution"
-                ]
-                result[f"encoder_euclidean_error_{key}"] = encoder_metrics[key]["euclidean_error"]
+                result[f"cpn_recall_at_k_{key}"] = cpn_metrics[key]["recall_at_k"]
+                result[f"cpn_class_distribution_{key}"] = cpn_metrics[key]["class_distribution"]
+                result[f"cpn_euclidean_error_{key}"] = cpn_metrics[key]["euclidean_error"]
 
-            result["recall_per_l_intersection"] = encoder_metrics[
+            result["recall_per_l_intersection"] = cpn_metrics[
                 u_dataset.CategoryNames.INTERSECTIONS.value
             ]["recall_for_l_intersection"]
-            result["recall_per_t_intersection"] = encoder_metrics[
+            result["recall_per_t_intersection"] = cpn_metrics[
                 u_dataset.CategoryNames.INTERSECTIONS.value
             ]["recall_for_t_intersection"]
-            result["recall_per_x_intersection"] = encoder_metrics[
+            result["recall_per_x_intersection"] = cpn_metrics[
                 u_dataset.CategoryNames.INTERSECTIONS.value
             ]["recall_for_x_intersection"]
             result["recall_per_standing_robot_base"] = cpn_metrics[
@@ -496,7 +493,7 @@ class FullModel(tf.keras.Model):
             losses = self._calculate_losses(batch_data, outputs["results"], outputs["maps"])
 
             total_loss = (
-                losses.get("encoder_loss", 0.0) * self.train_encoder
+                losses.get("cpn_loss", 0.0) * self.train_cpn
                 + losses.get("classifier_loss", 0.0) * self.train_classifier
             )
 
@@ -528,7 +525,7 @@ class FullModel(tf.keras.Model):
         metrics = self._calculate_metrics(batch_data, outputs["results"])
 
         total_loss = (
-            losses.get("encoder_loss", 0.0) * self.train_encoder
+            losses.get("cpn_loss", 0.0) * self.train_cpn
             + losses.get("classifier_loss", 0.0) * self.train_classifier
         )
 
@@ -550,29 +547,29 @@ class FullModel(tf.keras.Model):
         return {name: m.result() for name, m in self._test_metrics.items()}
 
     def save(
-        self, filepath, filename, only_save_encoder=False, overwrite=True, verbose=False, **kwargs
+        self, filepath, filename, only_save_cpn=False, overwrite=True, verbose=False, **kwargs
     ):
         """Save all the models at a given path
 
         Args:
             filepath: path to the saving directory
             filename: the filename of the .keras model files. Usually a timestamp
-            only_save_encoder: True if ONLY the encoder should be saved. Defaults to False.
+            only_save_cpn: True if ONLY the CPN should be saved. Defaults to False.
             overwrite: True if files with the same filename should be overwritten. Defaults to True.
             verbose: Print status messages that describe the status of the saving process. Defaults to False.
         """
-        # Create a directory for the encoder
-        os.makedirs(os.path.join(filepath, f"{filename}", "encoder"), exist_ok=True)
+        # Create a directory for the CPN
+        os.makedirs(os.path.join(filepath, f"{filename}", "cpn"), exist_ok=True)
 
-        # Save the encoder
-        encoder_path = os.path.join(filepath, f"{filename}", "encoder", f"{filename}")
+        # Save the CPN
+        cpn_path = os.path.join(filepath, f"{filename}", "cpn", f"{filename}")
 
-        self.encoder.save(encoder_path + ".keras", overwrite)
-        self.encoder.save(encoder_path + ".h5", overwrite)
-        self.encoder.export(encoder_path + ".onnx", format="onnx")
+        self.cpn.save(cpn_path + ".keras", overwrite)
+        self.cpn.save(cpn_path + ".h5", overwrite)
+        self.cpn.export(cpn_path + ".onnx", format="onnx")
 
         if verbose:
-            print("Encoder saved!")
+            print("CPN saved!")
 
         if self.train_classifier:
             # Save the classifier of each category
@@ -593,41 +590,41 @@ class FullModel(tf.keras.Model):
                     print(f"{name.capitalize()}-Classifier saved!")
 
         if verbose:
-            print("only_save_encoder = ", only_save_encoder)
+            print("only_save_cpn = ", only_save_cpn)
             print("Saving complete!")
 
     @classmethod
     def load(
         cls,
-        encoder_architecture: str,
+        cpn_architecture: str,
         classifier_architecture: str,
         filepath: str,
         filename: str,
         input_dims: list[int] | tuple[int, int],
-        encoder_channels: int = 4,
+        cpn_channels: int = 4,
         cell_dims: list[int] | tuple[int, int] = None,
         n_context: int = 0,
-        train_encoder: bool = True,
+        train_cpn: bool = True,
         train_classifier: bool = True,
         classifier_offsets: bool = True,
-        encoder_only: bool = False,
+        cpn_only: bool = False,
         verbose: bool = False,
         n_meta: int = 0,
         learning_rate: float = 0.001,
-        encoder_use_batch_norm: bool = False,
+        cpn_use_batch_norm: bool = False,
         classifier_use_batch_norm: bool = False,
         categories_config: dict = None,
         **kwargs,
     ):
-        """load existing encoder and/or classifiers into the model.
+        """load existing cpn and/or classifiers into the model.
 
         Args:
-            encoder_architecture: The name of the used model architecture
-            input_dims: the input dimensions of the encoder. (height, width)
+            cpn_architecture: The name of the used model architecture
+            input_dims: the input dimensions of the cpn. (height, width)
             filepath: the filepath to models directory
             filename: the name of the .keras file
-            only_train_encoder: True if only the encoder has an impact on the loss function. The classifier will have no impact on the training. Defaults to False.
-            encoder_only: True if ONLY an existing encoder is loaded. Defaults to False.
+            only_train_cpn: True if only the CPN has an impact on the loss function. The classifier will have no impact on the training. Defaults to False.
+            cpn_only: True if ONLY an existing CPN is loaded. Defaults to False.
             verbose: Print status messages that describe the status of the loading process. Defaults to False.
 
         Returns:
@@ -635,18 +632,18 @@ class FullModel(tf.keras.Model):
         """
         # Rebuild model
         model = cls(
-            encoder_architecture,
+            cpn_architecture,
             classifier_architecture,
             input_dims[0],
             input_dims[1],
-            encoder_channels,
+            cpn_channels,
             cell_dims,
             n_context,
-            train_encoder,
+            train_cpn,
             train_classifier,
             classifier_offsets,
             n_meta,
-            encoder_use_batch_norm,
+            cpn_use_batch_norm,
             classifier_use_batch_norm,
             categories_config,
         )
@@ -655,9 +652,9 @@ class FullModel(tf.keras.Model):
         def stop_gradient(x):
             return tf.stop_gradient(x)
 
-        # Load the encoder
-        loaded_encoder = tf.keras.models.load_model(
-            os.path.join(filepath, "encoder", f"{filename}.keras"),
+        # Load the CPN
+        loaded_cpn = tf.keras.models.load_model(
+            os.path.join(filepath, "cpn", f"{filename}.keras"),
             custom_objects={
                 "IresBlock": IresBlock,
                 "Normalization": Normalization,
@@ -666,14 +663,14 @@ class FullModel(tf.keras.Model):
         )
 
         if n_context > 0:
-            # model.encoder already has the context head (random weights).
+            # model.cpn already has the context head (random weights).
             # Match weight-bearing layers positionally; zip() stops at the shorter
-            # (saved) encoder, so the context head layers are never touched.
-            def weight_bearing(enc):
-                return [l for l in enc.layers if l.get_weights()]
+            # (saved) cpn, so the context head layers are never touched.
+            def weight_bearing(cpn):
+                return [l for l in cpn.layers if l.get_weights()]
 
-            saved_wl = weight_bearing(loaded_encoder)
-            init_wl = weight_bearing(model.encoder)
+            saved_wl = weight_bearing(loaded_cpn)
+            init_wl = weight_bearing(model.cpn)
 
             transferred, mismatched = 0, 0
             for saved_layer, init_layer in zip(saved_wl, init_wl, strict=False):
@@ -696,19 +693,19 @@ class FullModel(tf.keras.Model):
             kept_random = init_wl[len(saved_wl) :]  # context head layers
             if verbose:
                 print(
-                    f"Encoder weights loaded: {transferred} layers transferred, "
+                    f"CPN weights loaded: {transferred} layers transferred, "
                     f"{mismatched} mismatched (skipped), "
                     f"{len(kept_random)} new head layers kept with random init "
                     f"({[l.name for l in kept_random]})"
                 )
         else:
             # No context head — safe to swap the whole object.
-            model.encoder = loaded_encoder
+            model.cpn = loaded_cpn
             if verbose:
-                print("Encoder loaded!")
+                print("CPN loaded!")
 
         # Load each classifier
-        if train_classifier and not encoder_only:
+        if train_classifier and not cpn_only:
             for name, value in model.categories.items():
                 try:
                     classifier_path = os.path.join(
@@ -726,16 +723,16 @@ class FullModel(tf.keras.Model):
                     if verbose:
                         print(f"Failed to load {name.capitalize()}-Classifier: {e}")
 
-        if not train_encoder and n_context == 0:
-            model.encoder.trainable = False
-            print(model.encoder.trainable_variables)
+        if not train_cpn and n_context == 0:
+            model.cpn.trainable = False
+            print(model.cpn.trainable_variables)
 
         model.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate), jit_compile=False
         )
 
         if verbose:
-            print("Train Encoder = ", train_encoder)
+            print("Train CPN = ", train_cpn)
             print("Train Classifier = ", train_classifier)
             print("Loading complete!")
         return model
@@ -758,22 +755,22 @@ class FullModel(tf.keras.Model):
 
         image_grayscale = u_image.convert_yuyv_to_yuv(full_image)[..., 0:1]  # (B, W_in, H_in, 1)
 
-        if self.train_encoder or self.n_context > 0:
-            full_image = image_grayscale if self.encoder_channels == 1 else full_image
-            maps = self.encoder(full_image, training=training)  # Run the encoder on the image
+        if self.train_cpn or self.n_context > 0:
+            full_image = image_grayscale if self.cpn_channels == 1 else full_image
+            maps = self.cpn(full_image, training=training)  # Run the CPN on the image
 
             if isinstance(maps, list):  # If there is a context vector
-                maps = dict(zip(self.encoder.output_names, maps, strict=True))
+                maps = dict(zip(self.cpn.output_names, maps, strict=True))
             else:
                 maps = {
-                    self.encoder.output_names[0]: maps
-                }  # [B, H_out, W_out, 3] Encoder results for the first category
+                    self.cpn.output_names[0]: maps
+                }  # [B, H_out, W_out, 3] CPN results for the first category
         else:
-            # Use cached encoder outputs to avoid inference
+            # Use cached CPN outputs to avoid inference
             maps = {
-                k.removeprefix("encoder_"): v
+                k.removeprefix("cpn_"): v
                 for k, v in batch_data.items()  # batch_data ist hier das ganze Dict
-                if k.startswith("encoder_")
+                if k.startswith("cpn_")
             }
 
         # Convert image to grayscale if only one channel is requested.
@@ -829,7 +826,7 @@ class FullModel(tf.keras.Model):
             intrinsics: The intrisics of the camera, represented as (cx, cy, fx, fy) [B, 4]
             logits: The logits for the category. [B, H_out, W_out]
             offsets: The offsets for the category. Relative to the middle of the patch. [B, H_out, W_out, 2]
-            context: The context vector which is part of the encoder output. It encodes information about the whole image that might help the classifier.
+            context: The context vector which is part of the CPN output. It encodes information about the whole image that might help the classifier.
             sampler: The patch sampler for the category with a fixed number of candidates
             extractor: The patch extractor for the category with the fixed object parameters
             classifier: The patch classifier for the category with the fixed number of classes
@@ -872,7 +869,7 @@ class FullModel(tf.keras.Model):
 
         # Add some noise to the CPN offsets to add some variance to the classifier dataset.
         # This helps to prevents overfitting when the weights of the CPN are frozen.
-        if training and not self.train_encoder:
+        if training and not self.train_cpn:
             noise = tf.random.normal(tf.shape(coords), mean=0.0, stddev=0.8)
             coords = coords + noise
 
@@ -975,7 +972,7 @@ class FullModel(tf.keras.Model):
             else tf.zeros((tf.shape(patches)[0], 0)),
         }
 
-    def encoder_recall_at_k(self, batch_data, results, camera, intrinsics, object_name):
+    def cpn_recall_at_k(self, batch_data, results, camera, intrinsics, object_name):
         B = tf.shape(camera)[0]
         num_cells = self.dataset_config.output_dims[0] * self.dataset_config.output_dims[1]
         object_mask_flat = tf.reshape(batch_data["object_mask"], (-1, num_cells))  # (B, H * W)
@@ -1094,7 +1091,7 @@ class FullModel(tf.keras.Model):
 
         return recall_at_k, recall_per_class, class_distribution
 
-    def encoder_euclidean_error(self, batch_data, results, object_name):
+    def cpn_euclidean_error(self, batch_data, results, object_name):
         num_cells = self.dataset_config.output_dims[0] * self.dataset_config.output_dims[1]
 
         # === MAE (shared across both branches) ===

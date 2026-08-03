@@ -9,7 +9,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
 
 import tensorflow as tf
 import yaml
@@ -90,11 +90,11 @@ def get_callbacks(timestamp: str, input_dims_str: str, config):
     ]
 
 
-def load_datasets(config, encoder, encoder_channels):
+def load_datasets(config, cpn, cpn_channels):
     batch_size = config["training"]["batch_size"]
-    input_dims = config["model"]["encoder"]["input_dims"]
+    input_dims = config["model"]["cpn"]["input_dims"]
     dataset_utils = u_dataset.DatasetUtils(
-        u_dataset.DatasetConfig(input_dims, cell_dims=config["model"]["encoder"]["cell_dims"])
+        u_dataset.DatasetConfig(input_dims, cell_dims=config["model"]["cpn"]["cell_dims"])
     )
 
     path_to_train = glob.glob(
@@ -114,29 +114,30 @@ def load_datasets(config, encoder, encoder_channels):
     train_ds = u_dataset_io.get_dataset(path_to_train, dataset_utils)
     val_ds = u_dataset_io.get_dataset(path_to_val, dataset_utils)
 
-    if encoder is not None and config["model"]["encoder"]["n_context"] == 0:
-        def apply_encoder(sample):
+    if cpn is not None and config["model"]["cpn"]["n_context"] == 0:
+
+        def apply_cpn(sample):
             image = sample["image"]
             image_grayscale = u_image.convert_yuyv_to_yuv(image)[..., 0:1]
 
-            enc_input = tf.expand_dims(image_grayscale if encoder_channels == 1 else image, axis=0)
-            maps = encoder(enc_input, training=False)
+            enc_input = tf.expand_dims(image_grayscale if cpn_channels == 1 else image, axis=0)
+            maps = cpn(enc_input, training=False)
             if isinstance(maps, list):  # If there is a context vector
-                maps = dict(zip(encoder.output_names, maps, strict=True))
+                maps = dict(zip(cpn.output_names, maps, strict=True))
             else:
                 maps = {
-                    encoder.output_names[0]: maps
-                }  # [B, H_out, W_out, 3] Encoder results for the first category
+                    cpn.output_names[0]: maps
+                }  # [B, H_out, W_out, 3] CPN results for the first category
             for k, v in maps.items():
-                sample[f"encoder_{k}"] = tf.squeeze(v, axis=0)  # remove batch_dim
+                sample[f"cpn_{k}"] = tf.squeeze(v, axis=0)  # remove batch_dim
             return sample
 
         train_ds = (
             train_ds.map(
-                apply_encoder, num_parallel_calls=tf.data.AUTOTUNE
+                apply_cpn, num_parallel_calls=tf.data.AUTOTUNE
             ).cache()  # Epoch 1: fill cache, ab Epoch 2: train with cache
         )
-        val_ds = val_ds.map(apply_encoder, num_parallel_calls=tf.data.AUTOTUNE).cache()
+        val_ds = val_ds.map(apply_cpn, num_parallel_calls=tf.data.AUTOTUNE).cache()
 
     train_ds = train_ds.repeat(-1).shuffle(2000).batch(batch_size).prefetch(tf.data.AUTOTUNE)
     val_ds = val_ds.repeat(-1).batch(batch_size).prefetch(tf.data.AUTOTUNE)
@@ -165,39 +166,42 @@ def main(config):
         else config["training"]["initial_epoch"]
     )
     batch_size = config["training"]["batch_size"]
-    encoder_channels = config["model"]["encoder"]["channels_in"]
+    cpn_channels = config["model"]["cpn"]["channels_in"]
 
-    if encoder_channels != 1:
-        model_input_dims = config["model"]["encoder"]["input_dims"] // np.array((1, 2))
+    if cpn_channels != 1:
+        model_input_dims = config["model"]["cpn"]["input_dims"] // np.array((1, 2))
     else:
-        model_input_dims = config["model"]["encoder"]["input_dims"]
+        model_input_dims = config["model"]["cpn"]["input_dims"]
 
-    model_cell_dims = config["model"]["encoder"]["cell_dims"]
-    encoder_architecture = config["model"]["encoder"]["architecture"]
+    model_cell_dims = config["model"]["cpn"]["cell_dims"]
+    cpn_architecture = config["model"]["cpn"]["architecture"]
     classifier_architecture = config["model"]["classifier"]["architecture"]
-    train_encoder = config["model"]["encoder"]["train_encoder"]
+    train_cpn = config["model"]["cpn"]["train_cpn"]
     train_classifier = config["model"]["classifier"]["train_classifier"]
 
-    input_dims_str = f"{config['model']['encoder']['input_dims'][0]}x{config['model']['encoder']['input_dims'][1]}"
+    input_dims_str = f"{config['model']['cpn']['input_dims'][0]}x{config['model']['cpn']['input_dims'][1]}"
 
     log_config(timestamp, input_dims_str, config)
 
     model = FullModel(
-        encoder_architecture,
+        cpn_architecture,
         classifier_architecture,
         *model_input_dims,
-        encoder_channels=encoder_channels,
+        cpn_channels=cpn_channels,
         cell_dims=model_cell_dims,
-        n_context=config["model"]["encoder"]["n_context"],
-        train_encoder=train_encoder,
+        n_context=config["model"]["cpn"]["n_context"],
+        train_cpn=train_cpn,
         train_classifier=train_classifier,
         classifier_offsets=config["model"]["classifier"]["with_offsets"],
         n_meta=config["model"]["classifier"]["n_meta"],
-        encoder_use_batch_norm=config["model"]["encoder"]["use_batch_norm"],
+        cpn_use_batch_norm=config["model"]["cpn"]["use_batch_norm"],
         classifier_use_batch_norm=config["model"]["classifier"]["use_batch_norm"],
         categories_config=config["categories"],
     )
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=config["training"]["learning_rate"]), jit_compile=False)
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=config["training"]["learning_rate"]),
+        jit_compile=False,
+    )
 
     if config["training"]["from_checkpoint"] or config["training"]["from_model"]:
         # ==== When loading an existing model ====
@@ -209,7 +213,7 @@ def main(config):
             )
 
             filename = model_timestamp
-            encoder_only = config["training"]["load_model"]["encoder_only"]
+            cpn_only = config["training"]["load_model"]["cpn_only"]
             verbose = config["training"]["load_model"]["verbose"]
 
         # ==== When loading a checkpoint ====
@@ -219,32 +223,32 @@ def main(config):
             filepath = os.path.join(
                 config["callbacks"]["checkpoint_dir"], input_dims_str, timestamp, filename
             )
-            encoder_only = config["training"]["load_checkpoint"]["encoder_only"]
+            cpn_only = config["training"]["load_checkpoint"]["cpn_only"]
             verbose = config["training"]["load_checkpoint"]["verbose"]
 
         model = FullModel.load(
-            encoder_architecture,
+            cpn_architecture,
             classifier_architecture,
             filepath=filepath,
             filename=filename,
             input_dims=model_input_dims,
-            encoder_channels=encoder_channels,
+            cpn_channels=cpn_channels,
             cell_dims=model_cell_dims,
-            n_context=config["model"]["encoder"]["n_context"],
-            train_encoder=train_encoder,
+            n_context=config["model"]["cpn"]["n_context"],
+            train_cpn=train_cpn,
             train_classifier=train_classifier,
             classifier_offsets=config["model"]["classifier"]["with_offsets"],
-            encoder_only=encoder_only,
+            cpn_only=cpn_only,
             verbose=verbose,
             n_meta=config["model"]["classifier"]["n_meta"],
             learning_rate=config["training"]["learning_rate"],
-            encoder_use_batch_norm=config["model"]["encoder"]["use_batch_norm"],
+            cpn_use_batch_norm=config["model"]["cpn"]["use_batch_norm"],
             classifier_use_batch_norm=config["model"]["classifier"]["use_batch_norm"],
             categories_config=config["categories"],
         )
 
     dataset = load_datasets(
-        config, model.encoder if not train_encoder else None, encoder_channels=encoder_channels
+        config, model.cpn if not train_cpn else None, cpn_channels=cpn_channels
     )
 
     callbacks = get_callbacks(timestamp, input_dims_str, config)
