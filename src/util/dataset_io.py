@@ -10,8 +10,6 @@ import tensorflow as tf
 from . import dataset as u_dataset
 from . import image as u_image
 
-# dataset_utils = u_dataset.DatasetUtils(u_dataset.DatasetConfig())
-
 
 def get_label_path(directory: str) -> str:
     """Just a helper function to get the label path.
