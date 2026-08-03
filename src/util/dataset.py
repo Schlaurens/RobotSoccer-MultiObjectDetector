@@ -178,6 +178,37 @@ class DatasetUtils:
 
                 if tf.size(coordinate_list) == 0:
                     return _empty_masks()
+            elif object_name == CategoryNames.ROBOT_BASE.value:
+                if label[object_name]["ignore_sample"]:
+                    return _empty_masks(ignore_sample=True)
+
+                # Robot base coords
+                standing_coords = (
+                    tf.constant(
+                        [
+                            list(x.values())
+                            for x in label[object_name][u_labels.RobotState.STANDING.value]
+                        ],
+                        dtype=tf.float32,
+                    )
+                    if len(label[object_name][u_labels.RobotState.STANDING.value]) > 0
+                    else tf.constant([], dtype=tf.float32, shape=(0, 2))
+                )  # (N_S, 2)
+                fallen_coords = (
+                    tf.constant(
+                        [
+                            list(x.values())
+                            for x in label[object_name][u_labels.RobotState.FALLEN.value]
+                        ],
+                        dtype=tf.float32,
+                    )
+                    if len(label[object_name][u_labels.RobotState.FALLEN.value]) > 0
+                    else tf.constant([], dtype=tf.float32, shape=(0, 2))
+                )  # (N_F, 2)
+                coordinate_list = tf.concat([standing_coords, fallen_coords], axis=0)  # (N_O, 2)
+
+                if tf.size(coordinate_list) == 0:
+                    return _empty_masks()
             else:
                 coordinate_list = [
                     list(label[object_name].values())[:2]
@@ -213,6 +244,20 @@ class DatasetUtils:
                 ):
                     indices = self.get_cell_of_coordinate(c)
                     classification_mask[indices[1], indices[0]].assign(IntersectionType.X.value)
+        elif object_name == CategoryNames.ROBOT_BASE.value:
+            filtered_coords = self.filter_coordinates(coordinate_list)
+            classification_mask = tf.Variable(tf.zeros(self.config.output_dims))
+            for c in filtered_coords:
+                if tf.reduce_any(
+                    tf.reduce_all(c == standing_coords * self.config.image_res_scale[::-1], axis=-1)
+                ):
+                    indices = self.get_cell_of_coordinate(c)
+                    classification_mask[indices[1], indices[0]].assign(RobotBaseType.STANDING.value)
+                elif tf.reduce_any(
+                    tf.reduce_all(c == fallen_coords * self.config.image_res_scale[::-1], axis=-1)
+                ):
+                    indices = self.get_cell_of_coordinate(c)
+                    classification_mask[indices[1], indices[0]].assign(RobotBaseType.FALLEN.value)
         else:
             classification_mask = tf.cast(
                 tf.fill(self.config.output_dims, value=0), dtype=tf.float32
@@ -547,6 +592,8 @@ class DatasetUtils:
         if object_name is not None:
             if object_name == CategoryNames.INTERSECTIONS.value:
                 n_classes = len(IntersectionType)
+            elif object_name == CategoryNames.ROBOT_BASE.value:
+                n_classes = len(RobotBaseType)
             else:
                 raise ValueError("Invalid object_name")
         elif n_classes is None:
