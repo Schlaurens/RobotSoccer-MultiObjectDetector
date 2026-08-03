@@ -6,6 +6,7 @@ import tensorflow as tf
 
 from . import camera as u_camera
 from . import keypoint as u_keypoint
+from . import labels as u_labels
 
 
 @dataclass
@@ -142,23 +143,35 @@ class DatasetUtils:
                 # Intersection coords
                 l_coords = (
                     tf.constant(
-                        [list(x.values()) for x in label[object_name]["L"]], dtype=tf.float32
+                        [
+                            list(x.values())
+                            for x in label[object_name][u_labels.IntersectionType.L.value]
+                        ],
+                        dtype=tf.float32,
                     )
-                    if len(label[object_name]["L"]) > 0
+                    if len(label[object_name][u_labels.IntersectionType.L.value]) > 0
                     else tf.constant([], dtype=tf.float32, shape=(0, 2))
                 )  # (N_L, 2)
                 t_coords = (
                     tf.constant(
-                        [list(x.values()) for x in label[object_name]["T"]], dtype=tf.float32
+                        [
+                            list(x.values())
+                            for x in label[object_name][u_labels.IntersectionType.T.value]
+                        ],
+                        dtype=tf.float32,
                     )
-                    if len(label[object_name]["T"]) > 0
+                    if len(label[object_name][u_labels.IntersectionType.T.value]) > 0
                     else tf.constant([], dtype=tf.float32, shape=(0, 2))
                 )  # (N_T, 2)
                 x_coords = (
                     tf.constant(
-                        [list(x.values()) for x in label[object_name]["X"]], dtype=tf.float32
+                        [
+                            list(x.values())
+                            for x in label[object_name][u_labels.IntersectionType.X.value]
+                        ],
+                        dtype=tf.float32,
                     )
-                    if len(label[object_name]["X"]) > 0
+                    if len(label[object_name][u_labels.IntersectionType.X.value]) > 0
                     else tf.constant([], dtype=tf.float32, shape=(0, 2))
                 )  # (N_X, 2)
                 coordinate_list = tf.concat([l_coords, t_coords, x_coords], axis=0)  # (N_O, 2)

@@ -399,7 +399,7 @@ def get_sample_at_index(batched_data: dict[str, tf.Tensor], index: int, keep_bat
                 "classification_mask": maybe_batch_dim(
                     batched_data[category]["classification_mask"]
                 )
-                if category in ["intersections", "robot_base"]
+                if category in [u_dataset.CategoryNames.INTERSECTIONS.value, u_dataset.CategoryNames.ROBOT_BASE.value]
                 else None,
             }
             for category in batched_data
