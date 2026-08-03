@@ -465,21 +465,24 @@ class FullModel(tf.keras.Model):
                 result[f"cpn_class_distribution_{key}"] = cpn_metrics[key]["class_distribution"]
                 result[f"cpn_euclidean_error_{key}"] = cpn_metrics[key]["euclidean_error"]
 
-            result["recall_per_l_intersection"] = cpn_metrics[
-                u_dataset.CategoryNames.INTERSECTIONS.value
-            ]["recall_for_l_intersection"]
-            result["recall_per_t_intersection"] = cpn_metrics[
-                u_dataset.CategoryNames.INTERSECTIONS.value
-            ]["recall_for_t_intersection"]
-            result["recall_per_x_intersection"] = cpn_metrics[
-                u_dataset.CategoryNames.INTERSECTIONS.value
-            ]["recall_for_x_intersection"]
-            result["recall_per_standing_robot_base"] = cpn_metrics[
-                u_dataset.CategoryNames.ROBOT_BASE.value
-            ]["recall_for_standing_robot_base"]
-            result["recall_per_fallen_robot_base"] = cpn_metrics[
-                u_dataset.CategoryNames.ROBOT_BASE.value
-            ]["recall_for_fallen_robot_base"]
+            if u_dataset.CategoryNames.INTERSECTIONS.value in self.categories:
+                result["recall_per_l_intersection"] = cpn_metrics[
+                    u_dataset.CategoryNames.INTERSECTIONS.value
+                ]["recall_for_l_intersection"]
+                result["recall_per_t_intersection"] = cpn_metrics[
+                    u_dataset.CategoryNames.INTERSECTIONS.value
+                ]["recall_for_t_intersection"]
+                result["recall_per_x_intersection"] = cpn_metrics[
+                    u_dataset.CategoryNames.INTERSECTIONS.value
+                ]["recall_for_x_intersection"]
+
+            if u_dataset.CategoryNames.ROBOT_BASE.value in self.categories:
+                result["recall_per_standing_robot_base"] = cpn_metrics[
+                    u_dataset.CategoryNames.ROBOT_BASE.value
+                ]["recall_for_standing_robot_base"]
+                result["recall_per_fallen_robot_base"] = cpn_metrics[
+                    u_dataset.CategoryNames.ROBOT_BASE.value
+                ]["recall_for_fallen_robot_base"]
         return result
 
     def train_step(self, batch_data):
