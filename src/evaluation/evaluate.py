@@ -49,8 +49,8 @@ class EvaluateApplication:
         self.categories["penaltyMark"]["n_candidates"] = 4
         self.categories["intersections"]["n_candidates"] = 11
 
-        input_dims = self.config["model"]["encoder"]["input_dims"]
-        cell_dims = self.config["model"]["encoder"]["cell_dims"]
+        input_dims = self.config["model"]["cpn"]["input_dims"]
+        cell_dims = self.config["model"]["cpn"]["cell_dims"]
         self.dataset_utils = u_dataset.DatasetUtils(
             u_dataset.DatasetConfig(input_dims, cell_dims=cell_dims)
         )
@@ -74,7 +74,7 @@ class EvaluateApplication:
 
         self.index = 0
         self.thresholds = {
-            "encoder": {
+            "cpn": {
                 "ball": 0.01,
                 "penaltyMark": 0.01,
                 "intersections": 0.01,
@@ -109,11 +109,11 @@ class EvaluateApplication:
 
         return full_path
 
-    def update_threshold(self, encoder: bool, object_name: str, val: float):
-        self.thresholds["encoder" if encoder else "classifier"][object_name] = val
+    def update_threshold(self, cpn: bool, object_name: str, val: float):
+        self.thresholds["cpn" if cpn else "classifier"][object_name] = val
 
         print(
-            f"Updated threshold for {'encoder' if encoder else 'classifier'} for {object_name} with new value {val}"
+            f"Updated threshold for {'cpn' if cpn else 'classifier'} for {object_name} with new value {val}"
         )
         self.update_predictions()
 
@@ -155,7 +155,7 @@ class EvaluateApplication:
             iou_threshold = 0.35
             processed_predictions = u_metrics.handle_predictions(
                 output["results"][category],
-                self.thresholds["encoder"][category],
+                self.thresholds["cpn"][category],
                 self.thresholds["classifier"][category],
                 iou_threshold,
             )
@@ -192,7 +192,7 @@ class EvaluateApplication:
             object_name: The object name for which the best patch should be drawn
 
         Returns:
-            The axes with the prediction. Or a zeros array if no object has been found that exceeds the combined threshold of encoder and classifier confidence.
+            The axes with the prediction. Or a zeros array if no object has been found that exceeds the combined threshold of cpn and classifier confidence.
         """
         if not processed_predictions["valid_samples"]:
             return axes.imshow(np.zeros(self.dataset_utils.config.cell_dims))
@@ -203,8 +203,8 @@ class EvaluateApplication:
             self.data[self.index][object_name]["offset_mask"]
         )[0]
 
-        # Coords predicted by the encoder
-        encoder_coords_pred = output["coords"][0][best_score_index]
+        # Coords predicted by the cpn
+        cpn_coords_pred = output["coords"][0][best_score_index]
         # Coords corrected by the classifier
         position_pred = output["positions"][0][best_score_index]
 
@@ -214,7 +214,7 @@ class EvaluateApplication:
         best_width = output["pixel_sizes"][0][best_score_index]
 
         patch_center = (np.array(self.model.patch_size) - 1) / 2
-        coords_true_patch = patch_center + (tf.squeeze(coords_true) - encoder_coords_pred) * (
+        coords_true_patch = patch_center + (tf.squeeze(coords_true) - cpn_coords_pred) * (
             self.model.patch_size / best_width
         )
 
@@ -224,14 +224,14 @@ class EvaluateApplication:
             # axes.plot(*(coords_true_patch), "gx")
             pass
 
-        # axes.plot(*(patch_center), "rx")  # Encoder prediction is always in the middle of the patch
+        # axes.plot(*(patch_center), "rx")  # CPN prediction is always in the middle of the patch
         # axes.plot(*(patch_center + output["classifier_offsets"][best_score_index]), "bx")
 
         axes.text(0, 2, f"cand.: {best_score_index + 1}", color="lime")
         axes.text(
             0,
             4,
-            f"enc.: {processed_predictions['encoder_confidences'][0].numpy():.3f}",
+            f"cpn: {processed_predictions['cpn_confidences'][0].numpy():.3f}",
             color="lime",
         )
         axes.text(
@@ -266,7 +266,7 @@ class EvaluateApplication:
 
             # dont draw patch if its prediction is under the threshold
             if (
-                logit < self.thresholds["encoder"][object_name]
+                logit < self.thresholds["cpn"][object_name]
                 or tf.reduce_max(output["classification"][0][i], -1)
                 < self.thresholds["classifier"][object_name]
             ):
@@ -319,7 +319,7 @@ class EvaluateApplication:
                 axes.add_patch(rect)
                 # axes.plot(*coords_pred, "rx")
                 # axes.plot(*(position_pred / self.dataset_utils.config.image_res_scale[::-1]), "bx")
-                
+
                 print("pred:", *(position_pred / self.dataset_utils.config.image_res_scale[::-1]))
                 # axes.plot(*(position_pred), "bx")
 
@@ -352,21 +352,21 @@ class EvaluateApplication:
     def load_model(self, config, path_to_model, model_name):
         print("Loading Model...")
         model = FullModel.load(
-            encoder_architecture=config["model"]["encoder"]["architecture"],
+            cpn_architecture=config["model"]["cpn"]["architecture"],
             classifier_architecture=config["model"]["classifier"]["architecture"],
-            input_dims=config["model"]["encoder"]["input_dims"],
-            cell_dims=config["model"]["encoder"]["input_dims"],
-            encoder_channels=config["model"]["encoder"]["channels_in"],
+            input_dims=config["model"]["cpn"]["input_dims"],
+            cell_dims=config["model"]["cpn"]["input_dims"],
+            cpn_channels=config["model"]["cpn"]["channels_in"],
             filepath=path_to_model,
             filename=model_name,
-            n_context=config["model"]["encoder"]["n_context"],
-            train_encoder=True,
+            n_context=config["model"]["cpn"]["n_context"],
+            train_cpn=True,
             train_classifier=config["model"]["classifier"]["train_classifier"],
             classifier_offsets=config["model"]["classifier"]["with_offsets"],
-            encoder_only=False,
+            cpn_only=False,
             verbose=True,
             n_meta=config["model"]["classifier"]["n_meta"],
-            encoder_use_batch_norm=config["model"]["encoder"]["use_batch_norm"],
+            cpn_use_batch_norm=config["model"]["cpn"]["use_batch_norm"],
             classifier_use_batch_norm=config["model"]["classifier"]["use_batch_norm"],
             categories_config=config["categories"],
         )
@@ -405,22 +405,22 @@ class EvaluateApplication:
         # Initialize sliders
         slider_configs = [
             {
-                "type": "encoder",
+                "type": "cpn",
                 "name": "ball",
                 "pos": [0.1, 0.71, 0.0225, 0.16],
-                "label": "enc",
+                "label": "cpn",
             },
             {
-                "type": "encoder",
+                "type": "cpn",
                 "name": "penaltyMark",
                 "pos": [0.1, 0.465, 0.0225, 0.16],
-                "label": "enc",
+                "label": "cpn",
             },
             {
-                "type": "encoder",
+                "type": "cpn",
                 "name": "intersections",
                 "pos": [0.1, 0.22, 0.0225, 0.16],
-                "label": "enc",
+                "label": "cpn",
             },
             {
                 "type": "classifier",
@@ -493,7 +493,7 @@ class EvaluateApplication:
 
         # Connect slider events
         for category in self.categories:
-            self.sliders[f"{category}_encoder_slider"].on_changed(
+            self.sliders[f"{category}_cpn_slider"].on_changed(
                 lambda val, category=category: self.update_threshold(True, category, val)
             )
             self.sliders[f"{category}_classifier_slider"].on_changed(

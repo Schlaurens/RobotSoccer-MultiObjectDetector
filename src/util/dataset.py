@@ -77,7 +77,7 @@ class DatasetUtils:
         object_name: str = None,
         coordinates: list[list[float]] | tf.Tensor = None,
     ) -> dict[str, tf.Tensor]:
-        """Return label masks that are used to train the encoder.
+        """Return label masks that are used to train the CPN.
 
         Generate an offset mask that converts the image coordinates of the object into offsets relative
         to given cell dimensions

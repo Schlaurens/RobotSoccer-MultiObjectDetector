@@ -17,19 +17,19 @@ from training.models import FullModel
 def load_model(config, path_to_model, model_name):
     print("Loading Model...")
     model = FullModel.load(
-        encoder_architecture=config["model"]["encoder"]["architecture"],
+        cpn_architecture=config["model"]["cpn"]["architecture"],
         classifier_architecture=config["model"]["classifier"]["architecture"],
-        input_dims=config["model"]["encoder"]["input_dims"],
-        cell_dims=config["model"]["encoder"]["input_dims"],
+        input_dims=config["model"]["cpn"]["input_dims"],
+        cell_dims=config["model"]["cpn"]["input_dims"],
         filepath=path_to_model,
         filename=model_name,
-        n_context=config["model"]["encoder"]["n_context"],
-        only_train_encoder=config["model"]["encoder"]["only_train_encoder"],
+        n_context=config["model"]["cpn"]["n_context"],
+        only_train_cpn=config["model"]["cpn"]["only_train_cpn"],
         classifier_offsets=config["model"]["classifier"]["with_offsets"],
-        encoder_only=False,
+        cpn_only=False,
         verbose=True,
         n_meta=config["model"]["classifier"]["n_meta"],
-        encoder_use_batch_norm=config["model"]["encoder"]["use_batch_norm"],
+        cpn_use_batch_norm=config["model"]["cpn"]["use_batch_norm"],
         classifier_use_batch_norm=config["model"]["classifier"]["use_batch_norm"],
         categories_config=config["categories"],
     )

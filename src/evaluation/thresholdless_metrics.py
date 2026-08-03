@@ -31,7 +31,7 @@ class Evaluator:
         self.beta = args.beta
 
         self.nms_iou_threshold = args.nms_iou
-        self.encoder_threshold = 0.01
+        self.cpn_threshold = 0.01
 
         self.end_to_end = True
 
@@ -53,8 +53,8 @@ class Evaluator:
         print("Loading Config...")
         self.config = self.load_config()
 
-        self.cell_dims = self.config["model"]["encoder"]["cell_dims"]
-        self.input_dims = self.config["model"]["encoder"]["input_dims"]
+        self.cell_dims = self.config["model"]["cpn"]["cell_dims"]
+        self.input_dims = self.config["model"]["cpn"]["input_dims"]
         self.dataset_utils = u_dataset.DatasetUtils(
             u_dataset.DatasetConfig(self.input_dims, cell_dims=self.cell_dims)
         )
@@ -63,8 +63,8 @@ class Evaluator:
         self.val_ds = self.load_dataset("val")
         self.test_ds = self.load_dataset("test")
 
-        self.resolution = f"{self.config['model']['encoder']['input_dims'][0]}x{self.config['model']['encoder']['input_dims'][1]}"
-        self.cpn_architecture = self.config["model"]["encoder"]["architecture"]
+        self.resolution = f"{self.config['model']['cpn']['input_dims'][0]}x{self.config['model']['cpn']['input_dims'][1]}"
+        self.cpn_architecture = self.config["model"]["cpn"]["architecture"]
         self.classifier_architecture = self.config["model"]["classifier"]["architecture"]
 
         self.mode = args.log_dir.split("-")[-1].split("/")[0]
@@ -115,7 +115,7 @@ class Evaluator:
                     "_"
                 )[-1]
                 use_architecture_version = "v" in args.model_dir.split("/")[-1]
-                n_context = self.config["model"]["encoder"]["n_context"]
+                n_context = self.config["model"]["cpn"]["n_context"]
 
                 path_to_models = Path(
                     args.model_dir,
@@ -176,10 +176,10 @@ class Evaluator:
         return ds
 
     def load_model(self, path_to_models: str, model_name: str):
-        encoder_architecture = self.config["model"]["encoder"]["architecture"]
+        cpn_architecture = self.config["model"]["cpn"]["architecture"]
         classifier_architecture = self.config["model"]["classifier"]["architecture"]
 
-        channels_in = self.config["model"]["encoder"].get("channels_in", 4)
+        channels_in = self.config["model"]["cpn"].get("channels_in", 4)
 
         self.config["categories"]["ball"]["n_candidates"] = self.n_candidates[0]
         self.config["categories"]["penaltyMark"]["n_candidates"] = self.n_candidates[1]
@@ -190,26 +190,26 @@ class Evaluator:
         self.config["categories"]["intersections"]["max_distance"] = self.distance_filter
 
         if channels_in != 1:
-            input_dims = self.config["model"]["encoder"]["input_dims"] // np.array((1, 2))
+            input_dims = self.config["model"]["cpn"]["input_dims"] // np.array((1, 2))
         else:
-            input_dims = self.config["model"]["encoder"]["input_dims"]
+            input_dims = self.config["model"]["cpn"]["input_dims"]
 
         model = FullModel.load(
-            encoder_architecture,
+            cpn_architecture,
             classifier_architecture,
             filepath=path_to_models,
             filename=model_name,
             input_dims=input_dims,
-            encoder_channels=channels_in,
-            cell_dims=self.config["model"]["encoder"]["cell_dims"],
-            n_context=self.config["model"]["encoder"]["n_context"],
-            train_encoder=True,
+            cpn_channels=channels_in,
+            cell_dims=self.config["model"]["cpn"]["cell_dims"],
+            n_context=self.config["model"]["cpn"]["n_context"],
+            train_cpn=True,
             train_classifier=self.config["model"]["classifier"]["train_classifier"],
             classifier_offsets=self.config["model"]["classifier"]["with_offsets"],
-            encoder_only=False,
+            cpn_only=False,
             verbose=True,
             n_meta=self.config["model"]["classifier"]["n_meta"],
-            encoder_use_batch_norm=self.config["model"]["encoder"]["use_batch_norm"],
+            cpn_use_batch_norm=self.config["model"]["cpn"]["use_batch_norm"],
             classifier_use_batch_norm=self.config["model"]["classifier"]["use_batch_norm"],
             categories_config=self.config["categories"],
         )
@@ -275,11 +275,11 @@ class Evaluator:
         """
         data = {
             "resolution": self.resolution,
-            "input_channels": self.config["model"]["encoder"].get("channels_in", 4),
+            "input_channels": self.config["model"]["cpn"].get("channels_in", 4),
             "model_timestamp": model_timestamp,
-            "encoder_architecture": self.config["model"]["encoder"]["architecture"],
+            "cpn_architecture": self.config["model"]["cpn"]["architecture"],
             "classifier_architecture": self.config["model"]["classifier"]["architecture"],
-            "n_context": self.config["model"]["encoder"]["n_context"],
+            "n_context": self.config["model"]["cpn"]["n_context"],
             "n_dist": self.config["model"]["classifier"]["n_meta"],
             "distance_filter": self.distance_filter,
             "n_candidates_ball": self.n_candidates[0],
@@ -303,7 +303,7 @@ class Evaluator:
         groundtruth,
         config,
         thresholds: dict,
-        encoder_threshold: float = 0.01,
+        cpn_threshold: float = 0.01,
         nms_iou_threshold: float = None,
         end_to_end: bool = True,
     ) -> dict:
@@ -311,8 +311,8 @@ class Evaluator:
 
         dataset_utils = u_dataset.DatasetUtils(
             u_dataset.DatasetConfig(
-                input_dims=config["model"]["encoder"]["input_dims"],
-                cell_dims=config["model"]["encoder"]["cell_dims"],
+                input_dims=config["model"]["cpn"]["input_dims"],
+                cell_dims=config["model"]["cpn"]["cell_dims"],
             )
         )
 
@@ -329,7 +329,7 @@ class Evaluator:
                         groundtruth[object.value],
                         config["categories"][object.value]["n_classes"],
                         cla,
-                        encoder_threshold,
+                        cpn_threshold,
                         end_to_end,
                         groundtruth["camera"],
                         groundtruth["intrinsics"],
@@ -346,7 +346,7 @@ class Evaluator:
                         groundtruth[object.value],
                         config["categories"][object.value]["n_classes"],
                         cla,
-                        encoder_threshold,
+                        cpn_threshold,
                         end_to_end,
                         groundtruth["camera"],
                         groundtruth["intrinsics"],
@@ -435,7 +435,7 @@ class Evaluator:
             groundtruth_val,
             self.config,
             classifier_threshold_ranges_additive,
-            self.encoder_threshold,
+            self.cpn_threshold,
             self.nms_iou_threshold,
             self.end_to_end,
         )
@@ -527,7 +527,7 @@ class Evaluator:
             ground_truth_test,
             self.config,
             optimal_thresholds,
-            self.encoder_threshold,
+            self.cpn_threshold,
             self.nms_iou_threshold,
             self.end_to_end,
         )
@@ -585,7 +585,7 @@ class Evaluator:
                 object.value,
                 Path(self.config_dir.parent, "predictions", self.specification_string),
                 optimal_thresholds[object.value][0],
-                self.encoder_threshold,
+                self.cpn_threshold,
                 self.nms_iou_threshold,
                 image_res_scale=self.dataset_utils.config.image_res_scale,
             )
