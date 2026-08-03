@@ -24,7 +24,7 @@ def get_classifier(
         batch_norm: Whether to use batch normalization or instance normalization.
 
     Raises:
-        ValueError: When the provided encoder architecture is unknown
+        ValueError: When the provided CPN architecture is unknown
 
     Returns:
         A tf.keras.Model with the provided architecture
@@ -46,7 +46,7 @@ def _get_common_classifier_output(x, n_classes, with_offset, inputs):
     """Return the common output logic for every classifier architecture.
 
     Args:
-        x: The tensor output of the hidden encoder layers
+        x: The tensor output of the hidden CPN layers
         n_classes: The amount of the classes to predict
         with_offset: Whether the classifier should predict an offset.
         inputs: The inputs of the classifier.

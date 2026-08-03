@@ -4,7 +4,7 @@ import tensorflow as tf
 class CustomCheckpointCallback(tf.keras.callbacks.Callback):
     """A custom callback to save checkpoints. This callback calls the save function for this specific model."""
 
-    def __init__(self, filepath, only_save_encoder=False, overwrite=True, verbose=False, **kwargs):
+    def __init__(self, filepath, only_save_cpn=False, overwrite=True, verbose=False, **kwargs):
         """Constructor
 
         Args:
@@ -16,11 +16,11 @@ class CustomCheckpointCallback(tf.keras.callbacks.Callback):
         self.filepath = filepath
         self.overwrite = overwrite
         self.verbose = verbose
-        self.only_save_encoder = only_save_encoder
+        self.only_save_cpn = only_save_cpn
 
     def on_epoch_end(self, epoch, logs=None):
         if epoch % 5 == 0:
             filename = f"epoch_{epoch}"
             self.model.save(
-                self.filepath, filename, self.only_save_encoder, self.overwrite, self.verbose
+                self.filepath, filename, self.only_save_cpn, self.overwrite, self.verbose
             )
