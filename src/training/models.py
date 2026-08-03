@@ -232,7 +232,10 @@ class FullModel(tf.keras.Model):
         y_pred = results["classification"]  # (B, N) | (B, N, N_O) depending on category type
 
         # Categories with more than two classes use CCE
-        if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+        if object_name in [
+            u_dataset.CategoryNames.INTERSECTIONS.value,
+            u_dataset.CategoryNames.ROBOT_BASE.value,
+        ]:
             y_true = tf.one_hot(
                 tf.cast(
                     self.dataset_utils.get_groundtruth_class_of_patches(
@@ -243,7 +246,9 @@ class FullModel(tf.keras.Model):
                     ),
                     tf.int32,
                 ),
-                len(u_dataset.IntersectionType),
+                len(u_dataset.IntersectionType)
+                if object_name == u_dataset.CategoryNames.INTERSECTIONS.value
+                else len(u_dataset.RobotBaseType),
                 axis=-1,
             )  # (B, N, num_classes)
 
@@ -386,7 +391,9 @@ class FullModel(tf.keras.Model):
             "recall_at_k": recall_at_k,
             "recall_for_l_intersection": recall_per_class[0],
             "recall_for_t_intersection": recall_per_class[1],
-            "recall_for_x_intersection": recall_per_class[2],
+            "recall_for_x_intersection": recall_per_class[2] if len(recall_per_class) > 2 else -1,
+            "recall_for_standing_robot_base": recall_per_class[0],
+            "recall_for_fallen_robot_base": recall_per_class[1],
             "euclidean_error": euclidean_error,
         }
 
@@ -474,6 +481,12 @@ class FullModel(tf.keras.Model):
             result["recall_per_x_intersection"] = encoder_metrics[
                 u_dataset.CategoryNames.INTERSECTIONS.value
             ]["recall_for_x_intersection"]
+            result["recall_per_standing_robot_base"] = cpn_metrics[
+                u_dataset.CategoryNames.ROBOT_BASE.value
+            ]["recall_for_standing_robot_base"]
+            result["recall_per_fallen_robot_base"] = cpn_metrics[
+                u_dataset.CategoryNames.ROBOT_BASE.value
+            ]["recall_for_fallen_robot_base"]
         return result
 
     def train_step(self, batch_data):
@@ -1013,8 +1026,15 @@ class FullModel(tf.keras.Model):
 
             recall_per_class = tf.fill([10], -1)
 
-        elif object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
-            num_classes = len(list(u_dataset.IntersectionType)[1:])
+        elif object_name in [
+            u_dataset.CategoryNames.INTERSECTIONS.value,
+            u_dataset.CategoryNames.ROBOT_BASE.value,
+        ]:
+            num_classes = (
+                len(list(u_dataset.IntersectionType)[1:])
+                if object_name == u_dataset.CategoryNames.INTERSECTIONS.value
+                else len(list(u_dataset.RobotBaseType)[1:])
+            )
             gt_coord_mask = tf.reshape(
                 self.dataset_utils.get_coordinate_mask(batch_data["offset_mask"]),
                 (-1, num_cells, 2),
