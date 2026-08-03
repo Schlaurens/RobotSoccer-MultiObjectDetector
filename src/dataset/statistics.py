@@ -102,7 +102,6 @@ def main(
     data_path: str,
     calculate_distances: bool,
     no_filesave: bool,
-    print_output: bool,
 ):
     label_dirs = [dir[0] for dir in os.walk(data_path)][1:]
     labels = [u_dataset_io.load_labels(dir) for dir in label_dirs]
@@ -253,47 +252,6 @@ def main(
         with open("data/statistics.yaml", "w") as yaml_file:
             yaml.dump(stats, yaml_file, default_flow_style=False, sort_keys=False)
 
-    # ===== Printing ======
-    if print_output:
-        print("Number of logs: ", len(labels))
-        print("Number of samples: ", number_of_samples)
-        print("Number of intersection samples: ", number_of_intersection_samples)
-        print("Number of non empty samples: ", number_of_non_empty_samples)
-        print("Number of ball samples:", number_of_ball_samples)
-        print("Number of penaltyMark samples:", number_of_penalty_mark_samples)
-        print("Number of ignored intersection samples:", number_of_ignored_intersection_samples)
-        print("Number of L intersection samples:", number_of_l_intersection_samples)
-        print("Number of T intersection samples:", number_of_t_intersection_samples)
-        print("Number of X intersection samples:", number_of_x_intersection_samples)
-        print("=========")
-        print(
-            "Number of ignored intersections samples per log: ",
-            number_of_ignored_intersection_samples_per_log,
-        )
-        print("L intersections per log: ", number_of_l_intersections_per_log)
-        print("T intersections per log: ", number_of_t_intersections_per_log)
-        print("X intersections per log: ", number_of_x_intersections_per_log)
-        print("=========")
-        print("% of ball samples: ", round((number_of_ball_samples / number_of_samples) * 100, 2))
-        print(
-            f"% of penaltyMark samples: {((number_of_penalty_mark_samples / number_of_samples) * 100):.2f}"
-        )
-        print(
-            f"% of L intersection samples: {((number_of_l_intersection_samples / number_of_intersection_samples) * 100):.2f}"
-        )
-        print(
-            f"% of T intersection samples: {((number_of_t_intersection_samples / number_of_intersection_samples) * 100):.2f}"
-        )
-        print(
-            f"% of X intersection samples: {((number_of_x_intersection_samples / number_of_intersection_samples) * 100):.2f}"
-        )
-        print("=========")
-        print(f"Ball BCE Baseline: {ball_bce_baseline:.5f}")
-        print(f"PenaltyMark BCE Baseline: {penalty_mark_bce_baseline:.5f}")
-        print("=========")
-        for key, value in moments.items():
-            print(f"{key.replace('_', ' ').capitalize()}: ", value)
-
 
 if __name__ == "__main__":
     import argparse
@@ -302,7 +260,6 @@ if __name__ == "__main__":
     parser.add_argument("data_path")
     parser.add_argument("--calculate_distances", action="store_true", default=False)
     parser.add_argument("--no_filesave", action="store_true")
-    parser.add_argument("--print_output", action="store_true", default=False)
     args = parser.parse_args()
 
-    main(args.data_path, args.calculate_distances, args.no_filesave, args.print_output)
+    main(args.data_path, args.calculate_distances, args.no_filesave)
