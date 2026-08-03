@@ -22,7 +22,7 @@ dependencies = [
     "pytest",
     "pytest-cov",
     "setuptools",
-    "tensorboard",
+    "tensorboard~=2.21.0",
     "tf2onnx",
     "seaborn",
 ]
