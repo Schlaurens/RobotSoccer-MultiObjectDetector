@@ -46,6 +46,7 @@ class FullModel(tf.keras.Model):
         self.n_context = n_context
         self.train_cpn = train_cpn
         self.cpn_channels = cpn_channels
+        self.cpn_colorspace = "yuyv" if cpn_channels == 4 else "grayscale"
 
         # Classifier config
         self.classifier_architecture = classifier_architecture
@@ -104,9 +105,10 @@ class FullModel(tf.keras.Model):
             self.cpn_architecture,
             self.image_height,
             self.image_width,
-            self.cpn_channels,
             self.categories.keys(),
             self.n_context,
+            self.cpn_channels,
+            self.cpn_colorspace,
         )
 
         object.__setattr__(self, "_test_metrics", {})  # not tracked by Keras
