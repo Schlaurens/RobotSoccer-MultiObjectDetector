@@ -179,7 +179,9 @@ def main(config):
     train_cpn = config["model"]["cpn"]["train_cpn"]
     train_classifier = config["model"]["classifier"]["train_classifier"]
 
-    input_dims_str = f"{config['model']['cpn']['input_dims'][0]}x{config['model']['cpn']['input_dims'][1]}"
+    input_dims_str = (
+        f"{config['model']['cpn']['input_dims'][0]}x{config['model']['cpn']['input_dims'][1]}"
+    )
 
     log_config(timestamp, input_dims_str, config)
 
@@ -243,9 +245,7 @@ def main(config):
             categories_config=config["categories"],
         )
 
-    dataset = load_datasets(
-        config, model.cpn if not train_cpn else None, cpn_channels=cpn_channels
-    )
+    dataset = load_datasets(config, model.cpn if not train_cpn else None, cpn_channels=cpn_channels)
 
     callbacks = get_callbacks(timestamp, input_dims_str, config)
 
