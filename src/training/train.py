@@ -194,8 +194,6 @@ def main(config):
         train_classifier=train_classifier,
         classifier_offsets=config["model"]["classifier"]["with_offsets"],
         n_meta=config["model"]["classifier"]["n_meta"],
-        cpn_use_batch_norm=config["model"]["cpn"]["use_batch_norm"],
-        classifier_use_batch_norm=config["model"]["classifier"]["use_batch_norm"],
         categories_config=config["categories"],
     )
     model.compile(
@@ -242,8 +240,6 @@ def main(config):
             verbose=verbose,
             n_meta=config["model"]["classifier"]["n_meta"],
             learning_rate=config["training"]["learning_rate"],
-            cpn_use_batch_norm=config["model"]["cpn"]["use_batch_norm"],
-            classifier_use_batch_norm=config["model"]["classifier"]["use_batch_norm"],
             categories_config=config["categories"],
         )
 

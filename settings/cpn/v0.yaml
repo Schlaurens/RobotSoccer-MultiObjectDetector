@@ -5,15 +5,13 @@ model:
     cell_dims: [16, 16]
     n_context: 0
     channels_in: 4
-    train_encoder: True
-    use_batch_norm: False
+    train_cpn: True
   classifier:
     architecture: "conv_v1"
     patch_size: [32, 32]
     n_meta: 0 # if 1 it's just the distance to the patch center
     with_offsets: True
     train_classifier: False
-    use_batch_norm: False
 
 training:
   epochs: 800

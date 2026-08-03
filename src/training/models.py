@@ -25,8 +25,6 @@ class FullModel(tf.keras.Model):
         train_classifier: bool = True,
         classifier_offsets: bool = True,
         n_meta: int = 0,
-        cpn_use_batch_norm: bool = False,
-        classifier_use_batch_norm: bool = False,
         categories_config: dict = None,
     ):
         """Constructs the FullModel
@@ -47,7 +45,6 @@ class FullModel(tf.keras.Model):
         self.cpn_architecture = cpn_architecture
         self.n_context = n_context
         self.train_cpn = train_cpn
-        self.cpn_use_batch_norm = cpn_use_batch_norm
         self.cpn_channels = cpn_channels
 
         # Classifier config
@@ -57,7 +54,6 @@ class FullModel(tf.keras.Model):
         self.train_classifier = train_classifier
         self.n_meta = n_meta
         self.classifier_offsets = classifier_offsets
-        self.classifier_use_batch_norm = classifier_use_batch_norm
 
         self.full_image_size = tf.constant(
             [self.image_height, self.image_width], dtype=tf.float32
@@ -103,7 +99,6 @@ class FullModel(tf.keras.Model):
                     self.n_context,
                     value["n_classes"],
                     self.classifier_offsets,
-                    self.classifier_use_batch_norm,
                 )  # The patch classifier for the category with the fixed number of classes
         self.cpn = u_cpn_architectures.get_cpn(
             self.cpn_architecture,
@@ -112,7 +107,6 @@ class FullModel(tf.keras.Model):
             self.cpn_channels,
             self.categories.keys(),
             self.n_context,
-            self.cpn_use_batch_norm,
         )
 
         object.__setattr__(self, "_test_metrics", {})  # not tracked by Keras
@@ -611,8 +605,6 @@ class FullModel(tf.keras.Model):
         verbose: bool = False,
         n_meta: int = 0,
         learning_rate: float = 0.001,
-        cpn_use_batch_norm: bool = False,
-        classifier_use_batch_norm: bool = False,
         categories_config: dict = None,
         **kwargs,
     ):
@@ -643,8 +635,6 @@ class FullModel(tf.keras.Model):
             train_classifier,
             classifier_offsets,
             n_meta,
-            cpn_use_batch_norm,
-            classifier_use_batch_norm,
             categories_config,
         )
 
