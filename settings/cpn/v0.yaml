@@ -1,5 +1,5 @@
 model:
-  encoder:
+  cpn:
     architecture: "ires_16x16_v1"
     input_dims: [240, 320]
     cell_dims: [16, 16]
@@ -24,12 +24,12 @@ training:
   load_checkpoint:
     initial_epoch: 183
     timestamp: "20260312-114325" 
-    encoder_only: False # < when only loading the encoder
+    cpn_only: False # < when only loading the CPN
     verbose: True
   load_model:
     timestamp: "20251027-123055"
     filepath: "models/finished/"
-    encoder_only: True # < when only loading the encoder
+    cpn_only: True # < when only loading the CPN
     verbose: True
 
 categories:
