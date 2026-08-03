@@ -205,6 +205,10 @@ def get_dataset(directory: str, dataset_utils: u_dataset.DatasetUtils) -> tf.dat
         "offsets_intersections": tf.io.FixedLenFeature([], tf.string),
         "loss_mask_intersections": tf.io.FixedLenFeature([], tf.string),
         "classification_intersections": tf.io.FixedLenFeature([], tf.string),
+        "object_robotBase": tf.io.FixedLenFeature([], tf.string),
+        "offsets_robotBase": tf.io.FixedLenFeature([], tf.string),
+        "loss_mask_robotBase": tf.io.FixedLenFeature([], tf.string),
+        "classification_robotBase": tf.io.FixedLenFeature([], tf.string),
     }
 
     @tf.function
@@ -299,6 +303,28 @@ def get_dataset(directory: str, dataset_utils: u_dataset.DatasetUtils) -> tf.dat
                     output_dims,
                 ),
             },
+            "robotBase": {
+                "object_mask": tf.ensure_shape(
+                    tf.io.parse_tensor(serialized_tensor["object_robotBase"], out_type=tf.float32),
+                    output_dims,
+                ),
+                "offset_mask": tf.ensure_shape(
+                    tf.io.parse_tensor(serialized_tensor["offsets_robotBase"], out_type=tf.float32),
+                    output_dims + [2],
+                ),
+                "loss_mask": tf.ensure_shape(
+                    tf.io.parse_tensor(
+                        serialized_tensor["loss_mask_robotBase"], out_type=tf.float32
+                    ),
+                    output_dims,
+                ),
+                "classification_mask": tf.ensure_shape(
+                    tf.io.parse_tensor(
+                        serialized_tensor["classification_robotBase"], out_type=tf.float32
+                    ),
+                    output_dims,
+                ),
+            },
         }
 
     @tf.function
@@ -372,8 +398,10 @@ def get_sample_at_index(batched_data: dict[str, tf.Tensor], index: int, keep_bat
                 "object_mask": maybe_batch_dim(batched_data[category]["object_mask"]),
                 "offset_mask": maybe_batch_dim(batched_data[category]["offset_mask"]),
                 "loss_mask": maybe_batch_dim(batched_data[category]["loss_mask"]),
-                "classification_mask": maybe_batch_dim(batched_data[category]["classification_mask"])
-                if category == "intersections"
+                "classification_mask": maybe_batch_dim(
+                    batched_data[category]["classification_mask"]
+                )
+                if category in ["intersections", "robot_base"]
                 else None,
             }
             for category in batched_data
@@ -412,6 +440,7 @@ def make_example(
         masks_intersections = dataset_utils.get_masks(
             label, u_dataset.CategoryNames.INTERSECTIONS.value
         )
+        masks_robotBase = dataset_utils.get_masks(label, u_dataset.CategoryNames.ROBOT_BASE.value)
 
     elif sample is not None:
         from_sample = True
@@ -661,6 +690,70 @@ def make_example(
             ]
         )
     )
+    object_feature_robotBase = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(sample["robotBase"]["object_mask"]).numpy(),
+            ]
+            if from_sample
+            else [
+                tf.io.serialize_tensor(
+                    tf.reshape(
+                        tf.cast(masks_robotBase["object_mask"], dtype=tf.float32),
+                        dataset_utils.config.output_dims,
+                    )
+                ).numpy(),
+            ]
+        )
+    )
+    offset_feature_robotBase = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(sample["robotBase"]["offset_mask"]).numpy(),
+            ]
+            if from_sample
+            else [
+                tf.io.serialize_tensor(
+                    tf.reshape(
+                        tf.cast(masks_robotBase["offsets"], dtype=tf.float32),
+                        tf.concat([dataset_utils.config.output_dims, [2]], 0),
+                    )
+                ).numpy(),
+            ]
+        )
+    )
+    loss_mask_feature_robotBase = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(sample["robotBase"]["loss_mask"]).numpy(),
+            ]
+            if from_sample
+            else [
+                tf.io.serialize_tensor(
+                    tf.reshape(
+                        tf.cast(masks_robotBase["loss_mask"], dtype=tf.float32),
+                        dataset_utils.config.output_dims,
+                    )
+                ).numpy(),
+            ]
+        )
+    )
+    classification_feature_robotBase = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(sample["robotBase"]["classification_mask"]).numpy(),
+            ]
+            if from_sample
+            else [
+                tf.io.serialize_tensor(
+                    tf.reshape(
+                        tf.cast(masks_robotBase["classification_mask"], dtype=tf.float32),
+                        dataset_utils.config.output_dims,
+                    )
+                ).numpy(),
+            ]
+        )
+    )
 
     # Create a Features dictionary
     features = tf.train.Features(
@@ -683,6 +776,11 @@ def make_example(
             "offsets_intersections": offset_feature_intersections,
             "loss_mask_intersections": loss_mask_feature_intersections,
             "classification_intersections": classification_feature_intersections,
+            # robotBase
+            "object_robotBase": object_feature_robotBase,
+            "offsets_robotBase": offset_feature_robotBase,
+            "loss_mask_robotBase": loss_mask_feature_robotBase,
+            "classification_robotBase": classification_feature_robotBase,
         }
     )
 

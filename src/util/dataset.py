@@ -51,7 +51,7 @@ class CategoryNames(Enum):
     BALL = "ball"
     PENALTYMARK = "penaltyMark"
     INTERSECTIONS = "intersections"
-    ROBOT_BASE = "robot_base"
+    ROBOT_BASE = "robotBase"
 
 
 class IntersectionType(Enum):
