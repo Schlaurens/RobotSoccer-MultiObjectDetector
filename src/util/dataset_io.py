@@ -193,6 +193,7 @@ def get_dataset(directory: str, dataset_utils: u_dataset.DatasetUtils) -> tf.dat
         "image": tf.io.FixedLenFeature([], tf.string),
         "camera": tf.io.FixedLenFeature([], tf.string),
         "intrinsics": tf.io.FixedLenFeature([], tf.string),
+        "ball_size": tf.io.FixedLenFeature([], tf.string),
         "object_ball": tf.io.FixedLenFeature([], tf.string),
         "offsets_ball": tf.io.FixedLenFeature([], tf.string),
         "loss_mask_ball": tf.io.FixedLenFeature([], tf.string),
@@ -240,6 +241,9 @@ def get_dataset(directory: str, dataset_utils: u_dataset.DatasetUtils) -> tf.dat
             ),
             "intrinsics": tf.ensure_shape(
                 tf.io.parse_tensor(serialized_tensor["intrinsics"], out_type=tf.float32), [4]
+            ),
+            "ball_size": tf.ensure_shape(
+                tf.io.parse_tensor(serialized_tensor["ball_size"], out_type=tf.float32), [1]
             ),
             "ball": {
                 "object_mask": tf.ensure_shape(
@@ -387,6 +391,7 @@ def get_sample_at_index(batched_data: dict[str, tf.Tensor], index: int, keep_bat
         "image": maybe_batch_dim(batched_data["image"]),
         "camera": maybe_batch_dim(batched_data["camera"]),
         "intrinsics": maybe_batch_dim(batched_data["intrinsics"]),
+        "ball_size": maybe_batch_dim(batched_data["ball_size"]),
     }
 
     # Dynamically handle the object categories
@@ -399,12 +404,23 @@ def get_sample_at_index(batched_data: dict[str, tf.Tensor], index: int, keep_bat
                 "classification_mask": maybe_batch_dim(
                     batched_data[category]["classification_mask"]
                 )
-                if category in [u_dataset.CategoryNames.INTERSECTIONS.value, u_dataset.CategoryNames.ROBOT_BASE.value]
+                if category
+                in [
+                    u_dataset.CategoryNames.INTERSECTIONS.value,
+                    u_dataset.CategoryNames.ROBOT_BASE.value,
+                ]
                 else None,
             }
             for category in batched_data
             if category
-            not in ["name", "frame_time", "image", "camera", "intrinsics"]  # Skip non-object fields
+            not in [
+                "name",
+                "frame_time",
+                "image",
+                "camera",
+                "intrinsics",
+                "ball_size",
+            ]  # Skip non-object fields
         }
     )
 
@@ -525,6 +541,19 @@ def make_example(
                 tf.io.serialize_tensor(
                     tf.constant(intrinsics_from_label(label), dtype=tf.float32)
                     * ([*dataset_utils.config.image_res_scale[::-1]] * 2)
+                ).numpy(),
+            ]
+        )
+    )
+    ball_size_feature = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(sample["ball_size"]).numpy(),
+            ]
+            if from_sample
+            else [
+                tf.io.serialize_tensor(
+                    tf.constant([tf.io.serialize_tensor(label["ball_size"]).numpy()])
                 ).numpy(),
             ]
         )
@@ -761,6 +790,7 @@ def make_example(
             "image": image_feature,
             "camera": camera_feature,
             "intrinsics": intrinsics_feature,
+            "ball_size": ball_size_feature,
             # ball
             "object_ball": object_feature_ball,
             "offsets_ball": offset_feature_ball,
