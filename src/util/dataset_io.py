@@ -243,7 +243,7 @@ def get_dataset(directory: str, dataset_utils: u_dataset.DatasetUtils) -> tf.dat
                 tf.io.parse_tensor(serialized_tensor["intrinsics"], out_type=tf.float32), [4]
             ),
             "ball_size": tf.ensure_shape(
-                tf.io.parse_tensor(serialized_tensor["ball_size"], out_type=tf.float32), [1]
+                tf.io.parse_tensor(serialized_tensor["ball_size"], out_type=tf.float32), []
             ),
             "ball": {
                 "object_mask": tf.ensure_shape(
