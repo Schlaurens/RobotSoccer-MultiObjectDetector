@@ -551,11 +551,7 @@ def make_example(
                 tf.io.serialize_tensor(sample["ball_size"]).numpy(),
             ]
             if from_sample
-            else [
-                tf.io.serialize_tensor(
-                    tf.constant([tf.io.serialize_tensor(label["ball_size"]).numpy()])
-                ).numpy(),
-            ]
+            else [tf.io.serialize_tensor(tf.constant(label["ball_size"], dtype=tf.float32)).numpy()]
         )
     )
     object_feature_ball = tf.train.Feature(
