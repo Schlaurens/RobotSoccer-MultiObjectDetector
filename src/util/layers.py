@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
+from util import camera as u_camera
+
 
 class Normalization(tf.keras.layers.Layer):
     def __init__(
@@ -230,79 +232,178 @@ class PatchExtractor(tf.keras.layers.Layer):
         self.object_height = object_height
         self.interpolation = interpolation
 
-    @staticmethod
-    def to_rotation_matrix(camera):
-        """Converts the (roll, pitch, height) representation to a rotation matrix according to the rodrigues formula.
+    # @staticmethod
+    # def to_rotation_matrix(camera):
+    #     """Converts the (roll, pitch, height) representation to a rotation matrix according to the rodrigues formula.
 
-        :param camera: The extrinsic camera parameters (roll, pitch, height).
-            [B, 3]
-        :return: The corresponding rotation matrix.
-            [B, 3, 3]
-        """
-        angle = tf.math.reduce_euclidean_norm(camera[..., :2], axis=-1)
-        x = tf.math.divide_no_nan(camera[..., 0], angle)
-        y = tf.math.divide_no_nan(camera[..., 1], angle)
-        c, s = tf.cos(angle), tf.sin(angle)
-        return tf.stack(
-            [
-                tf.stack([x * x * (1 - c) + c, x * y * (1 - c), y * s], axis=-1),
-                tf.stack([y * x * (1 - c), y * y * (1 - c) + c, -x * s], axis=-1),
-                tf.stack([-y * s, x * s, c], axis=-1),
-            ],
-            axis=-2,
-        )
+    #     :param camera: The extrinsic camera parameters (roll, pitch, height).
+    #         [B, 3]
+    #     :return: The corresponding rotation matrix.
+    #         [B, 3, 3]
+    #     """
+    #     angle = tf.math.reduce_euclidean_norm(camera[..., :2], axis=-1)
+    #     x = tf.math.divide_no_nan(camera[..., 0], angle)
+    #     y = tf.math.divide_no_nan(camera[..., 1], angle)
+    #     c, s = tf.cos(angle), tf.sin(angle)
+    #     return tf.stack(
+    #         [
+    #             tf.stack([x * x * (1 - c) + c, x * y * (1 - c), y * s], axis=-1),
+    #             tf.stack([y * x * (1 - c), y * y * (1 - c) + c, -x * s], axis=-1),
+    #             tf.stack([-y * s, x * s, c], axis=-1),
+    #         ],
+    #         axis=-2,
+    #     )
+
+    # @tf.function
+    # def call_old(self, image, coords, camera, intrinsics, training=None):
+    # """Extracts patches of fixed size at given coordinates from an image.
+
+    # :param image: The full resolution image from which the patches are extracted.
+    #     [B, H_in, W_in, C]
+    # :param coords: The center coordinates (x, y) at which patches are extracted.
+    #     [B, N, 2]
+    # :param camera: The pose of the camera (roll, pitch, height).
+    #     [B, 3]
+    # :param intrinsics: The intrisics of the camera (cx, cy, fx, fy).
+    #     [B, 4]
+    # :param training:
+    # :return: The extracted scaled patches.
+    #     [B, N, H_out, W_out, C]
+    # :return: Indicates for each patch whether the center could be projected to the plane.
+    #     [B, N]
+    # """
+    #     # Calculate how big the object would be at each given point.
+    #     # Calculate camera rays. x-Axis points into the image.
+    #     camera_rays = tf.concat(
+    #         [
+    #             tf.ones_like(coords[..., :1]),
+    #             tf.math.divide_no_nan(
+    #                 (intrinsics[..., tf.newaxis, :2] - coords), intrinsics[..., tf.newaxis, 2:]
+    #             ),
+    #         ],
+    #         -1,
+    #     )  # [B, N, 3]
+
+    #     # get the rotation matrix for the camera rotation.
+    #     camera_rotation = self.to_rotation_matrix(camera)  # [B, 3, 3]
+
+    #     # Rotate the camera rays with the rotation matrix
+    #     rotated_camera_rays = tf.einsum(
+    #         "...ij,...nj->...ni", camera_rotation, camera_rays
+    #     )  # [B, N, 3]
+
+    #     # Calculate intersection point with ground
+    #     camera_height = tf.expand_dims(camera[..., 2], -1)  # [B, 1]
+    #     factors = tf.math.divide_no_nan(
+    #         (self.object_height - camera_height), rotated_camera_rays[..., 2]
+    #     )  # [B, N]
+
+    #     # True if coords could be projected on the plane. Else false.
+    #     masks = factors > 0  # [B, N]
+    #     positions_in_camera = factors[..., tf.newaxis] * rotated_camera_rays  # [B, N, 3]
+    #     distances_in_camera = tf.math.reduce_euclidean_norm(positions_in_camera, axis=-1)  # [B, N]
+    #     pixel_sizes = tf.math.divide_no_nan(
+    #         self.object_size * tf.expand_dims(intrinsics[..., 2], -1), distances_in_camera
+    #     )  # [B, N]
+
+    #     # Calculate bounding boxes (TODO: margin in pixels).
+    #     boxes = tf.concat(
+    #         [
+    #             coords - 0.5 * pixel_sizes[..., tf.newaxis],
+    #             coords + 0.5 * pixel_sizes[..., tf.newaxis],
+    #         ],
+    #         -1,
+    #     )  # [B, N, 4] (x1, y1, x2, y2)
+    #     maxcoord = tf.cast(tf.shape(image)[-3:-1] - 1, boxes.dtype)
+    #     boxes = tf.stack(
+    #         [
+    #             tf.math.divide_no_nan(boxes[..., 1], maxcoord[0]),
+    #             tf.math.divide_no_nan(boxes[..., 0], maxcoord[1]),
+    #             tf.math.divide_no_nan(boxes[..., 3], maxcoord[0]),
+    #             tf.math.divide_no_nan(boxes[..., 2], maxcoord[1]),
+    #         ],
+    #         axis=-1,
+    #     )  # [B, N, 4]
+    #     boxes = tf.reshape(boxes, (-1, 4))
+    #     box_indices = tf.repeat(tf.range(tf.shape(coords)[0]), tf.shape(coords)[1])
+
+    #     boxes_no_nan = tf.where(tf.math.is_nan(boxes), 0.0, boxes)
+
+    #     # if tf.reduce_any(tf.math.is_nan(boxes)):
+    #     #     tf.print("Boxes with nan: ", boxes)
+    #     #     tf.print("Boxes_no_nan: ", boxes_no_nan)
+
+    #     # Extract patches from image
+    #     patches = tf.image.crop_and_resize(
+    #         image,
+    #         boxes_no_nan,
+    #         box_indices,
+    #         self.patch_size,
+    #         method=self.interpolation,
+    #         extrapolation_value=127.5,
+    #     )  # [B*N, H_out, W_out, C]
+    #     patches = tf.reshape(
+    #         patches, tf.concat([tf.shape(masks), tf.shape(patches)[-3:]], -1)
+    #     )  # [B, N, H_out, W_out, C]
+
+    #     return (patches, boxes, distances_in_camera, pixel_sizes)
 
     @tf.function
     def call(self, image, coords, camera, intrinsics, training=None):
         """Extracts patches of fixed size at given coordinates from an image.
 
-        :param image: The full resolution image from which the patches are extracted.
-            [B, H_in, W_in, C]
-        :param coords: The center coordinates (x, y) at which patches are extracted.
-            [B, N, 2]
-        :param camera: The pose of the camera (roll, pitch, height).
-            [B, 3]
-        :param intrinsics: The intrisics of the camera (cx, cy, fx, fy).
-            [B, 4]
-        :param training:
-        :return: The extracted scaled patches.
-            [B, N, H_out, W_out, C]
-        :return: Indicates for each patch whether the center could be projected to the plane.
-            [B, N]
+        Args:
+            image: The full resolution image from which the patches are extracted.
+                (B, H_in, W_in, C)
+            coords: The center coordinates (x, y) at which patches are extracted.
+                (B, N, 2)
+            camera: The pose of the camera (roll, pitch, height).
+                (B, 3)
+            intrinsics: The intrisics of the camera (cx, cy, fx, fy).
+                (B, 4)
+            training:
+
+        Returns:
+            A tuple containing:
+                - The extracted scaled patches. (B, N, H_out, W_out, C)
+                - Indicates for each patch whether the center could be projected
+                to the plane. (B, N)
         """
-        # Calculate how big the object would be at each given point.
-        # Calculate camera rays. x-Axis points into the image.
-        camera_rays = tf.concat(
-            [
-                tf.ones_like(coords[..., :1]),
-                tf.math.divide_no_nan(
-                    (intrinsics[..., tf.newaxis, :2] - coords), intrinsics[..., tf.newaxis, 2:]
-                ),
-            ],
-            -1,
-        )  # [B, N, 3]
+        B = tf.shape(coords)[0]
+        N = tf.shape(coords)[1]
 
-        # get the rotation matrix for the camera rotation.
-        camera_rotation = self.to_rotation_matrix(camera)  # [B, 3, 3]
+        coords_flat = tf.reshape(coords, (-1, 2))  # (B * N, 2)
+        camera_flat = tf.reshape(
+            tf.repeat(camera[:, tf.newaxis, :], N, axis=1), (-1, 3)
+        )  # (B * N, 3)
+        intr_flat = tf.reshape(
+            tf.repeat(intrinsics[:, tf.newaxis, :], N, axis=1), (-1, 4)
+        )  # (B * N, 4)
 
-        # Rotate the camera rays with the rotation matrix
-        rotated_camera_rays = tf.einsum(
-            "...ij,...nj->...ni", camera_rotation, camera_rays
-        )  # [B, N, 3]
+        # image_to_world halves object_height internally, so pass 2 * self.object_height
+        # to get an actual plane height of self.object_height above the ground.
+        position_rel_to_camera = u_camera.image_to_world(
+            camera_flat, intr_flat, coords_flat, self.object_height
+        )  # (B * N, 3)
 
-        # Calculate intersection point with ground
-        camera_height = tf.expand_dims(camera[..., 2], -1)  # [B, 1]
-        factors = tf.math.divide_no_nan(
-            (self.object_height - camera_height), rotated_camera_rays[..., 2]
-        )  # [B, N]
+        distances_in_camera = tf.reshape(
+            tf.keras.ops.norm(position_rel_to_camera, axis=-1), (B, N)
+        )  # (B, N)
 
-        # True if coords could be projected on the plane. Else false.
-        masks = factors > 0  # [B, N]
-        positions_in_camera = factors[..., tf.newaxis] * rotated_camera_rays  # [B, N, 3]
-        distances_in_camera = tf.math.reduce_euclidean_norm(positions_in_camera, axis=-1)  # [B, N]
-        pixel_sizes = tf.math.divide_no_nan(
-            self.object_size * tf.expand_dims(intrinsics[..., 2], -1), distances_in_camera
-        )  # [B, N]
+        # image_to_world encodes "could not be projected" as the sentinel [-1, -1, -1].
+        masks = tf.reshape(
+            ~tf.reduce_all(tf.equal(position_rel_to_camera, -1.0), axis=-1), (B, N)
+        )  # (B, N)
+
+        pixel_sizes = tf.reshape(
+            u_camera.sphere_patch_side_px(
+                D=tf.reshape(distances_in_camera, (-1,)),
+                radius=self.object_size / 2.0,
+                camera_intr=intr_flat,
+                point_in_image=coords_flat,
+            ),
+            (B, N),
+        )  # (B, N)
 
         # Calculate bounding boxes (TODO: margin in pixels).
         boxes = tf.concat(
@@ -311,7 +412,7 @@ class PatchExtractor(tf.keras.layers.Layer):
                 coords + 0.5 * pixel_sizes[..., tf.newaxis],
             ],
             -1,
-        )  # [B, N, 4] (x1, y1, x2, y2)
+        )  # (B, N, 4) (x1, y1, x2, y2)
         maxcoord = tf.cast(tf.shape(image)[-3:-1] - 1, boxes.dtype)
         boxes = tf.stack(
             [
@@ -321,17 +422,12 @@ class PatchExtractor(tf.keras.layers.Layer):
                 tf.math.divide_no_nan(boxes[..., 2], maxcoord[1]),
             ],
             axis=-1,
-        )  # [B, N, 4]
+        )  # (B, N, 4)
         boxes = tf.reshape(boxes, (-1, 4))
         box_indices = tf.repeat(tf.range(tf.shape(coords)[0]), tf.shape(coords)[1])
 
         boxes_no_nan = tf.where(tf.math.is_nan(boxes), 0.0, boxes)
 
-        # if tf.reduce_any(tf.math.is_nan(boxes)):
-        #     tf.print("Boxes with nan: ", boxes)
-        #     tf.print("Boxes_no_nan: ", boxes_no_nan)
-
-        # Extract patches from image
         patches = tf.image.crop_and_resize(
             image,
             boxes_no_nan,
@@ -339,10 +435,10 @@ class PatchExtractor(tf.keras.layers.Layer):
             self.patch_size,
             method=self.interpolation,
             extrapolation_value=127.5,
-        )  # [B*N, H_out, W_out, C]
+        )  # (B * N, H_out, W_out, C)
         patches = tf.reshape(
             patches, tf.concat([tf.shape(masks), tf.shape(patches)[-3:]], -1)
-        )  # [B, N, H_out, W_out, C]
+        )  # (B, N, H_out, W_out, C)
 
         return (patches, boxes, distances_in_camera, pixel_sizes)
 

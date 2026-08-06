@@ -97,7 +97,6 @@ def image_to_world(
     invalid_mask = tf.reduce_all(point_in_image == -1.0, axis=-1)  # Shape: (B,)
 
     camera_height = camera[..., 2]  # [B, ]
-    object_height = 0.5 * object_height
 
     dir_in_camera = tf.concat(
         [
