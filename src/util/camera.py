@@ -74,7 +74,7 @@ def image_to_world(
         camera: A tuple of camera roll, pitch and height (B, 3)
         camera_intr: the intrinsic camera parameters (cx, cy, fx, fy) (B, 4)
         point_in_image: A tuple of the image coordinates (x, y) (B, 2)
-        object_size: The size of the object that the image coordinates point to (in m). Defaults to 0.0.
+        object_height: The height of the center of the object that the image coordinates point to (in m). Defaults to 0.0.
 
     Returns:
         A vector in world coordinates of the given point. If a coordinate pair is invalid (is [-1, -1]) then the result is a 3d-Vector of [-1, -1, -1].  (B, 3)
@@ -227,7 +227,7 @@ def project_sphere_bbox_square(image_coords, object_size, camera, camera_intr):
     # here yields a plane at height object_size/2 = radius, i.e. the sphere's
     # center, assuming it rests on the ground.
     position_rel_to_camera = image_to_world(
-        camera, camera_intr, image_coords, object_height=object_size
+        camera, camera_intr, image_coords, object_height=object_size / 2.0
     )  # (B, 3) - displacement from camera to the point, in world frame
     D = keras.ops.norm(position_rel_to_camera, axis=-1)  # (B,)
 
