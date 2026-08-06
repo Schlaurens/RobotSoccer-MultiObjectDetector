@@ -162,7 +162,7 @@ def rot_camera_in_world(camera):
     )
 
 
-def project_sphere_bbox_square(center_world, radius, camera, camera_intr, point_in_image):
+def project_sphere_bbox_square_old(center_world, radius, camera, camera_intr, point_in_image):
     """
     Forward-project a sphere's true silhouette extents, then build a square
     patch centered exactly on the given 2D point, sized to contain the ball.
@@ -199,7 +199,7 @@ def project_sphere_bbox_square(center_world, radius, camera, camera_intr, point_
 
     # Get distance to point in world
     D = tf.linalg.norm(center_world, axis=-1)
-    
+
     alpha = tf.asin(tf.clip_by_value(radius / D, -1.0, 1.0))  # angular radius of ball (B,)
 
     # Angular height and width of the patch
@@ -215,6 +215,89 @@ def project_sphere_bbox_square(center_world, radius, camera, camera_intr, point_
     half_side = side_px / 2.0
 
     x_center, y_center = tf.unstack(point_in_image, axis=-1)  # exact given center
+
+    x_left = x_center - half_side
+    x_right = x_center + half_side
+    y_top = y_center - half_side
+    y_bottom = y_center + half_side
+
+    return tf.stack([x_left, x_right, y_top, y_bottom], axis=-1)
+
+
+def sphere_patch_side_px(D, radius, camera_intr, point_in_image):
+    """
+    Core tangent-cone sizing math, decoupled from batch/point rank.
+
+    Computes the side length (in pixels) of a square box guaranteed to
+    contain the projected silhouette of a sphere of the given radius,
+    sitting at distance D from the camera, centered at point_in_image.
+
+    All arguments must be broadcastable against each other:
+    D, radius:      (...,)   distance / real-world radius (radius may be a
+                            python/tf scalar)
+    camera_intr:    (..., 4) cx, cy, fx, fy — broadcastable to point_in_image's
+                            leading (non-coordinate) dims
+    point_in_image: (..., 2) pixel coordinates (x, y)
+
+    Returns: (...,) side length in pixels, matching point_in_image's leading dims
+    """
+    x, y = tf.unstack(point_in_image, axis=-1)
+    cx, cy, fx, fy = tf.unstack(camera_intr, axis=-1)
+
+    alpha = tf.asin(tf.clip_by_value(tf.math.divide_no_nan(radius, D), -1.0, 1.0))
+
+    theta_c = tf.atan(tf.math.divide_no_nan(cx - x, fx))
+    phi_c = tf.atan(tf.math.divide_no_nan(cy - y, fy))
+
+    width_px = tf.abs(fx * tf.tan(theta_c + alpha) - fx * tf.tan(theta_c - alpha))
+    height_px = tf.abs(fy * tf.tan(phi_c + alpha) - fy * tf.tan(phi_c - alpha))
+
+    return tf.maximum(width_px, height_px)
+
+
+def project_sphere_bbox_square(image_coords, object_size, camera, camera_intr):
+    """
+    Forward-project a sphere's true silhouette extents, then build a square
+    patch centered exactly on the given 2D point, sized to contain the ball.
+
+    Assumes the sphere rests on the ground, so its center sits at height
+    object_size / 2 above the ground plane.
+
+    image_coords: (B, 2) - the original predicted center point (x, y),
+                used as the exact center of the output square
+    object_size: float - real-world diameter of the sphere (m)
+    camera: (B, 3) - roll, pitch, height
+    camera_intr: (B, 4) - cx, cy, fx, fy
+
+    Returns: (B, 4) - (x_left, x_right, y_top, y_bottom) of the square patch
+    """
+    if isinstance(image_coords, list | tuple):
+        image_coords = keras.ops.convert_to_tensor(image_coords, dtype=tf.float32)
+        if len(keras.ops.shape(image_coords)) == 1:
+            image_coords = keras.ops.expand_dims(image_coords, axis=0)
+    if isinstance(camera, list | tuple):
+        camera = keras.ops.convert_to_tensor(camera, dtype=tf.float32)
+        if len(keras.ops.shape(camera)) == 1:
+            camera = keras.ops.expand_dims(camera, axis=0)
+    if isinstance(camera_intr, list | tuple):
+        camera_intr = keras.ops.convert_to_tensor(camera_intr, dtype=tf.float32)
+        if len(keras.ops.shape(camera_intr)) == 1:
+            camera_intr = keras.ops.expand_dims(camera_intr, axis=0)
+
+    radius = object_size / 2.0
+
+    # image_to_world halves object_height internally, so passing object_size
+    # here yields a plane at height object_size/2 = radius, i.e. the sphere's
+    # center, assuming it rests on the ground.
+    position_rel_to_camera = image_to_world(
+        camera, camera_intr, image_coords, object_height=object_size
+    )  # (B, 3) - displacement from camera to the point, in world frame
+    D = keras.ops.norm(position_rel_to_camera, axis=-1)  # (B,)
+
+    side_px = sphere_patch_side_px(D, radius, camera_intr, image_coords)  # (B,)
+    half_side = side_px / 2.0
+
+    x_center, y_center = tf.unstack(image_coords, axis=-1)
 
     x_left = x_center - half_side
     x_right = x_center + half_side

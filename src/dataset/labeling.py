@@ -309,12 +309,12 @@ class LabelApplication:
             ball_size = self.labels[current]["ball_size"]
 
             # Transform camera coords to world coords
-            data_in_world = u_camera.image_to_world(
-                camera, camera_intr, (event.xdata, event.ydata), object_height=ball_size
-            )
+            # data_in_world = u_camera.image_to_world(
+            #     camera, camera_intr, (event.xdata, event.ydata), object_height=ball_size
+            # )
             ballbbox = tf.squeeze(
                 u_camera.project_sphere_bbox_square(
-                    data_in_world, ball_size / 2, camera, camera_intr, (event.xdata, event.ydata)
+                    (event.xdata, event.ydata), ball_size, camera, camera_intr
                 )
             )
 
