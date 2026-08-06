@@ -34,9 +34,9 @@ training:
 
 categories:
   ball:
-    object_size: 0.175
+    object_size: 0.3
     padding: 0
-    object_height: 0.05
+    object_height: 0.11
     n_classes: 1
     n_candidates: 5
     max_distance: 6.0
