@@ -38,6 +38,8 @@ class LabelApplication:
         self.label_mode = LabelMode.BALL
         self.augmentation = False
 
+        self.robot_base_diameter = 0.45  # meters
+
         self.fig = plt.figure(figsize=(12, 8), num="Label Tool")
         self.gs = gridspec.GridSpec(10, 4, figure=self.fig)
 
@@ -163,6 +165,34 @@ class LabelApplication:
             robot_bases = u_labels.get_robot_base(labels)
             for state in u_labels.RobotState:
                 for base in robot_bases[state.value]:
+                    robotbbox = tf.squeeze(
+                        u_camera.project_sphere_bbox_square(
+                            (base["x"], base["y"]),
+                            self.robot_base_diameter,
+                            u_dataset_io.camera_from_label(labels),
+                            u_dataset_io.intrinsics_from_label(labels),
+                        )
+                    )
+
+                    robot_radius = float(
+                        max(
+                            robotbbox[..., 3] - robotbbox[..., 2],
+                            robotbbox[..., 1] - robotbbox[..., 0],
+                        )
+                        / 2
+                    )
+                    self.patches.append(
+                        self.ax_img.add_patch(
+                            plt.Rectangle(
+                                [base["x"] - robot_radius, base["y"] - robot_radius],
+                                robot_radius * 2,
+                                robot_radius * 2,
+                                color="darkviolet",
+                                fill=False,
+                            )
+                        )
+                    )
+
                     self.patches.append(
                         self.ax_img.add_patch(
                             plt.Circle((base["x"], base["y"]), 2, color="darkviolet", fill=True)
@@ -308,16 +338,11 @@ class LabelApplication:
             camera = u_dataset_io.camera_from_label(self.labels[current])
             ball_size = self.labels[current]["ball_size"]
 
-            # Transform camera coords to world coords
-            # data_in_world = u_camera.image_to_world(
-            #     camera, camera_intr, (event.xdata, event.ydata), object_height=ball_size
-            # )
             ballbbox = tf.squeeze(
                 u_camera.project_sphere_bbox_square(
                     (event.xdata, event.ydata), ball_size, camera, camera_intr
                 )
             )
-
             radius = float(
                 max(ballbbox[..., 3] - ballbbox[..., 2], ballbbox[..., 1] - ballbbox[..., 0]) / 2
             )
