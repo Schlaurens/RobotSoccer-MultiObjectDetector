@@ -42,12 +42,14 @@ class EvaluateApplication:
         self.categories = self.config["categories"]
 
         self.categories["ball"]["max_distance"] = distance
-        self.categories["penaltyMark"]["max_distance"] = distance
-        self.categories["intersections"]["max_distance"] = distance
+        # self.categories["penaltyMark"]["max_distance"] = distance
+        # self.categories["intersections"]["max_distance"] = distance
+        self.categories["robotBase"]["max_distance"] = distance
 
         self.categories["ball"]["n_candidates"] = 5
-        self.categories["penaltyMark"]["n_candidates"] = 4
-        self.categories["intersections"]["n_candidates"] = 11
+        # self.categories["penaltyMark"]["n_candidates"] = 4
+        # self.categories["intersections"]["n_candidates"] = 11
+        self.categories["robotBase"]["n_candidates"] = 11
 
         input_dims = self.config["model"]["cpn"]["input_dims"]
         cell_dims = self.config["model"]["cpn"]["cell_dims"]
@@ -59,12 +61,8 @@ class EvaluateApplication:
             u_dataset_io.get_dataset(data_path, self.dataset_utils).as_numpy_iterator()
         )
 
-        self.full_utils = u_dataset.DatasetUtils(u_dataset.DatasetConfig())
-        self.full_data = list(
-            u_dataset_io.get_dataset(
-                "data/tfrecords/640x480/test_ds_1840(0.15).tfrecords", self.full_utils
-            ).as_numpy_iterator()
-        )
+        self.full_utils = self.dataset_utils
+        self.full_data = self.data
 
         path_to_model = self.get_model_path()
 
@@ -78,6 +76,7 @@ class EvaluateApplication:
                 "ball": 0.01,
                 "penaltyMark": 0.01,
                 "intersections": 0.01,
+                "robotBase": 0.01,
             },
             # "classifier": {
             #     "ball": 1.0,
@@ -92,6 +91,7 @@ class EvaluateApplication:
                 "ball": 1.0,
                 "penaltyMark": 1.0,
                 "intersections": 0.9595959782600403,
+                "robotBase": 1.0,
             },
         }
 
@@ -149,39 +149,60 @@ class EvaluateApplication:
             )
 
             output_logits = output["results"][category]["logits"][0].numpy()
-            self.images[f"im_ax_{category}"].set_data(
-                np.reshape(output_logits, self.dataset_utils.config.output_dims)
+            # self.images[f"im_ax_{category}"].set_data(
+            #     np.reshape(output_logits, self.dataset_utils.config.output_dims)
+            # )
+
+            output_logits_sampled = tf.gather(
+                tf.reshape(output_logits, [-1]),
+                output["results"][category]["patch_indices"][0],
             )
-            iou_threshold = 0.35
-            processed_predictions = u_metrics.handle_predictions(
-                output["results"][category],
-                self.thresholds["cpn"][category],
-                self.thresholds["classifier"][category],
-                iou_threshold,
+            scatter_indices = tf.expand_dims(
+                output["results"][category]["patch_indices"][0], axis=1
+            )
+            result_flat = tf.scatter_nd(
+                scatter_indices,
+                output_logits_sampled,
+                [tf.reduce_prod(self.dataset_utils.config.output_dims)],
             )
 
-            if category in [
-                u_dataset.CategoryNames.BALL.value,
-                u_dataset.CategoryNames.PENALTYMARK.value,
-            ]:
-                self.images[f"im_ax_{category}_result"] = self.get_best_patch(
-                    self.axes[f"ax_{category}_result"],
+            self.images[f"im_ax_{category}"].set_data(
+                np.reshape(result_flat, self.dataset_utils.config.output_dims)
+            )
+
+            self.images[f"im_ax_{category}_gt"].set_data(
+                self.data[self.index][category]["object_mask"]
+            )
+
+            if self.config["model"]["classifier"]["train_classifier"]:
+                iou_threshold = 0.35
+                processed_predictions = u_metrics.handle_predictions(
+                    output["results"][category],
+                    self.thresholds["cpn"][category],
+                    self.thresholds["classifier"][category],
+                    iou_threshold,
+                )
+
+                if category in [
+                    u_dataset.CategoryNames.BALL.value,
+                    u_dataset.CategoryNames.PENALTYMARK.value,
+                ]:
+                    self.images[f"im_ax_{category}_result"] = self.get_best_patch(
+                        self.axes[f"ax_{category}_result"],
+                        output["results"][category],
+                        processed_predictions,
+                        category,
+                    )
+
+                self.images[f"im_ax_{category}_patches"].set_data(image_rgb)
+
+                self.draw_patch_candidates(
+                    image_rgb,
+                    self.axes[f"ax_{category}_patches"],
                     output["results"][category],
                     processed_predictions,
                     category,
                 )
-            self.images[f"im_ax_{category}_gt"].set_data(
-                self.data[self.index][category]["object_mask"]
-            )
-            self.images[f"im_ax_{category}_patches"].set_data(image_rgb)
-
-            self.draw_patch_candidates(
-                image_rgb,
-                self.axes[f"ax_{category}_patches"],
-                output["results"][category],
-                processed_predictions,
-                category,
-            )
 
     def get_best_patch(self, axes, output, processed_predictions, object_name):
         """Find the best candidate and draw the patch with the predicted object position in the gives pyplot axes.
@@ -354,8 +375,8 @@ class EvaluateApplication:
         model = FullModel.load(
             cpn_architecture=config["model"]["cpn"]["architecture"],
             classifier_architecture=config["model"]["classifier"]["architecture"],
-            input_dims=config["model"]["cpn"]["input_dims"],
-            cell_dims=config["model"]["cpn"]["input_dims"],
+            input_dims=config["model"]["cpn"]["input_dims"] // np.array((1, 2)),
+            cell_dims=config["model"]["cpn"]["cell_dims"],
             cpn_channels=config["model"]["cpn"]["channels_in"],
             filepath=path_to_model,
             filename=model_name,
@@ -366,8 +387,6 @@ class EvaluateApplication:
             cpn_only=False,
             verbose=True,
             n_meta=config["model"]["classifier"]["n_meta"],
-            cpn_use_batch_norm=config["model"]["cpn"]["use_batch_norm"],
-            classifier_use_batch_norm=config["model"]["classifier"]["use_batch_norm"],
             categories_config=config["categories"],
         )
         model.compile(optimizer=tf.keras.optimizers.Adam(), jit_compile=False)
@@ -376,7 +395,7 @@ class EvaluateApplication:
     def initialize_figures(self):
         print("Initializing Figures...")
         self.fig = plt.figure(figsize=(15, 8))
-        self.gs = GridSpec(16, 18, figure=self.fig)
+        self.gs = GridSpec(20, 18, figure=self.fig)
 
         # Define subplot configurations
         subplot_configs = [
@@ -385,6 +404,11 @@ class EvaluateApplication:
             {
                 "name": "intersections",
                 "rows": [10, 14],
+                "cols": [[0, 5], [5, 10], [10, 15]],
+            },
+            {
+                "name": "robotBase",
+                "rows": [15, 19],
                 "cols": [[0, 5], [5, 10], [10, 15]],
             },
         ]
@@ -423,6 +447,12 @@ class EvaluateApplication:
                 "label": "cpn",
             },
             {
+                "type": "cpn",
+                "name": "robotBase",
+                "pos": [0.1, 0.22, 0.0225, 0.16],
+                "label": "cpn",
+            },
+            {
                 "type": "classifier",
                 "name": "ball",
                 "pos": [0.075, 0.71, 0.0225, 0.16],
@@ -437,6 +467,12 @@ class EvaluateApplication:
             {
                 "type": "classifier",
                 "name": "intersections",
+                "pos": [0.075, 0.22, 0.0225, 0.16],
+                "label": "cla",
+            },
+            {
+                "type": "classifier",
+                "name": "robotBase",
                 "pos": [0.075, 0.22, 0.0225, 0.16],
                 "label": "cla",
             },
@@ -460,7 +496,7 @@ class EvaluateApplication:
             )
 
         # Image slider
-        self.ax_slider_image = self.fig.add_subplot(self.gs[15, :])
+        self.ax_slider_image = self.fig.add_subplot(self.gs[19, :])
         self.slider_image = Slider(
             self.ax_slider_image,
             "Index",
@@ -484,9 +520,10 @@ class EvaluateApplication:
             )
             self.images[f"im_ax_{name}"] = self.axes[f"ax_{name}"].imshow(stuff)
             self.images[f"im_ax_{name}_gt"] = self.axes[f"ax_{name}_gt"].imshow(stuff)
-            if (
-                name != u_dataset.CategoryNames.INTERSECTIONS.value
-            ):  # Intersectios don't have a results patch axis.
+            if name not in [
+                u_dataset.CategoryNames.INTERSECTIONS.value,
+                u_dataset.CategoryNames.ROBOT_BASE.value,
+            ]:  # Mutti-Class categories don't have a results patch axis.
                 self.images[f"im_ax_{name}_result"] = self.axes[f"ax_{name}_result"].imshow(
                     stuff_patch
                 )
