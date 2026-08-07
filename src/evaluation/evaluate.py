@@ -138,6 +138,7 @@ class EvaluateApplication:
                 "image": self.data[self.index]["image"][None, ...],
                 "camera": self.data[self.index]["camera"][None, ...],
                 "intrinsics": self.data[self.index]["intrinsics"][None, ...],
+                "ball_size": self.data[self.index]["ball_size"][None, ...],
             },
             training=False,
         )
