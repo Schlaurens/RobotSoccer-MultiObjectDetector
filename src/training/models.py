@@ -74,7 +74,8 @@ class FullModel(tf.keras.Model):
             if categories_config is not None
             else {
                 "ball": {
-                    "object_size": 0.175,
+                    "object_size": 0.22,
+                    "size_margin": 0.08,
                     "object_height": 0.05,
                     "n_classes": 1,
                     "n_candidates": 5,
@@ -89,6 +90,7 @@ class FullModel(tf.keras.Model):
             value["extractor"] = PatchExtractor(
                 self.patch_size,
                 value["object_size"],
+                value["size_margin"],
                 value.get("object_height", 0),
             )  # The patch extractor for the category with the fixed object parameters
             if self.train_classifier:
@@ -748,6 +750,8 @@ class FullModel(tf.keras.Model):
         full_image = batch_data["image"]
         camera = batch_data["camera"]
         intrinsics = batch_data["intrinsics"]
+        ball_size = batch_data["ball_size"]
+        annotated_ball_radius = batch_data[u_dataset.CategoryNames.BALL.value]["annotated_radius"]
 
         image_grayscale = u_image.convert_yuyv_to_yuv(full_image)[..., 0:1]  # (B, W_in, H_in, 1)
 
@@ -783,6 +787,8 @@ class FullModel(tf.keras.Model):
                 camera,
                 intrinsics,
                 value["object_height"],
+                ball_size if key == u_dataset.CategoryNames.BALL.value else None,
+                annotated_ball_radius if key == u_dataset.CategoryNames.BALL.value else None,
                 maps[f"{key}_interest"],
                 maps[f"{key}_offsets"],
                 context,
@@ -805,6 +811,8 @@ class FullModel(tf.keras.Model):
         camera,
         intrinsics,
         object_height,
+        ball_size,
+        annotated_ball_radius,
         logits,
         offsets,
         context,
@@ -869,8 +877,16 @@ class FullModel(tf.keras.Model):
             noise = tf.random.normal(tf.shape(coords), mean=0.0, stddev=0.8)
             coords = coords + noise
 
+        if annotated_ball_radius is not None:
+            # (B, 1) -> (B, N_out), broadcast per-sample radius to every sampled patch
+            annotated_radius_px = tf.repeat(
+                annotated_ball_radius, tf.shape(coords)[1], axis=1
+            )  # (B, N_out), still in meters despite the name — projected inside extractor
+        else:
+            annotated_radius_px = None
+
         (patches, boxes, distances_in_camera, pixel_sizes) = extractor(
-            image, coords, camera, intrinsics, training=training
+            image, coords, camera, intrinsics, ball_size, annotated_radius_px, training=training
         )  # [B, N_out, H_out, W_out, C], [B, N_out]
 
         boxes = tf.reshape(boxes, (tf.shape(intrinsics)[0], sampler.n_sample, 4))  # (B, N, 4)

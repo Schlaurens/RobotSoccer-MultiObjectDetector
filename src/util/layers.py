@@ -210,9 +210,11 @@ class PatchExtractor(tf.keras.layers.Layer):
         self,
         patch_size: tuple[int] | list[int] = (32, 32),
         object_size: float = 0.2,
+        size_margin: float = 0.0,
         object_height: float = 0,
         interpolation: str = "nearest",
         name: str = "patch_extractor",
+        flying_size_diff_threshold_px: float = 15.0,
         **kwargs,
     ):
         """This layer extracts patches from an image. The center coordinates are given,
@@ -225,12 +227,15 @@ class PatchExtractor(tf.keras.layers.Layer):
         :param object_height: The height of the object center above the ground in meters.
         :param interpolation: The interpolation method to use when up/downsampling the patch.
         :param name: The name of the layer.
+        :param flying_size_diff_threshold_px: The threshold for the difference in size of flying objects in pixels.
         """
         super().__init__(name=name, **kwargs)
         self.patch_size = tf.constant(patch_size, dtype=tf.int32)
         self.object_size = object_size
+        self.size_margin = size_margin
         self.object_height = object_height
         self.interpolation = interpolation
+        self.flying_size_diff_threshold_px = flying_size_diff_threshold_px
 
     # @staticmethod
     # def to_rotation_matrix(camera):
@@ -349,7 +354,16 @@ class PatchExtractor(tf.keras.layers.Layer):
     #     return (patches, boxes, distances_in_camera, pixel_sizes)
 
     @tf.function
-    def call(self, image, coords, camera, intrinsics, training=None):
+    def call(
+        self,
+        image,
+        coords,
+        camera,
+        intrinsics,
+        object_size=None,
+        annotated_ball_radius_px=None,
+        training=None,
+    ):
         """Extracts patches of fixed size at given coordinates from an image.
 
         Args:
@@ -361,6 +375,15 @@ class PatchExtractor(tf.keras.layers.Layer):
                 (B, 3)
             intrinsics: The intrisics of the camera (cx, cy, fx, fy).
                 (B, 4)
+            object_size: Optional per-instance real-world object diameter
+                (m), e.g. from ground-truth annotations. Falls back to
+                `self.object_size` (broadcast to all points) when None or 0.0.
+                (B, N) or None.
+            annotated_ball_radius_px: Optional ground-truth apparent ball radius per
+                point, e.g. from training annotations. Where the geometric,
+                ground-plane-assumption pixel size deviates from this by more
+                than `flying_size_diff_threshold_px`, the object is treated as
+                flying and this value is used instead. (B, N) or None.
             training:
 
         Returns:
@@ -395,15 +418,58 @@ class PatchExtractor(tf.keras.layers.Layer):
             ~tf.reduce_all(tf.equal(position_rel_to_camera, -1.0), axis=-1), (B, N)
         )  # (B, N)
 
-        pixel_sizes = tf.reshape(
+        # Per-instance object diameter, defaulting to the layer-level constant.
+        if object_size is None:
+            object_size = tf.fill((B, N), tf.cast(self.object_size, tf.float32))
+        else:
+            object_size = tf.where(
+                object_size > 0.0, object_size, tf.cast(self.object_size, object_size.dtype)
+            )
+
+        object_size_flat = tf.reshape(object_size, (-1,))  # (B * N,)
+
+        D_flat = tf.reshape(distances_in_camera, (-1,))  # (B * N,)
+
+        # True (unpadded) geometric size — used only for the flying comparison.
+        true_pixel_sizes = tf.reshape(
             u_camera.sphere_patch_side_px(
-                D=tf.reshape(distances_in_camera, (-1,)),
-                radius=self.object_size / 2.0,
+                D=D_flat,
+                radius=object_size_flat / 2.0,
                 camera_intr=intr_flat,
                 point_in_image=coords_flat,
             ),
             (B, N),
         )  # (B, N)
+
+        # Padded geometric size — used for the actual extracted patch.
+        padded_pixel_sizes = tf.reshape(
+            u_camera.sphere_patch_side_px(
+                D=D_flat,
+                radius=(object_size_flat + self.size_margin) / 2.0,
+                camera_intr=intr_flat,
+                point_in_image=coords_flat,
+            ),
+            (B, N),
+        )  # (B, N)
+
+        pixel_sizes = padded_pixel_sizes
+
+        # Flying-object override: compare TRUE sizes, but fall back to the
+        # (margin-padded) annotated size so the box is still safely oversized.
+        # An object also counts as "flying" if no ground intersection exists at
+        # all (masks == False) — in that case the geometric estimate is
+        # meaningless, not just inaccurate.
+        if annotated_ball_radius_px is not None and self.flying_size_diff_threshold_px is not None:
+            annotation_valid = annotated_ball_radius_px > 0.0  # (B, N)
+            size_diff = tf.abs(true_pixel_sizes - 2.0 * tf.abs(annotated_ball_radius_px))
+            is_flying = (
+                annotation_valid & tf.cast(size_diff > self.flying_size_diff_threshold_px, tf.bool)
+                | ~masks
+            )  # (B, N)
+            fallback_size = tf.where(
+                annotation_valid, 3.0 * annotated_ball_radius_px, padded_pixel_sizes
+            )
+            pixel_sizes = tf.where(is_flying, fallback_size, pixel_sizes)
 
         # Calculate bounding boxes (TODO: margin in pixels).
         boxes = tf.concat(
