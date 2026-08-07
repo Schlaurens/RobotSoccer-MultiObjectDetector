@@ -1,0 +1,6 @@
+outs:
+- md5: 9739426357131f59ebfa5f29d8510881.dir
+  size: 1645751
+  nfiles: 9
+  hash: md5
+  path: finished
