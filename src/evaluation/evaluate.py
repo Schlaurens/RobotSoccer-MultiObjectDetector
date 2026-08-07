@@ -274,7 +274,10 @@ class EvaluateApplication:
 
     def draw_patch_candidates(self, image, axes, output, processed_predictions, object_name):
         suppressed_indices = []
-        if object_name == u_dataset.CategoryNames.INTERSECTIONS.value:
+        if object_name in [
+            u_dataset.CategoryNames.INTERSECTIONS.value,
+            u_dataset.CategoryNames.ROBOT_BASE.value,
+        ]:
             suppressed_indices = tf.slice(
                 processed_predictions["nms_selected_indices"][0],
                 tf.constant([0]),
@@ -294,9 +297,13 @@ class EvaluateApplication:
             ):
                 continue
 
-            # Apply nms for intersections
+            # Apply nms for multi-class categories
             if (
-                object_name == u_dataset.CategoryNames.INTERSECTIONS.value
+                object_name
+                in [
+                    u_dataset.CategoryNames.INTERSECTIONS.value,
+                    u_dataset.CategoryNames.ROBOT_BASE.value,
+                ]
                 and i not in suppressed_indices
             ):
                 continue
