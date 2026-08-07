@@ -51,7 +51,7 @@ class FullModel(tf.keras.Model):
         # Classifier config
         self.classifier_architecture = classifier_architecture
         self.patch_size = [32, 32]
-        self.patch_channels = 1
+        self.patch_channels = 3
         self.train_classifier = train_classifier
         self.n_meta = n_meta
         self.classifier_offsets = classifier_offsets
@@ -776,6 +776,8 @@ class FullModel(tf.keras.Model):
         # Convert image to grayscale if only one channel is requested.
         if self.patch_channels == 1:
             full_image = image_grayscale
+        elif self.patch_channels == 3 and self.cpn_channels == 4:
+            full_image = u_image.convert_yuyv_to_yuv(full_image)[..., 0:3]  # (B, W_in, H_in, 3)
 
         context = None
         if "context" in maps:
