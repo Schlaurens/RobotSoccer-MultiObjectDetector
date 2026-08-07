@@ -7,7 +7,8 @@ export TF_CPP_MIN_LOG_LEVEL=1
 # ====================
 
 SETTINGSFILES=(
-    "classifier/v0.yaml"
+    # "classifier/v0.yaml"
+    "classifier/v1.yaml"
 )
 
 for F in "${SETTINGSFILES[@]}"; do
