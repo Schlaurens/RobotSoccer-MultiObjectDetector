@@ -523,7 +523,7 @@ class EvaluateApplication:
             if name not in [
                 u_dataset.CategoryNames.INTERSECTIONS.value,
                 u_dataset.CategoryNames.ROBOT_BASE.value,
-            ]:  # Mutti-Class categories don't have a results patch axis.
+            ]:  # Multi-Class categories don't have a results patch axis.
                 self.images[f"im_ax_{name}_result"] = self.axes[f"ax_{name}_result"].imshow(
                     stuff_patch
                 )
