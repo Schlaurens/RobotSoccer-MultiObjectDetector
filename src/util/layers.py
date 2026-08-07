@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from util import camera as u_camera
+from . import camera as u_camera
 
 
 class Normalization(tf.keras.layers.Layer):
