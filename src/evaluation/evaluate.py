@@ -88,10 +88,10 @@ class EvaluateApplication:
             #     },
             # },
             "classifier": {
-                "ball": 1.0,
+                "ball": 0.0001,
                 "penaltyMark": 1.0,
                 "intersections": 0.9595959782600403,
-                "robotBase": 1.0,
+                "robotBase": 0.0001,
             },
         }
 
