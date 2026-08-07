@@ -38,6 +38,15 @@ def get_classifier(
             n_classes,
             with_offset,
         )
+    if classifier_architecture == "conv_v1":
+        return _get_classifier_conv_v1(
+            patch_size,
+            channels_in,
+            n_meta,
+            n_context,
+            n_classes,
+            with_offset,
+        )
     else:
         raise ValueError(f"Unknown classifier name: {classifier_architecture}")
 
@@ -71,9 +80,7 @@ def _get_common_classifier_output(x, n_classes, with_offset, inputs):
 
 
 # ========= Classifier Architectures =========
-def _get_classifier_conv_v0(
-    patch_size, channels_in, n_meta, n_context, n_classes, with_offset
-):
+def _get_classifier_conv_v0(patch_size, channels_in, n_meta, n_context, n_classes, with_offset):
     image = tf.keras.layers.Input((*patch_size, channels_in))
     inputs = [image]
     if n_meta > 0:
@@ -125,5 +132,57 @@ def _get_classifier_conv_v0(
     x = tf.keras.layers.Dense(32)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     x = tf.keras.layers.Dense(16)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    return _get_common_classifier_output(x, n_classes, with_offset, inputs)
+
+
+def _get_classifier_conv_v1(patch_size, channels_in, n_meta, n_context, n_classes, with_offset):
+    image = tf.keras.layers.Input((*patch_size, channels_in))
+    inputs = [image]
+    if n_meta > 0:
+        meta = tf.keras.layers.Input((n_meta,))
+        inputs += [meta]
+    if n_context > 0:
+        context = tf.keras.layers.Input((n_context,))
+        inputs += [context]
+
+    x = image
+
+    x = tf.keras.layers.Conv2D(32, 3, strides=2, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    # 4x4x48
+    x = tf.keras.layers.GlobalAveragePooling2D()(x)
+
+    if n_meta > 0:
+        x = tf.keras.layers.Concatenate()([x, meta])
+    if n_context > 0:
+        x = tf.keras.layers.Concatenate()([x, context])
+
+    x = tf.keras.layers.Dense(48)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Dense(32)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+    x = tf.keras.layers.Dense(24)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
     return _get_common_classifier_output(x, n_classes, with_offset, inputs)

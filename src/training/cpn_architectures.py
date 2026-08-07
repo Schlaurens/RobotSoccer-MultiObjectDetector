@@ -39,6 +39,10 @@ def get_cpn(
         return _get_cpn_conv_16x16_v1(
             height, width, category_names, n_context, channels_in, colorspace, **kwargs
         )
+    if cpn_architecture == "conv_16x16_v2":
+        return _get_cpn_conv_16x16_v2(
+            height, width, category_names, n_context, channels_in, colorspace, **kwargs
+        )
     else:
         raise ValueError(f"Unknown cpn name: {cpn_architecture}")
 
@@ -154,6 +158,61 @@ def _get_cpn_conv_16x16_v1(
 
     x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
     x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(64, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(64, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    return _get_common_cpn_output(x, category_names, n_context, image)
+
+
+def _get_cpn_conv_16x16_v2(
+    height: int,
+    width: int,
+    category_names: list[str],
+    n_context: int,
+    channels_in: int,
+    colorspace: str,
+):
+    image = tf.keras.layers.Input((height, width, channels_in))
+    x = image
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(24, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.Conv2D(
+        32, 3, strides=(2, 1) if colorspace == "yuyv" else (2, 2), padding="same", use_bias=True
+    )(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(32, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(48, 1, padding="same", use_bias=True)(x)
+    x = tf.keras.layers.ReLU(6.0)(x)
+
+    x = tf.keras.layers.DepthwiseConv2D(3, strides=1, padding="same", use_bias=False)(x)
+    x = tf.keras.layers.Conv2D(64, 1, padding="same", use_bias=True)(x)
     x = tf.keras.layers.ReLU(6.0)(x)
 
     x = tf.keras.layers.DepthwiseConv2D(3, strides=2, padding="same", use_bias=False)(x)
