@@ -1,68 +1,75 @@
 model:
-  encoder:
+  cpn:
     architecture: "conv_16x16_v1"
-    input_dims: [544, 448]
+    input_dims: [448, 544]
     cell_dims: [16, 16]
     n_context: 0
-    channels_in: 1
-    train_encoder: False
-    use_batch_norm: False
+    channels_in: 4
+    train_cpn: True
   classifier:
     architecture: "conv_v0"
     patch_size: [32, 32]
     n_meta: 0 # if 1 it's just the distance to the patch center
     with_offsets: True
     train_classifier: True
-    use_batch_norm: False
 
 training:
-  epochs: 2000
+  epochs: 400
   initial_epoch: 0
   batch_size: 32
   verbose: 1
   learning_rate: 0.001
   from_checkpoint: False # < when starting training from checkpoint
-  from_model: True # < when loading an existing model
+  from_model: False # < when loading an existing model
   load_checkpoint:
-    initial_epoch: 999
-    timestamp: "20260429-175416" 
-    encoder_only: False # < when only loading the encoder
+    initial_epoch: 183
+    timestamp: "20260312-114325" 
+    cpn_only: False # < when only loading the CPN
     verbose: True
   load_model:
-    timestamp: "20260507-165855"
-    filepath: "models/evaluation/cpn-grayscale/run_3"
-    encoder_only: True # < when only loading the encoder
+    timestamp: "20251027-123055"
+    filepath: "models/finished/"
+    cpn_only: True # < when only loading the CPN
     verbose: True
 
 categories:
   ball:
-    object_size: 0.175
+    object_size: 0.22
+    size_margin: 0.08
     padding: 0
-    object_height: 0.05
+    object_height: 0.11
     n_classes: 1
-    n_candidates: 4
+    n_candidates: 5
     max_distance: 9.0
-  penaltyMark:
-    object_size: 0.175
+  # penaltyMark:
+  #   object_size: 0.175
+  #   padding: 0
+  #   object_height: 0.0
+  #   n_classes: 1
+  #   n_candidates: 5
+  #   max_distance: 6.0
+  # intersections:
+  #   object_size: 0.2
+  #   padding: 0.2 # padding to avoid intersections being cut off by the patch edge
+  #   object_height: 0.0
+  #   n_classes: 4 # types + background class
+  #   n_candidates: 7
+  #   max_distance: 6.0 # the maximal distance between the object and the camera.
+  robotBase:
+    object_size: 0.6
+    size_margin: 0.0
     padding: 0
     object_height: 0.0
-    n_classes: 1
-    n_candidates: 4
-    max_distance: 9.0
-  intersections:
-    object_size: 0.2
-    padding: 0.2 # padding to avoid intersections being cut off by the patch edge
-    object_height: 0.0
-    n_classes: 4 # types + background class
+    n_classes: 3
     n_candidates: 10
-    max_distance: 9.0 # the maximal distance between the object and the camera.
+    max_distance: 9.0
 
 callbacks:
   reduce_lr:
     monitor: "val_total_loss"
     mode: "min"
-    factor: 0.85
-    patience: 50
+    factor: 0.9999999
+    patience: 25
     min_lr: 0.00001
   early_stopping:
     monitor: "val_total_loss"
