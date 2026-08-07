@@ -7,13 +7,10 @@ export TF_CPP_MIN_LOG_LEVEL=1
 # ====================
 
 SETTINGSFILES=(
-    "v0.yaml"
+    "classifier/v0.yaml"
 )
 
 for F in "${SETTINGSFILES[@]}"; do
-
-    F="cpn/$F"
-
     echo "Running with settings file: $F"
     uv run src/training/train.py "$F"
 done
