@@ -878,10 +878,10 @@ class FullModel(tf.keras.Model):
             coords = coords + noise
 
         if annotated_ball_radius is not None:
-            # (B, 1) -> (B, N_out), broadcast per-sample radius to every sampled patch
+            annotated_radius = tf.reshape(annotated_ball_radius, (-1, 1))  # ensure (B, 1)
             annotated_radius_px = tf.repeat(
-                annotated_ball_radius, tf.shape(coords)[1], axis=1
-            )  # (B, N_out), still in meters despite the name — projected inside extractor
+                annotated_radius, tf.shape(coords)[1], axis=1
+            )  # (B, N_out)
         else:
             annotated_radius_px = None
 

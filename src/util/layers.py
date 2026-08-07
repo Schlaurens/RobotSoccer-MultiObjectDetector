@@ -422,10 +422,11 @@ class PatchExtractor(tf.keras.layers.Layer):
         if object_size is None:
             object_size = tf.fill((B, N), tf.cast(self.object_size, tf.float32))
         else:
+            object_size = tf.reshape(object_size, (-1, 1))  # ensure (B, 1)
+            object_size = tf.repeat(object_size, N, axis=1)  # (B, 1) -> (B, N)
             object_size = tf.where(
                 object_size > 0.0, object_size, tf.cast(self.object_size, object_size.dtype)
             )
-
         object_size_flat = tf.reshape(object_size, (-1,))  # (B * N,)
 
         D_flat = tf.reshape(distances_in_camera, (-1,))  # (B * N,)
