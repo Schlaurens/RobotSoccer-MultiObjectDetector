@@ -15,7 +15,7 @@ def calculate_binary_metrics(
     predictions,
     groundtruth,
     classifier_threshold,
-    encoder_threshold,
+    cpn_threshold,
     padding,
     camera,
     intrinsics,
@@ -25,16 +25,16 @@ def calculate_binary_metrics(
     """Calculate y_pred. A binary tensor which is True if an object was detected in the sample and False if no object was detected.
 
     A prediction counts as positive if:
-        - the combined prediction (encoder prediction + classifier prediction) is greater-equal than the combined threshold (encoder_threshold + classifier_threshold)
+        - the combined prediction (cpn prediction + classifier prediction) is greater-equal than the combined threshold (cpn_threshold + classifier_threshold)
         - The predicted patch coordinates could be projected on the ground
         - If the predicted patch is actually over the object.
 
     Args:
         predictions: The model predictions.
         groundtruth: The corresponding groundtruth data.
-        encoder_threshold: The threshold of the encoder.
+        cpn_threshold: The threshold of the cpn.
         classifier_threshold: The threshold of the classifier.
-        include_encoder_logits: Whether the predicted probability of the encoder should be considered when getting the patch with the highest probility. Defaults to False
+        include_cpn_logits: Whether the predicted probability of the cpn should be considered when getting the patch with the highest probility. Defaults to False
 
     Returns:
         dict() containing confusion matrix, precision, recall, indices of false_positives and false_negatives, false_positive rate and false_negative rate
@@ -61,9 +61,7 @@ def calculate_binary_metrics(
     # Binary mask of the coords_true that are valid and inside the max_distance threshold.
     coords_true_distance_mask = coords_true_distances_valid <= max_distance
 
-    best_predictions = handle_predictions_binary(
-        predictions, encoder_threshold, classifier_threshold
-    )
+    best_predictions = handle_predictions_binary(predictions, cpn_threshold, classifier_threshold)
 
     # The best box of each sample
     best_box = tf.gather(
@@ -136,7 +134,7 @@ def calculate_multiclass_metrics(
     predictions: dict,
     groundtruth: dict,
     classifier_threshold: float,
-    encoder_threshold: float,
+    cpn_threshold: float,
     camera,
     intrinsics,
     max_distance,
@@ -147,14 +145,14 @@ def calculate_multiclass_metrics(
     Calculate metrics for multi-class predictions.
 
     A prediction counts as positive for a class if:
-        - The combined prediction (encoder + classifier) for that class is >= combined threshold
+        - The combined prediction (cpn + classifier) for that class is >= combined threshold
         - The predicted patch coordinates could be projected on the ground
         - The predicted patch is actually over the object.
 
     Args:
         predictions: The model predictions (logits and classification scores for each class).
         groundtruth: The corresponding groundtruth data (classification_mask to be converted to one-hot).        classifier_threshold: The threshold of the classifier.
-        encoder_threshold: The threshold of the encoder. Defaults to 0.1.
+        cpn_threshold: The threshold of the cpn. Defaults to 0.1.
         pooled: Whether the metrics should be calculated for each class or whether they should be pooled together. Defaults to False.
 
     Returns:
@@ -165,7 +163,7 @@ def calculate_multiclass_metrics(
     num_classes = tf.shape(predicted_probabilities)[-1]
     num_candidates = tf.shape(predicted_probabilities)[1]
     processed_predictions = handle_predictions_multiclass(
-        predictions, encoder_threshold, classifier_threshold, iou_threshold
+        predictions, cpn_threshold, classifier_threshold, iou_threshold
     )
     # y_true labels of extracted patches
     y_true_labels = tf.cast(
@@ -403,7 +401,7 @@ def calculate_metrics(
     groundtruth: dict,
     num_classes: int,
     classifier_threshold: float,
-    encoder_threshold: float,
+    cpn_threshold: float,
     treshold_mode: str,
     end_to_end: bool,
     camera,
@@ -418,7 +416,7 @@ def calculate_metrics(
             predictions,
             groundtruth,
             classifier_threshold,
-            encoder_threshold,
+            cpn_threshold,
             camera,
             intrinsics,
             max_distance,
@@ -432,7 +430,7 @@ def calculate_metrics(
             predictions,
             groundtruth,
             classifier_threshold,
-            encoder_threshold,
+            cpn_threshold,
             padding,
             camera,
             intrinsics,
@@ -445,30 +443,30 @@ def calculate_metrics(
 def get_thresholding_mask(
     classifier_preds: tf.Tensor,
     classifier_threshold: float,
-    encoder_preds: tf.Tensor = None,
-    encoder_threshold: float = None,
+    cpn_preds: tf.Tensor = None,
+    cpn_threshold: float = None,
 ):
-    """Generates a binary mask that is True everwhere the prediction is within the specified theshold. This function assumes that `classifier_preds` and `encoder_preds` are of the same shape. `encoder_preds` and `encoder_threshold` are optional.
+    """Generates a binary mask that is True everwhere the prediction is within the specified theshold. This function assumes that `classifier_preds` and `cpn_preds` are of the same shape. `cpn_preds` and `cpn_threshold` are optional.
 
     Args:
         classifier_preds: The tf.Tensor of the classifier preditions.
         classifier_threshold: The classifier threshold.
-        encoder_preds: The tf.Tensor containing the encoder thresholds. Defaults to None.
-        encoder_threshold: The encoder threshold. Default to None.
+        cpn_preds: The tf.Tensor containing the cpn thresholds. Defaults to None.
+        cpn_threshold: The cpn threshold. Default to None.
 
     Returns:
     The thresholding mask.
     """
     classifier_preds_thresholded = classifier_preds >= classifier_threshold  # (...)
 
-    if encoder_preds is not None and encoder_threshold is not None:
-        encoder_preds_thresholded = encoder_preds >= encoder_threshold  # (...)
+    if cpn_preds is not None and cpn_threshold is not None:
+        cpn_preds_thresholded = cpn_preds >= cpn_threshold  # (...)
     else:
-        encoder_preds_thresholded = tf.ones_like(classifier_preds_thresholded)
+        cpn_preds_thresholded = tf.ones_like(classifier_preds_thresholded)
 
-    tf.assert_equal(tf.shape(classifier_preds_thresholded), tf.shape(encoder_preds_thresholded))
+    tf.assert_equal(tf.shape(classifier_preds_thresholded), tf.shape(cpn_preds_thresholded))
 
-    combined_thresholds = tf.logical_and(classifier_preds_thresholded, encoder_preds_thresholded)
+    combined_thresholds = tf.logical_and(classifier_preds_thresholded, cpn_preds_thresholded)
 
     return combined_thresholds
 
@@ -648,7 +646,7 @@ def save_predictions(
     object_name: str,
     save_directory: str,
     classifier_threshold: float,
-    encoder_threshold: float,
+    cpn_threshold: float,
     nms_iou_threshold: float,
     image_res_scale: list[float],
 ) -> None:
@@ -660,7 +658,7 @@ def save_predictions(
         object_name: The object name
         save_directory: The directory where the .json file should be saved to
         classifier_threshold: The classifier threshold
-        encoder_threshold: The encoder_threshold
+        cpn_threshold: The cpn threshold
         nms_iou_threshold: The IoU Threshold used for the non-maximum-suppression
         nms_max_output_size: The max output size for the non-maximum-suppression. The nms used here is padded.
     """
@@ -679,7 +677,7 @@ def save_predictions(
     classifier_preds = tf.reduce_max(predictions["classification"], axis=-1)  # (B, N)
 
     processed_predictions = handle_predictions(
-        predictions, encoder_threshold, classifier_threshold, nms_iou_threshold
+        predictions, cpn_threshold, classifier_threshold, nms_iou_threshold
     )
 
     preds = []
@@ -759,12 +757,12 @@ def save_predictions(
 
 def handle_predictions_binary(
     predictions: dict,
-    encoder_threshold: float,
+    cpn_threshold: float,
     classifier_threshold: float,
 ) -> dict:
     """Processes binary predictions by applying thresholding to filter and classify candidates.
 
-    This function takes raw predictions from a model and applies thresholding based on classifier and encoder
+    This function takes raw predictions from a model and applies thresholding based on classifier and cpn
     confidence scores. It returns information about valid samples, the indices of the best candidates, and their
     corresponding confidence scores.
 
@@ -773,7 +771,7 @@ def handle_predictions_binary(
             - "classification": Tensor of shape (B, N) containing classification scores for each candidate.
             - "logits": Tensor containing logits for each candidate.
             - "patch_indices": Tensor containing indices of patches corresponding to each candidate.
-        encoder_threshold (float): Threshold for the encoder's confidence scores. Candidates with scores below this threshold are filtered out.
+        cpn_threshold (float): Threshold for the cpn's confidence scores. Candidates with scores below this threshold are filtered out.
         classifier_threshold (float): Threshold for the classifier's confidence scores. Candidates with scores below this threshold are filtered out.
 
     Returns:
@@ -781,7 +779,7 @@ def handle_predictions_binary(
             - "valid_samples": Tensor of shape (B,) indicating whether each sample contains at least one valid candidate.
             - "threshold_mask": Tensor of shape (B,) indicating whether the best candidate for each sample passed the thresholding criteria.
             - "best_candidate_indices": Tensor of shape (B,) containing the indices of the best candidates.
-            - "encoder_confidences": Tensor of shape (B,) containing the encoder confidence scores for the best candidates.
+            - "cpn_confidences": Tensor of shape (B,) containing the cpn confidence scores for the best candidates.
             - "classifier_confidences": Tensor of shape (B,) containing the classifier confidence scores for the best candidates.
     """
     best_logits = tf.gather(
@@ -791,7 +789,7 @@ def handle_predictions_binary(
 
     # Candidates that pass the threshold(s)
     combined_threshold_mask = get_thresholding_mask(
-        classification_scores, classifier_threshold, best_logits, encoder_threshold
+        classification_scores, classifier_threshold, best_logits, cpn_threshold
     )  # (B, N)
 
     # If the classification_scores are invalid because of the threshold, they are tf.float32.min !
@@ -809,7 +807,7 @@ def handle_predictions_binary(
     )  # (B, )
 
     threshold_mask = tf.gather(combined_threshold_mask, best_score_index, batch_dims=1)  # (B, )
-    encoder_confidences = tf.gather(best_logits, best_score_index, batch_dims=1)  # (B, )
+    cpn_confidences = tf.gather(best_logits, best_score_index, batch_dims=1)  # (B, )
     classifier_confidences = tf.gather(
         classification_scores, best_score_index, batch_dims=1
     )  # (B, )
@@ -818,20 +816,20 @@ def handle_predictions_binary(
         "valid_samples": valid_samples,
         "threshold_mask": threshold_mask,
         "best_candidate_indices": best_score_index,
-        "encoder_confidences": encoder_confidences,
+        "cpn_confidences": cpn_confidences,
         "classifier_confidences": classifier_confidences,
     }
 
 
 def handle_predictions_multiclass(
     predictions: dict,
-    encoder_threshold: float,
+    cpn_threshold: float,
     classifier_threshold: float | dict,
     iou_threshold: float = None,
 ) -> dict:
     """Processes multiclass predictions by applying thresholding and non-maximum suppression to filter and classify candidates.
 
-    This function takes raw predictions from a model and applies thresholding based on classifier and encoder
+    This function takes raw predictions from a model and applies thresholding based on classifier and cpn
     confidence scores. If specified, it also applies non-maximum suppression to limit the number of output candidates
     per batch based on their intersection-over-union (IoU) overlap and confidence scores.
 
@@ -839,9 +837,9 @@ def handle_predictions_multiclass(
         predictions (dict): A dictionary containing model predictions with the following keys:
             - "classification": Tensor of shape (B, N, num_classes) containing classification logits for each candidate.
             - "boxes": Tensor of shape (B, N, 4) containing bounding box coordinates for each candidate.
-            - "logits": Tensor containing encoder logits for each candidate.
-            - "patch_indices": Tensor containing encoder indices of patches corresponding to each candidate.
-        encoder_threshold (float): Threshold for the encoder's confidence scores. Candidates with scores below this threshold are filtered out.
+            - "logits": Tensor containing cpn logits for each candidate.
+            - "patch_indices": Tensor containing cpn indices of patches corresponding to each candidate.
+        cpn_threshold (float): Threshold for the cpn's confidence scores. Candidates with scores below this threshold are filtered out.
         classifier_threshold (float | dict): Threshold for the classifier's confidence scores. Candidates with scores below this threshold are filtered out.
         iou_threshold (float, optional): Intersection-over-union (IoU) threshold for non-maximum suppression. Candidates with an IoU overlap greater than this threshold are suppressed. If None, non-maximum suppression is not applied.
 
@@ -919,8 +917,8 @@ def handle_predictions_multiclass(
 
     threshold_mask = max_class_scores >= tf.cast(per_candidate_threshold, tf.float32)  # (B, N)
 
-    if encoder_threshold is not None:
-        best_logits_mask = best_logits >= encoder_threshold
+    if cpn_threshold is not None:
+        best_logits_mask = best_logits >= cpn_threshold
         threshold_mask = threshold_mask & best_logits_mask
 
     masked_scores = tf.where(threshold_mask, y_pred_labels, 0)  # (B, N)
@@ -933,7 +931,7 @@ def handle_predictions_multiclass(
 
 
 def handle_predictions(
-    predictions: dict, encoder_threshold: float, classifier_threshold: float, iou_threshold: float
+    predictions: dict, cpn_threshold: float, classifier_threshold: float, iou_threshold: float
 ):
     """A wrapper function that processes predictions based on the number of classes in the classification tensor.
 
@@ -943,7 +941,7 @@ def handle_predictions(
 
     Args:
         predictions (dict): A dictionary containing model predictions
-        encoder_threshold (float): Threshold for the encoder's confidence scores.
+        cpn_threshold (float): Threshold for the cpn's confidence scores.
             Candidates with scores below this threshold are filtered out.
         classifier_threshold (float): Threshold for the classifier's confidence scores.
             Candidates with scores below this threshold are filtered out.
@@ -972,17 +970,17 @@ def handle_predictions(
             - "valid_samples": Tensor indicating whether each sample contains at least one valid candidate.
             - "threshold_mask": Tensor indicating whether the best candidate for each sample passed the thresholding criteria.
             - "best_candidate_indices": Tensor containing the indices of the best candidates.
-            - "encoder_confidences": Tensor containing the encoder confidence scores for the best candidates.
+            - "cpn_confidences": Tensor containing the cpn confidence scores for the best candidates.
             - "classifier_confidences": Tensor containing the classifier confidence scores for the best candidates.
     """
     num_classes = tf.shape(predictions["classification"])[-1]
 
     if num_classes > 1:
         return handle_predictions_multiclass(
-            predictions, encoder_threshold, classifier_threshold, iou_threshold
+            predictions, cpn_threshold, classifier_threshold, iou_threshold
         )
     elif num_classes == 1:
-        return handle_predictions_binary(predictions, encoder_threshold, classifier_threshold)
+        return handle_predictions_binary(predictions, cpn_threshold, classifier_threshold)
     else:
         raise ValueError(
             "Unknown number of classes. Classification Tensor in predictions probably has no num_classes dimension."
