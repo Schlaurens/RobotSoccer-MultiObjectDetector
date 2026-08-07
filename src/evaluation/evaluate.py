@@ -349,7 +349,6 @@ class EvaluateApplication:
                 # axes.plot(*coords_pred, "rx")
                 # axes.plot(*(position_pred / self.dataset_utils.config.image_res_scale[::-1]), "bx")
 
-                print("pred:", *(position_pred / self.dataset_utils.config.image_res_scale[::-1]))
                 # axes.plot(*(position_pred), "bx")
 
             coords_true = self.dataset_utils.get_coords_from_offsets(
@@ -359,7 +358,6 @@ class EvaluateApplication:
                 if tf.reduce_all(c_true == -1.0):
                     continue
                 axes.plot(*c_true / self.dataset_utils.config.image_res_scale[::-1], "gx")
-                print("true:", *c_true / self.dataset_utils.config.image_res_scale[::-1])
 
     def image_slider_changed(self, val):
         self.index = int(val)
