@@ -9,6 +9,7 @@ import tensorflow as tf
 
 from . import dataset as u_dataset
 from . import image as u_image
+from . import labels as u_labels
 
 
 def get_label_path(directory: str) -> str:
@@ -194,6 +195,7 @@ def get_dataset(directory: str, dataset_utils: u_dataset.DatasetUtils) -> tf.dat
         "camera": tf.io.FixedLenFeature([], tf.string),
         "intrinsics": tf.io.FixedLenFeature([], tf.string),
         "ball_size": tf.io.FixedLenFeature([], tf.string),
+        "annotated_ball_radius": tf.io.FixedLenFeature([], tf.string),
         "object_ball": tf.io.FixedLenFeature([], tf.string),
         "offsets_ball": tf.io.FixedLenFeature([], tf.string),
         "loss_mask_ball": tf.io.FixedLenFeature([], tf.string),
@@ -246,6 +248,12 @@ def get_dataset(directory: str, dataset_utils: u_dataset.DatasetUtils) -> tf.dat
                 tf.io.parse_tensor(serialized_tensor["ball_size"], out_type=tf.float32), []
             ),
             "ball": {
+                "annotated_radius": tf.ensure_shape(
+                    tf.io.parse_tensor(
+                        serialized_tensor["annotated_ball_radius"], out_type=tf.float32
+                    ),
+                    [],
+                ),
                 "object_mask": tf.ensure_shape(
                     tf.io.parse_tensor(serialized_tensor["object_ball"], out_type=tf.float32),
                     output_dims,
@@ -398,6 +406,9 @@ def get_sample_at_index(batched_data: dict[str, tf.Tensor], index: int, keep_bat
     result.update(
         {
             category: {
+                "annotated_radius": maybe_batch_dim(batched_data[category]["annotated_radius"])
+                if category == u_dataset.CategoryNames.BALL.value
+                else None,
                 "object_mask": maybe_batch_dim(batched_data[category]["object_mask"]),
                 "offset_mask": maybe_batch_dim(batched_data[category]["offset_mask"]),
                 "loss_mask": maybe_batch_dim(batched_data[category]["loss_mask"]),
@@ -552,6 +563,22 @@ def make_example(
             ]
             if from_sample
             else [tf.io.serialize_tensor(tf.constant(label["ball_size"], dtype=tf.float32)).numpy()]
+        )
+    )
+    annotated_ball_radius_feature = tf.train.Feature(
+        bytes_list=tf.train.BytesList(
+            value=[
+                tf.io.serialize_tensor(sample["ball"]["annotated_radius"]).numpy(),
+            ]
+            if from_sample
+            else [
+                tf.io.serialize_tensor(
+                    tf.constant(
+                        label["ball"]["radius"] if u_labels.has_ball(label) else 0.0,
+                        dtype=tf.float32,
+                    )
+                ).numpy(),
+            ]
         )
     )
     object_feature_ball = tf.train.Feature(
@@ -788,6 +815,7 @@ def make_example(
             "intrinsics": intrinsics_feature,
             "ball_size": ball_size_feature,
             # ball
+            "annotated_ball_radius": annotated_ball_radius_feature,
             "object_ball": object_feature_ball,
             "offsets_ball": offset_feature_ball,
             "loss_mask_ball": loss_mask_feature_ball,
