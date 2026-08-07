@@ -262,7 +262,9 @@ class EvaluateApplication:
             f"cla.: {processed_predictions['classifier_confidences'][0].numpy():.3f}",
             color="lime",
         )
-        return axes.imshow(u_image.convert_yuv_to_rgb(output["patches"][0][best_score_index][..., 0:3]))
+        return axes.imshow(
+            u_image.convert_yuv_to_rgb(output["patches"][0][best_score_index][..., 0:3])
+        )
 
     def remove_artists(self):
         """Remove all the Artists (texts, patches and lines) for all the axes."""
