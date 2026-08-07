@@ -414,57 +414,6 @@ class DatasetUtils:
         width = self.config.output_dims[1]
         return cell_indices[..., 1] * width + cell_indices[..., 0]
 
-    # def _generate_object_mask(self, object_name, label, cells):
-    #     """Generate the binary object_mask using the cell coverage values for each object_category.
-
-    #     ===== Work in Progress =====
-
-    #     If the IoU value of the object and the cell is greater than a specified threshold, that cell is marked with a 1.0. And
-    #     0.0 otherwise.
-
-    #     Args:
-    #         object_name: _description_
-    #         label: _description_
-    #     """
-
-    #     def _get_threshold(distance, min_threshold=0.1, max_threshold=0.75):
-    #         # Do some linear interpolation for the threshold
-    #         pass
-
-    #     # Generate object_mask for ball
-    #     if object_name == "ball":
-    #         # Geometry object of the ball
-    #         ball = Point([label[object_name]["x"], label[object_name]["y"]]).buffer(
-    #             label[object_name]["radius"], 128
-    #         )
-
-    #         # All cells from the cell grid as shapely polygons
-    #         cell_polygons = [
-    #             Polygon(
-    #                 (
-    #                     (coords[0], coords[1]),
-    #                     (coords[0], coords[1] + 32),
-    #                     (coords[0] + 32, coords[1] + 32),
-    #                     (coords[0] + 32, coords[1]),
-    #                 )
-    #             )
-    #             for coords in cells.numpy().reshape(-1, 2)
-    #         ]
-
-    #         intersections = np.array([ball.intersection(p).area for p in cell_polygons]).reshape(15, 20)
-    #         # unions = np.array([ball.union(p).area for p in polygons]).reshape(15, 20)
-    #         cell_areas = np.array([p.area for p in cell_polygons]).reshape(15, 20)
-
-    #         cell_coverage = np.divide(intersections, cell_areas)
-    #         print(cell_coverage)
-
-    #         # if the ball is inside any of the cells, then the object_mask is 1.0
-    #         return cell_coverage > 0
-
-    #     # Generate object_mask for penaltyMark
-    #     if object_name == "penaltyMark":
-    #         pass
-
     def _generate_loss_mask(self, object_mask: tf.Tensor | np.ndarray):
         """Generate a binary mask that is 0 in each cell where the loss function should be ignored and 1 everywhere else
 
