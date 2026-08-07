@@ -33,13 +33,14 @@ def are_coords_in_patch(coords: tf.Tensor, boxes: tf.Tensor, padding: float = 0.
         tf.constant([True], dtype=tf.bool),
         tf.constant([False], dtype=tf.bool),
     )  # [B, ..., ]
-    
+
+
 def patch_coords_to_image_coords(
-    patch_dims,          # (2,)       — patch size (H_out, W_out)
-    pixel_size,          # (B, N, 2)  — one patch pixel in image space
-    patch_coords,        # (B, N, 2)  — coordinates on the patch
-    image_coords,        # (B, N, 2)  — center of each patch in image coordinates
-) -> tf.Tensor:          # (B, N, 2)
+    patch_dims,  # (2,)       — patch size (H_out, W_out)
+    pixel_size,  # (B, N, 2)  — one patch pixel in image space
+    patch_coords,  # (B, N, 2)  — coordinates on the patch
+    image_coords,  # (B, N, 2)  — center of each patch in image coordinates
+) -> tf.Tensor:  # (B, N, 2)
 
     patch_dims = tf.cast(patch_dims, tf.float32)
     patch_coords = tf.cast(patch_coords, tf.float32)
@@ -47,10 +48,10 @@ def patch_coords_to_image_coords(
     pixel_size = tf.cast(pixel_size, tf.float32)
 
     # (2,) — center of patch in patch space
-    patch_center = (patch_dims - 1 ) / 2.0  
+    patch_center = (patch_dims - 1) / 2.0
 
     # (B, N, 2) — offset from patch center
-    delta = patch_coords - patch_center  
+    delta = patch_coords - patch_center
 
     # (B, N, 2) — map back to image space
     return image_coords + delta * tf.expand_dims(pixel_size, -1)
