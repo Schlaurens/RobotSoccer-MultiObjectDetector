@@ -1,4 +1,3 @@
 /groundtruth_raw
 /prelabeled
 statistics.yaml
-/tfrecords
