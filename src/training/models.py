@@ -209,7 +209,8 @@ class FullModel(tf.keras.Model):
         # Normalize coords to the image dimensions. Because the boxes coords are also normalized.
         # Switch axes of full_image_size because: coords_true (x, y), full_image_size (y, x)
         coords_true_normalized = (
-            coords_true_of_patches / self.full_image_size[::-1][tf.newaxis, :]
+            coords_true_of_patches
+            / tf.constant(self.dataset_config.input_dims[::-1], tf.float32)[tf.newaxis, :]
         )  # (B, N, 2)
 
         # Check whether the object coordinates are inside their respective patches.
