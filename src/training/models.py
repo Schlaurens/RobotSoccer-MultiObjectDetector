@@ -752,7 +752,9 @@ class FullModel(tf.keras.Model):
         camera = batch_data["camera"]
         intrinsics = batch_data["intrinsics"]
         ball_size = batch_data["ball_size"]
-        annotated_ball_radius = batch_data[u_dataset.CategoryNames.BALL.value]["annotated_radius"] if training else None
+        annotated_ball_radius = (
+            batch_data[u_dataset.CategoryNames.BALL.value]["annotated_radius"] if training else None
+        )
 
         image_grayscale = u_image.convert_yuyv_to_yuv(full_image)[..., 0:1]  # (B, W_in, H_in, 1)
 
