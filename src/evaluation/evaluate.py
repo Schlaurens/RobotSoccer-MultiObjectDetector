@@ -348,7 +348,7 @@ class EvaluateApplication:
                     )
             else:
                 axes.add_patch(rect)
-                # axes.plot(*coords_pred, "rx")
+                axes.plot(*coords_pred, "rx")
                 # axes.plot(*(position_pred / self.dataset_utils.config.image_res_scale[::-1]), "bx")
 
                 # axes.plot(*(position_pred), "bx")
